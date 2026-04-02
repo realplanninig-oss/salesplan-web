@@ -12,7 +12,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 load_dotenv()
 
@@ -211,8 +211,10 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
             update_report_status(report_id, 'ready', str(filepath))
+            logger.info(f"Premium report generated for {user_id}")
         else:
             update_report_status(report_id, 'failed')
+            logger.error(f"DeepSeek error: {response.status_code}")
     except Exception as e:
         update_report_status(report_id, 'failed')
         logger.error(f"Premium report error: {e}")
@@ -223,7 +225,6 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
-# HTML шаблон без использования .format для подстановки переменных
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -313,10 +314,7 @@ async def survey_submit(
 
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
-    report = get_report(user_id, "free")
-    report_text = report['text'] if report else 'Диагностика временно недоступна'
-    formatted_text = report_text.replace("\n", "<br>")
-    content = f'<div class="hero"><h1>Ваша диагностика готова</h1></div><div class="form-card"><div style="background:#f5f5f7;padding:20px;border-radius:20px;margin-bottom:20px;white-space:pre-wrap;font-size:14px">{formatted_text}</div><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/free" class="btn">Скачать диагностику (.txt)</a></div><hr><h2>Что дальше?</h2><p>Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p><p><strong>Я Вероника, продюсер экспертов. За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</strong></p><div style="margin:20px 0;background:#f5f5f7;padding:20px;border-radius:20px"><p><strong>Эксперт по китайскому</strong> — без блога, только таргет и бот, заработала 120 000 ₽ за 2 недели</p><p><strong>Психолог Елена</strong> — 7 клиентов за 2 недели, доход с 0 до 180 000 ₽</p><p><strong>Мастер Фен Шуй</strong> — первый запуск принес 195 000 ₽ при рекламе 30 000 ₽</p><p><strong>Онлайн-школа</strong> — 2 000 000 ₽ за 2 недели через марафон в ВК</p></div><h3>В детальном плане продаж:</h3><ul><li>Разбор 5 конкурентов</li><li>Готовая воронка под ваш бизнес</li><li>Пошаговый план запуска продаж на месяц</li><li>Скрипты для продаж</li></ul><p><strong>Только сейчас — специальная цена 490 ₽ вместо 990 ₽. Предложение действует 24 часа.</strong></p><form action="/payment/create" method="post" style="margin-top:30px"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group"><label>Оставьте ваш номер телефона — я пришлю ссылку на оплату:</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required></div><div style="text-align:center"><button type="submit" class="btn">Получить доступ к плану</button></div><p style="text-align:center;font-size:14px;margin-top:15px">Никакого спама. Только план продаж и бонусы.</p></form></div>'
+    content = f'<div class="hero"><h1>Ваша диагностика готова</h1></div><div class="form-card"><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/free" class="btn">Скачать диагностику (.txt)</a></div><hr><h2>Что дальше?</h2><p>Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p><p><strong>Я Вероника, продюсер экспертов. За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</strong></p><div style="margin:20px 0;background:#f5f5f7;padding:20px;border-radius:20px"><p><strong>Эксперт по китайскому</strong> — без блога, только таргет и бот, заработала 120 000 ₽ за 2 недели</p><p><strong>Психолог Елена</strong> — 7 клиентов за 2 недели, доход с 0 до 180 000 ₽</p><p><strong>Мастер Фен Шуй</strong> — первый запуск принес 195 000 ₽ при рекламе 30 000 ₽</p><p><strong>Онлайн-школа</strong> — 2 000 000 ₽ за 2 недели через марафон в ВК</p></div><h3>В детальном плане продаж:</h3><ul><li>Разбор 5 конкурентов</li><li>Готовая воронка под ваш бизнес</li><li>Пошаговый план запуска продаж на месяц</li><li>Скрипты для продаж</li></ul><p><strong>Только сейчас — специальная цена 490 ₽ вместо 990 ₽. Предложение действует 24 часа.</strong></p><form action="/payment/create" method="post" style="margin-top:30px"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group"><label>Оставьте ваш номер телефона — я пришлю ссылку на оплату:</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required></div><div style="text-align:center"><button type="submit" class="btn">Получить доступ к плану</button></div><p style="text-align:center;font-size:14px;margin-top:15px">Никакого спама. Только план продаж и бонусы.</p></form></div>'
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
@@ -351,7 +349,7 @@ async def payment_success(user_id: str):
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
         content = f'<div class="hero"><h1>Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж генерируется. Это займет около 5 минут.</p><p><a href="/payment/check/{user_id}" class="btn">Проверить статус</a></p></div>'
     else:
-        premium_text = "План продаж для вашего бизнеса\n\n1. ОЦЕНКА СИТУАЦИИ\n2. АНАЛИЗ КОНКУРЕНТОВ\n3. ВОРОНКА ПРОДАЖ\n4. ПЛАН ДЕЙСТВИЙ"
+        premium_text = f"План продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
         save_report(user_id, "premium", premium_text)
         content = f'<div class="hero"><h1>Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж готов к скачиванию:</p><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/premium" class="btn">Скачать план продаж (.txt)</a></div><hr><h2>Хотите разобрать план вместе со мной?</h2><p>Я предлагаю 30-минутный разбор твоего плана: найду ТВОЁ одно действие, которое принесёт деньги прямо сейчас.</p><div style="text-align:center;margin-top:20px"><a href="/consultation?user_id={user_id}" class="btn">Записаться на разбор</a></div></div>'
     return HTMLResponse(content=render_page(content))
@@ -382,10 +380,19 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...)):
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
     report = get_report(user_id, report_type)
-    if not report or not report["text"]:
+    if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    
+    report_text = report.get("text")
+    if not report_text:
+        raise HTTPException(status_code=404, detail="Report text is empty")
+    
     filename = f"{report_type}_{user_id}.txt"
-    return Response(content=report["text"], media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={filename}"})
+    return Response(
+        content=report_text,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 if __name__ == "__main__":
     import uvicorn
