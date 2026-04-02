@@ -223,12 +223,13 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
-HTML_TEMPLATE = """<!DOCTYPE html>
+# HTML шаблон без использования .format для подстановки переменных
+HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} | Salesplan</title>
+    <title>Salesplan</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;background:#fff;color:#1d1d1f}
@@ -255,11 +256,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
         @media (max-width:700px){.hero h1{font-size:32px}.hero p{font-size:16px}.form-card{padding:20px}}
     </style>
-    <script>function ym(){}</script>
 </head>
 <body>
 <div class="container">
-    {content}
+"""
+HTML_FOOT = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер экспертов</p>
         <div class="social-links">
@@ -274,18 +275,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </body>
 </html>"""
 
-def render_page(content: str, title: str = "Salesplan"):
-    return HTML_TEMPLATE.format(title=title, content=content)
+def render_page(content: str):
+    return HTML_HEAD + content + HTML_FOOT
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
     content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
-    return HTMLResponse(content=render_page(content, "Главная"))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = '<div class="hero"><h1>Расскажите о вашем бизнесе — 2 минуты</h1><p>Анализируем данные — диагностика будет готова через 60 секунд</p></div><div class="form-card"><form action="/survey/submit" method="post"><div class="form-group"><label>1. Название бизнеса</label><input type="text" name="business_name" required></div><div class="form-group"><label>2. Короткое описание (чем занимаетесь, кому помогаете)</label><textarea name="business_description" rows="3" required></textarea></div><div class="form-group"><label>3. Что вы продаёте?</label><div class="radio-group"><label><input type="radio" name="q1" value="Услугу" required> Услугу</label><label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label><label><input type="radio" name="q1" value="Консультацию"> Консультацию</label><label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label></div></div><div class="form-group"><label>4. Средний чек (₽)</label><div class="radio-group"><label><input type="radio" name="q2" value="до 5k" required> до 5k</label><label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label><label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label><label><input type="radio" name="q2" value=">50k"> >50k</label></div></div><div class="form-group"><label>5. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q3" value="<10" required> меньше 10</label><label><input type="radio" name="q3" value="10-50"> 10-50</label><label><input type="radio" name="q3" value="50-200"> 50-200</label><label><input type="radio" name="q3" value=">200"> более 200</label></div></div><div class="form-group"><label>6. Цель на 2026</label><div class="radio-group"><label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q4" value="Масштаб"> Масштаб</label></div></div><div class="form-group"><label>7. Уже есть автоворонка?</label><div class="radio-group"><label><input type="radio" name="q5" value="Да" required> Да</label><label><input type="radio" name="q5" value="Нет"> Нет</label><label><input type="radio" name="q5" value="В разработке"> В разработке</label></div></div><div style="text-align:center"><button type="submit" class="btn">Получить диагностику</button></div></form></div>'
-    return HTMLResponse(content=render_page(content, "Опрос"))
+    return HTMLResponse(content=render_page(content))
 
 @app.post("/survey/submit")
 async def survey_submit(
@@ -316,7 +317,7 @@ async def diagnostic(user_id: str):
     report_text = report['text'] if report else 'Диагностика временно недоступна'
     formatted_text = report_text.replace("\n", "<br>")
     content = f'<div class="hero"><h1>Ваша диагностика готова</h1></div><div class="form-card"><div style="background:#f5f5f7;padding:20px;border-radius:20px;margin-bottom:20px;white-space:pre-wrap;font-size:14px">{formatted_text}</div><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/free" class="btn">Скачать диагностику (.txt)</a></div><hr><h2>Что дальше?</h2><p>Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p><p><strong>Я Вероника, продюсер экспертов. За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</strong></p><div style="margin:20px 0;background:#f5f5f7;padding:20px;border-radius:20px"><p><strong>Эксперт по китайскому</strong> — без блога, только таргет и бот, заработала 120 000 ₽ за 2 недели</p><p><strong>Психолог Елена</strong> — 7 клиентов за 2 недели, доход с 0 до 180 000 ₽</p><p><strong>Мастер Фен Шуй</strong> — первый запуск принес 195 000 ₽ при рекламе 30 000 ₽</p><p><strong>Онлайн-школа</strong> — 2 000 000 ₽ за 2 недели через марафон в ВК</p></div><h3>В детальном плане продаж:</h3><ul><li>Разбор 5 конкурентов</li><li>Готовая воронка под ваш бизнес</li><li>Пошаговый план запуска продаж на месяц</li><li>Скрипты для продаж</li></ul><p><strong>Только сейчас — специальная цена 490 ₽ вместо 990 ₽. Предложение действует 24 часа.</strong></p><form action="/payment/create" method="post" style="margin-top:30px"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group"><label>Оставьте ваш номер телефона — я пришлю ссылку на оплату:</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required></div><div style="text-align:center"><button type="submit" class="btn">Получить доступ к плану</button></div><p style="text-align:center;font-size:14px;margin-top:15px">Никакого спама. Только план продаж и бонусы.</p></form></div>'
-    return HTMLResponse(content=render_page(content, "Диагностика"))
+    return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
 async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
@@ -329,7 +330,7 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str):
     content = f'<div class="hero"><h1>План продаж — 490 ₽</h1></div><div class="form-card"><h3>Что вы получите:</h3><ul><li>Разбор 5 конкурентов</li><li>Готовую воронку продаж</li><li>Пошаговый план запуска продаж на месяц</li><li>Скрипты для продаж</li></ul><div style="text-align:center;margin:30px 0"><a href="{PAYMENT_URL}" target="_blank" class="btn">Оплатить 490 ₽</a></div><hr><div style="text-align:center"><p>Уже оплатили?</p><a href="/payment/success?user_id={user_id}" class="btn" style="margin-top:16px">Я оплатил(а) — получить план</a></div></div>'
-    return HTMLResponse(content=render_page(content, "Оплата"))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
@@ -353,7 +354,7 @@ async def payment_success(user_id: str):
         premium_text = "План продаж для вашего бизнеса\n\n1. ОЦЕНКА СИТУАЦИИ\n2. АНАЛИЗ КОНКУРЕНТОВ\n3. ВОРОНКА ПРОДАЖ\n4. ПЛАН ДЕЙСТВИЙ"
         save_report(user_id, "premium", premium_text)
         content = f'<div class="hero"><h1>Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж готов к скачиванию:</p><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/premium" class="btn">Скачать план продаж (.txt)</a></div><hr><h2>Хотите разобрать план вместе со мной?</h2><p>Я предлагаю 30-минутный разбор твоего плана: найду ТВОЁ одно действие, которое принесёт деньги прямо сейчас.</p><div style="text-align:center;margin-top:20px"><a href="/consultation?user_id={user_id}" class="btn">Записаться на разбор</a></div></div>'
-    return HTMLResponse(content=render_page(content, "Успех"))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/payment/check/{user_id}", response_class=HTMLResponse)
 async def payment_check(user_id: str):
@@ -364,19 +365,19 @@ async def payment_check(user_id: str):
         content = f'<div class="hero"><h1>План генерируется</h1></div><div class="form-card"><p>Пожалуйста, обновите страницу через минуту.</p><div style="text-align:center;margin:20px 0"><a href="/payment/check/{user_id}" class="btn">Обновить</a></div></div>'
     else:
         content = '<div class="hero"><h1>Ошибка</h1></div><div class="form-card"><a href="/" class="btn">На главную</a></div>'
-    return HTMLResponse(content=render_page(content, "Проверка"))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
     content = f'<div class="hero"><h1>Разбор плана продаж — 30 минут</h1></div><div class="form-card"><p>Оставьте заявку — я свяжусь с вами по телефону, который вы указали.</p><form action="/consultation/submit" method="post"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group"><label>Удобное время для созвона (по Москве)</label><input type="text" name="time" placeholder="например: завтра в 15:00" required></div><div style="text-align:center"><button type="submit" class="btn">Отправить заявку</button></div></form></div>'
-    return HTMLResponse(content=render_page(content, "Консультация"))
+    return HTMLResponse(content=render_page(content))
 
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...)):
     save_consultation(user_id, time)
     send_telegram_message(f"Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}")
     content = '<div class="hero"><h1>Заявка принята!</h1></div><div class="form-card"><p>Я свяжусь с вами в ближайшее время.</p><div style="text-align:center;margin-top:20px"><a href="/" class="btn">На главную</a></div></div>'
-    return HTMLResponse(content=render_page(content, "Заявка принята"))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
