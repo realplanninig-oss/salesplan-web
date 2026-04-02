@@ -1,7 +1,4 @@
 # File: main.py — веб-приложение Salesplan
-# План запуска продаж для онлайн-бизнеса
-# Яндекс.Метрика: 108348240
-# Оплата через ЮKassa (прямая ссылка, без вебхука)
 
 import logging
 import sqlite3
@@ -18,14 +15,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 load_dotenv()
 
-# === КОНФИГУРАЦИЯ ===
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Для уведомлений
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
-
-# Ссылка на оплату
 PAYMENT_URL = "https://yookassa.ru/my/i/ac4jwv2G_TJt/l"
 
-# === НАСТРОЙКА ЛОГИРОВАНИЯ ===
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
 
@@ -39,71 +32,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# === БАЗА ДАННЫХ ===
 DB_PATH = "salesplan.db"
 REPORTS_DIR = Path("./reports")
 REPORTS_DIR.mkdir(exist_ok=True)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id TEXT PRIMARY KEY,
-            phone TEXT,
-            name TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS business_data (
-            user_id TEXT PRIMARY KEY,
-            business_name TEXT,
-            business_description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS forms (
-            user_id TEXT PRIMARY KEY,
-            q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT,
-            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            report_type TEXT NOT NULL,
-            report_text TEXT,
-            file_path TEXT,
-            status TEXT DEFAULT 'ready',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            ready_at TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS consultations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            time TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            phone TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, phone TEXT, name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS business_data (user_id TEXT PRIMARY KEY, business_name TEXT, business_description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'ready', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.commit()
     conn.close()
 
 init_db()
-
-def get_moscow_time():
-    return datetime.utcnow() + timedelta(hours=3)
 
 def format_phone(phone: str) -> str:
     digits = re.sub(r'\D', '', phone)
@@ -115,272 +59,114 @@ def format_phone(phone: str) -> str:
 
 def save_user(user_id: str, phone: str, name: str = None):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT OR REPLACE INTO users (user_id, phone, name) VALUES (?, ?, ?)",
-        (user_id, phone, name)
-    )
+    conn.execute("INSERT OR REPLACE INTO users (user_id, phone, name) VALUES (?, ?, ?)", (user_id, phone, name))
     conn.commit()
     conn.close()
 
 def save_business_data(user_id: str, name: str, description: str):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT OR REPLACE INTO business_data (user_id, business_name, business_description) VALUES (?, ?, ?)",
-        (user_id, name, description)
-    )
+    conn.execute("INSERT OR REPLACE INTO business_data (user_id, business_name, business_description) VALUES (?, ?, ?)", (user_id, name, description))
     conn.commit()
     conn.close()
 
 def get_business_data(user_id: str):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute(
-        "SELECT business_name, business_description FROM business_data WHERE user_id = ?",
-        (user_id,)
-    )
+    cursor = conn.execute("SELECT business_name, business_description FROM business_data WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     return {"name": row[0], "description": row[1]} if row else None
 
 def save_form(user_id: str, answers: dict):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT OR REPLACE INTO forms (user_id, q1, q2, q3, q4, q5, q6, q7) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (user_id, answers.get("q1"), answers.get("q2"), answers.get("q3"), answers.get("q4"), answers.get("q5"), answers.get("q6"), answers.get("q7"))
-    )
+    conn.execute("INSERT OR REPLACE INTO forms (user_id, q1, q2, q3, q4, q5, q6, q7) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (user_id, answers.get("q1"), answers.get("q2"), answers.get("q3"), answers.get("q4"), answers.get("q5"), answers.get("q6"), answers.get("q7")))
     conn.commit()
     conn.close()
 
 def save_report(user_id: str, report_type: str, report_text: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT INTO reports (user_id, report_type, report_text, file_path, status) VALUES (?, ?, ?, ?, 'ready')",
-        (user_id, report_type, report_text, file_path)
-    )
+    conn.execute("INSERT INTO reports (user_id, report_type, report_text, file_path, status) VALUES (?, ?, ?, ?, 'ready')", (user_id, report_type, report_text, file_path))
     conn.commit()
     conn.close()
 
 def get_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute(
-        "SELECT id, report_text, file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY created_at DESC LIMIT 1",
-        (user_id, report_type)
-    )
+    cursor = conn.execute("SELECT id, report_text, file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY created_at DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
     return {"id": row[0], "text": row[1], "file_path": row[2]} if row else None
 
 def save_consultation(user_id: str, time: str):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT INTO consultations (user_id, time) VALUES (?, ?)",
-        (user_id, time)
-    )
+    conn.execute("INSERT INTO consultations (user_id, time) VALUES (?, ?)", (user_id, time))
     conn.commit()
     conn.close()
 
 def save_payment(user_id: str, phone: str):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT INTO payments (user_id, phone) VALUES (?, ?)",
-        (user_id, phone)
-    )
+    conn.execute("INSERT INTO payments (user_id, phone) VALUES (?, ?)", (user_id, phone))
     conn.commit()
     conn.close()
 
 def send_telegram_message(text: str):
     if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
         try:
-            requests.post(
-                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-                json={"chat_id": ADMIN_CHAT_ID, "text": text}
-            )
+            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": ADMIN_CHAT_ID, "text": text})
         except Exception as e:
             logger.error(f"Failed to send telegram: {e}")
 
-# === HTML-страницы ===
+app = FastAPI(title="Salesplan")
+
 def get_base_html(content: str, title: str = "Salesplan") -> str:
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} | Salesplan</title>
     <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', Helvetica, sans-serif;
-            background: #f5f5f7;
-            color: #1d1d1f;
-            line-height: 1.4;
-        }}
-        .container {{
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }}
-        .hero {{
-            text-align: center;
-            margin-bottom: 40px;
-        }}
-        .hero h1 {{
-            font-size: 48px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #1d1d1f 0%, #434345 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            margin-bottom: 20px;
-        }}
-        .hero p {{
-            font-size: 21px;
-            color: #6e6e73;
-            max-width: 700px;
-            margin: 0 auto;
-        }}
-        .features {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-            justify-content: center;
-            margin-bottom: 40px;
-        }}
-        .feature {{
-            flex: 1;
-            min-width: 250px;
-            background: white;
-            border-radius: 24px;
-            padding: 30px 24px;
-            text-align: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-        }}
-        .feature-icon {{
-            font-size: 44px;
-            margin-bottom: 20px;
-        }}
-        .feature h3 {{
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }}
-        .feature p {{
-            font-size: 17px;
-            color: #6e6e73;
-        }}
-        .btn {{
-            display: inline-block;
-            background: #007aff;
-            color: white;
-            text-decoration: none;
-            padding: 16px 32px;
-            font-size: 17px;
-            font-weight: 600;
-            border-radius: 14px;
-            border: none;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }}
-        .btn:hover {{
-            background: #005fc5;
-        }}
-        .form-card {{
-            background: white;
-            border-radius: 28px;
-            padding: 40px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
-            max-width: 600px;
-            margin: 0 auto;
-        }}
-        .form-group {{
-            margin-bottom: 20px;
-        }}
-        input, textarea, select {{
-            width: 100%;
-            padding: 16px 18px;
-            font-size: 17px;
-            font-family: inherit;
-            border: 1px solid #d2d2d7;
-            border-radius: 14px;
-            background: #fff;
-        }}
-        input:focus, textarea:focus {{
-            outline: none;
-            border-color: #007aff;
-            box-shadow: 0 0 0 4px rgba(0,122,255,0.1);
-        }}
-        .radio-group {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 10px;
-        }}
-        .radio-group label {{
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 16px;
-        }}
-        .footer {{
-            text-align: center;
-            margin-top: 60px;
-            padding-top: 30px;
-            border-top: 1px solid #d2d2d7;
-            font-size: 14px;
-            color: #8e8e93;
-        }}
-        .social-links {{
-            margin-top: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-        }}
-        .social-links a {{
-            color: #007aff;
-            text-decoration: none;
-        }}
-        @media (max-width: 700px) {{
-            .hero h1 {{ font-size: 36px; }}
-            .hero p {{ font-size: 18px; }}
-            .form-card {{ padding: 28px; }}
-        }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Helvetica, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.4; }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 40px 20px; }}
+        .hero {{ text-align: center; margin-bottom: 40px; }}
+        .hero h1 {{ font-size: 48px; font-weight: 700; background: linear-gradient(135deg, #1d1d1f 0%, #434345 100%); background-clip: text; -webkit-background-clip: text; color: transparent; margin-bottom: 20px; }}
+        .hero p {{ font-size: 21px; color: #6e6e73; max-width: 700px; margin: 0 auto; }}
+        .features {{ display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; margin-bottom: 40px; }}
+        .feature {{ flex: 1; min-width: 250px; background: white; border-radius: 24px; padding: 30px 24px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.05); }}
+        .feature-icon {{ font-size: 44px; margin-bottom: 20px; }}
+        .feature h3 {{ font-size: 22px; font-weight: 600; margin-bottom: 12px; }}
+        .feature p {{ font-size: 17px; color: #6e6e73; }}
+        .btn {{ display: inline-block; background: #007aff; color: white; text-decoration: none; padding: 16px 32px; font-size: 17px; font-weight: 600; border-radius: 14px; border: none; cursor: pointer; transition: background 0.2s ease; }}
+        .btn:hover {{ background: #005fc5; }}
+        .form-card {{ background: white; border-radius: 28px; padding: 40px; box-shadow: 0 12px 30px rgba(0,0,0,0.08); max-width: 600px; margin: 0 auto; }}
+        .form-group {{ margin-bottom: 20px; }}
+        input, textarea {{ width: 100%; padding: 16px 18px; font-size: 17px; font-family: inherit; border: 1px solid #d2d2d7; border-radius: 14px; background: #fff; }}
+        input:focus, textarea:focus {{ outline: none; border-color: #007aff; box-shadow: 0 0 0 4px rgba(0,122,255,0.1); }}
+        .radio-group {{ display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }}
+        .radio-group label {{ display: flex; align-items: center; gap: 8px; font-size: 16px; }}
+        .footer {{ text-align: center; margin-top: 60px; padding-top: 30px; border-top: 1px solid #d2d2d7; font-size: 14px; color: #8e8e93; }}
+        .social-links {{ margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }}
+        .social-links a {{ color: #007aff; text-decoration: none; }}
+        @media (max-width: 700px) {{ .hero h1 {{ font-size: 36px; }} .hero p {{ font-size: 18px; }} .form-card {{ padding: 28px; }} }}
     </style>
-    <!-- Yandex.Metrika counter -->
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-        (window, document,'script','https://mc.yandex.ru/metrika/tag.js', 'ym');
-        ym(108348240, 'init', {webvisor:true, clickmap:true, trackLinks:true, accurateTrackBounce:true});
-    </script>
+    <script type="text/javascript">(function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){{if(document.scripts[j].src===r){{return;}}}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})(window,document,'script','https://mc.yandex.ru/metrika/tag.js','ym');ym(108348240,'init',{{webvisor:true,clickmap:true,trackLinks:true,accurateTrackBounce:true}});</script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Yandex.Metrika counter -->
 </head>
 <body>
-    <div class="container">
-        {content}
-        <div class="footer">
-            <p>📱 Вероника Макаревич | Продюсер экспертов</p>
-            <div class="social-links">
-                <a href="https://t.me/YourProducerOnline">Telegram-канал</a>
-                <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
-                <a href="https://t.me/zapuskintelega_bot">Мини-курс «Раскрутка блога без вложений»</a>
-                <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
-            </div>
-            <p>© 2026 Все права защищены</p>
+<div class="container">
+    {content}
+    <div class="footer">
+        <p>📱 Вероника Макаревич | Продюсер экспертов</p>
+        <div class="social-links">
+            <a href="https://t.me/YourProducerOnline">Telegram-канал</a>
+            <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
+            <a href="https://t.me/zapuskintelega_bot">Мини-курс "Раскрутка блога без вложений"</a>
+            <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
+        <p>© 2026 Все права защищены</p>
     </div>
+</div>
 </body>
-</html>
-"""
-
-# === FastAPI приложение ===
-app = FastAPI(title="Salesplan")
+</html>"""
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -497,7 +283,6 @@ async def survey_submit(
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
     
-    # Генерация диагностики
     diagnostic_text = f"""
 Диагностика для бизнеса "{business_name}"
 
@@ -578,7 +363,6 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
     save_user(user_id, phone, None)
     save_payment(user_id, phone)
     
-    # Отправляем уведомление админу о заявке
     send_telegram_message(f"💰 Новая заявка на оплату!\n\nID: {user_id}\nТелефон: {phone}")
     
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
@@ -611,18 +395,14 @@ async def payment_page(user_id: str):
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
-    # Получаем данные пользователя
-    user = None
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     phone = row[0] if row else "не указан"
     
-    # Отправляем уведомление админу об успешной оплате
     send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА!\n\nID: {user_id}\nТелефон: {phone}\nСумма: 490 ₽")
     
-    # Генерация премиум отчета
     premium_text = f"""
 План продаж для вашего бизнеса
 
