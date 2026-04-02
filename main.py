@@ -145,6 +145,12 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}\n• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
     
+    # Отладка: проверяем наличие ключа API
+    logger.info(f"API Key exists: {bool(DEEPSEEK_API_KEY)}")
+    if not DEEPSEEK_API_KEY:
+        logger.error("DEEPSEEK_API_KEY is missing!")
+        return None
+    
     prompt = f"""Сделай профессиональный маркетинговый разбор онлайн-бизнеса.
 
 ДАННЫЕ О БИЗНЕСЕ:
@@ -164,10 +170,12 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=120)
+        logger.info(f"DeepSeek response status: {response.status_code}")
         if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
         else:
-            logger.error(f"DeepSeek error: {response.status_code}")
+            logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
         logger.error(f"DeepSeek failed: {e}")
@@ -214,7 +222,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             logger.info(f"Premium report generated for {user_id}")
         else:
             update_report_status(report_id, 'failed')
-            logger.error(f"DeepSeek error: {response.status_code}")
+            logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
     except Exception as e:
         update_report_status(report_id, 'failed')
         logger.error(f"Premium report error: {e}")
