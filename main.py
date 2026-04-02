@@ -7,7 +7,6 @@ import requests
 import uuid
 import re
 import asyncio
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -146,7 +145,8 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}\n• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
     
-    logger.info(f"API Key exists: {bool(DEEPSEEK_API_KEY)}")
+    # Отладка
+    logger.info(f"DEEPSEEK_API_KEY loaded: {'YES' if DEEPSEEK_API_KEY else 'NO'}")
     if not DEEPSEEK_API_KEY:
         logger.error("DEEPSEEK_API_KEY is missing!")
         return None
@@ -408,45 +408,36 @@ async def survey_submit(
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
     
-    # Запускаем генерацию в фоне
     answers = {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5}
     
-    # Создаем запись о генерации
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'free', 'generating')", (user_id,))
     report_id = cursor.lastrowid
     conn.commit()
     conn.close()
     
-    # Запускаем фоновую генерацию
     async def generate_and_save():
         diagnostic_text = call_deepseek_diagnostic(business_name, business_description, answers)
+        conn = sqlite3.connect(DB_PATH)
         if diagnostic_text:
-            conn = sqlite3.connect(DB_PATH)
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (diagnostic_text, report_id))
-            conn.commit()
-            conn.close()
         else:
             fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации: 1. Проанализируйте целевую аудиторию 2. Настройте воронку продаж 3. Добавьте призывы к действию"
-            conn = sqlite3.connect(DB_PATH)
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (fallback_text, report_id))
-            conn.commit()
-            conn.close()
+        conn.commit()
+        conn.close()
     
     asyncio.create_task(generate_and_save())
     
-    # Показываем страницу ожидания
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
 async def check_status(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT status, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
+    cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
-    if row and row[0] == 'ready':
-        return {"ready": True}
-    return {"ready": False}
+    return {"ready": row and row[0] == 'ready'}
 
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
@@ -493,11 +484,7 @@ async def payment_success(user_id: str):
         conn.commit()
         conn.close()
         
-        # Запускаем фоновую генерацию
-        async def generate_and_save_premium():
-            premium_text = generate_premium_report_sync(user_id, biz["name"], biz["description"], answers, report_id)
-            # generate_premium_report_sync уже обновляет статус
-        asyncio.create_task(generate_and_save_premium())
+        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
         
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
@@ -512,9 +499,7 @@ async def check_premium_status(user_id: str):
     cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = 'premium' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    if row and row[0] == 'ready':
-        return {"ready": True}
-    return {"ready": False}
+    return {"ready": row and row[0] == 'ready'}
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
