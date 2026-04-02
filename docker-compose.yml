@@ -5,4 +5,9 @@ services:
     build: .
     ports:
       - "8000:8000"
+    environment:
+      - TELEGRAM_TOKEN=8483686219:AAHbhh6ffOuz6yJ8FpUEeYOxrTwbo5hlDnY
+      - ADMIN_CHAT_ID=433191114
+      - DEEPSEEK_API_KEY=sk-dd8b8fec6a52478ebcb2c22d38d93af3
+      - PAYMENT_URL=https://yookassa.ru/my/i/ac4jwv2G_TJt/l
     restart: always
