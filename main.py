@@ -7,6 +7,7 @@ import requests
 import uuid
 import re
 import asyncio
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -145,7 +146,6 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}\n• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
     
-    # Отладка: проверяем наличие ключа API
     logger.info(f"API Key exists: {bool(DEEPSEEK_API_KEY)}")
     if not DEEPSEEK_API_KEY:
         logger.error("DEEPSEEK_API_KEY is missing!")
@@ -287,6 +287,102 @@ HTML_FOOT = """
 def render_page(content: str):
     return HTML_HEAD + content + HTML_FOOT
 
+def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
+    return f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генерация | Salesplan</title>
+    <style>
+        *{{margin:0;padding:0;box-sizing:border-box}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
+        .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
+        @keyframes spin{{to{{transform:rotate(360deg)}}}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn:hover{{background:#005fc5}}
+    </style>
+    <script>
+        let attempts = 0;
+        function checkStatus() {{
+            fetch('/check_status?user_id={user_id}&report_type={report_type}')
+                .then(res => res.json())
+                .then(data => {{
+                    if (data.ready) {{
+                        window.location.href = '{redirect_url}';
+                    }} else {{
+                        attempts++;
+                        if (attempts < 60) {{
+                            setTimeout(checkStatus, 3000);
+                        }}
+                    }}
+                }})
+                .catch(() => {{
+                    setTimeout(checkStatus, 3000);
+                }});
+        }}
+        setTimeout(checkStatus, 3000);
+    </script>
+</head>
+<body>
+<div class="container">
+    <div class="spinner"></div>
+    <h1>Генерация диагностики...</h1>
+    <p>Это займет около 1-2 минут. Пожалуйста, подождите.</p>
+    <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
+</div>
+</body>
+</html>"""
+
+def render_premium_waiting_page(user_id: str):
+    return f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генерация плана | Salesplan</title>
+    <style>
+        *{{margin:0;padding:0;box-sizing:border-box}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
+        .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
+        @keyframes spin{{to{{transform:rotate(360deg)}}}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn:hover{{background:#005fc5}}
+    </style>
+    <script>
+        let attempts = 0;
+        function checkStatus() {{
+            fetch('/check_premium_status?user_id={user_id}')
+                .then(res => res.json())
+                .then(data => {{
+                    if (data.ready) {{
+                        window.location.href = '/payment/success?user_id={user_id}';
+                    }} else {{
+                        attempts++;
+                        if (attempts < 60) {{
+                            setTimeout(checkStatus, 3000);
+                        }}
+                    }}
+                }})
+                .catch(() => {{
+                    setTimeout(checkStatus, 3000);
+                }});
+        }}
+        setTimeout(checkStatus, 3000);
+    </script>
+</head>
+<body>
+<div class="container">
+    <div class="spinner"></div>
+    <h1>Генерация плана продаж...</h1>
+    <p>Это займет около 2-3 минут. Пожалуйста, подождите.</p>
+    <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
+</div>
+</body>
+</html>"""
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
@@ -311,17 +407,57 @@ async def survey_submit(
     save_user(user_id, None, None)
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
+    
+    # Запускаем генерацию в фоне
     answers = {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5}
-    diagnostic_text = call_deepseek_diagnostic(business_name, business_description, answers)
-    if diagnostic_text:
-        save_report(user_id, "free", diagnostic_text)
-    else:
-        fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации: 1. Проанализируйте целевую аудиторию 2. Настройте воронку продаж 3. Добавьте призывы к действию"
-        save_report(user_id, "free", fallback_text)
-    return RedirectResponse(url=f"/diagnostic?user_id={user_id}", status_code=303)
+    
+    # Создаем запись о генерации
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'free', 'generating')", (user_id,))
+    report_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    # Запускаем фоновую генерацию
+    async def generate_and_save():
+        diagnostic_text = call_deepseek_diagnostic(business_name, business_description, answers)
+        if diagnostic_text:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (diagnostic_text, report_id))
+            conn.commit()
+            conn.close()
+        else:
+            fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации: 1. Проанализируйте целевую аудиторию 2. Настройте воронку продаж 3. Добавьте призывы к действию"
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (fallback_text, report_id))
+            conn.commit()
+            conn.close()
+    
+    asyncio.create_task(generate_and_save())
+    
+    # Показываем страницу ожидания
+    return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
+
+@app.get("/check_status")
+async def check_status(user_id: str, report_type: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT status, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
+    row = cursor.fetchone()
+    conn.close()
+    if row and row[0] == 'ready':
+        return {"ready": True}
+    return {"ready": False}
 
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = 'free' ORDER BY id DESC LIMIT 1", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row or not row[0]:
+        return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
+    
     content = f'<div class="hero"><h1>Ваша диагностика готова</h1></div><div class="form-card"><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/free" class="btn">Скачать диагностику (.txt)</a></div><hr><h2>Что дальше?</h2><p>Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p><p><strong>Я Вероника, продюсер экспертов. За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</strong></p><div style="margin:20px 0;background:#f5f5f7;padding:20px;border-radius:20px"><p><strong>Эксперт по китайскому</strong> — без блога, только таргет и бот, заработала 120 000 ₽ за 2 недели</p><p><strong>Психолог Елена</strong> — 7 клиентов за 2 недели, доход с 0 до 180 000 ₽</p><p><strong>Мастер Фен Шуй</strong> — первый запуск принес 195 000 ₽ при рекламе 30 000 ₽</p><p><strong>Онлайн-школа</strong> — 2 000 000 ₽ за 2 недели через марафон в ВК</p></div><h3>В детальном плане продаж:</h3><ul><li>Разбор 5 конкурентов</li><li>Готовая воронка под ваш бизнес</li><li>Пошаговый план запуска продаж на месяц</li><li>Скрипты для продаж</li></ul><p><strong>Только сейчас — специальная цена 490 ₽ вместо 990 ₽. Предложение действует 24 часа.</strong></p><form action="/payment/create" method="post" style="margin-top:30px"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group"><label>Оставьте ваш номер телефона — я пришлю ссылку на оплату:</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required></div><div style="text-align:center"><button type="submit" class="btn">Получить доступ к плану</button></div><p style="text-align:center;font-size:14px;margin-top:15px">Никакого спама. Только план продаж и бонусы.</p></form></div>'
     return HTMLResponse(content=render_page(content))
 
@@ -346,32 +482,39 @@ async def payment_success(user_id: str):
     conn.close()
     phone = row[0] if row else "не указан"
     send_telegram_message(f"ПОДТВЕРЖДЕНА ОПЛАТА!\nID: {user_id}\nТелефон: {phone}\nСумма: 490 ₽")
+    
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
+    
     if biz and answers and DEEPSEEK_API_KEY:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
         report_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-        content = f'<div class="hero"><h1>Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж генерируется. Это займет около 5 минут.</p><p><a href="/payment/check/{user_id}" class="btn">Проверить статус</a></p></div>'
+        
+        # Запускаем фоновую генерацию
+        async def generate_and_save_premium():
+            premium_text = generate_premium_report_sync(user_id, biz["name"], biz["description"], answers, report_id)
+            # generate_premium_report_sync уже обновляет статус
+        asyncio.create_task(generate_and_save_premium())
+        
+        return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
         premium_text = f"План продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
         save_report(user_id, "premium", premium_text)
         content = f'<div class="hero"><h1>Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж готов к скачиванию:</p><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/premium" class="btn">Скачать план продаж (.txt)</a></div><hr><h2>Хотите разобрать план вместе со мной?</h2><p>Я предлагаю 30-минутный разбор твоего плана: найду ТВОЁ одно действие, которое принесёт деньги прямо сейчас.</p><div style="text-align:center;margin-top:20px"><a href="/consultation?user_id={user_id}" class="btn">Записаться на разбор</a></div></div>'
-    return HTMLResponse(content=render_page(content))
+        return HTMLResponse(content=render_page(content))
 
-@app.get("/payment/check/{user_id}", response_class=HTMLResponse)
-async def payment_check(user_id: str):
-    report = get_report(user_id, "premium")
-    if report and report["status"] == "ready":
-        content = f'<div class="hero"><h1>План готов!</h1></div><div class="form-card"><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/premium" class="btn">Скачать план продаж (.txt)</a></div><hr><h2>Хотите разобрать план вместе со мной?</h2><div style="text-align:center;margin-top:20px"><a href="/consultation?user_id={user_id}" class="btn">Записаться на разбор</a></div></div>'
-    elif report and report["status"] == "generating":
-        content = f'<div class="hero"><h1>План генерируется</h1></div><div class="form-card"><p>Пожалуйста, обновите страницу через минуту.</p><div style="text-align:center;margin:20px 0"><a href="/payment/check/{user_id}" class="btn">Обновить</a></div></div>'
-    else:
-        content = '<div class="hero"><h1>Ошибка</h1></div><div class="form-card"><a href="/" class="btn">На главную</a></div>'
-    return HTMLResponse(content=render_page(content))
+@app.get("/check_premium_status")
+async def check_premium_status(user_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = 'premium' ORDER BY id DESC LIMIT 1", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row and row[0] == 'ready':
+        return {"ready": True}
+    return {"ready": False}
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
@@ -387,17 +530,17 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...)):
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
-    report = get_report(user_id, report_type)
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
+    row = cursor.fetchone()
+    conn.close()
     
-    report_text = report.get("text")
-    if not report_text:
-        raise HTTPException(status_code=404, detail="Report text is empty")
+    if not row or not row[0]:
+        raise HTTPException(status_code=404, detail="Report not found")
     
     filename = f"{report_type}_{user_id}.txt"
     return Response(
-        content=report_text,
+        content=row[0],
         media_type="text/plain",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
