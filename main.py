@@ -117,7 +117,7 @@ def get_report(user_id: str, report_type: str):
     conn.close()
     return {"id": row[0], "text": row[1], "file_path": row[2], "status": row[3]} if row else None
 
-def save_consultation(user_id: str, time: str):
+def save_consultation(user_id: str, time: str, phone: str = None, username: str = None):
     conn = sqlite3.connect(DB_PATH)
     conn.execute("INSERT INTO consultations (user_id, time) VALUES (?, ?)", (user_id, time))
     conn.commit()
@@ -157,7 +157,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
 Описание: {description}
 {survey_info}
 
-Напиши отчет в разговорном стиле Вероники:
+Напиши отчет в разговорном стиле Вероники. НЕ ИСПОЛЬЗУЙ символы *, #, _, `, ~. Для списков используй просто дефис. Для заголовков используй ЗАГЛАВНЫЕ БУКВЫ.
 
 1. ОБЩАЯ ИНФОРМАЦИЯ (ниша, ЦА, оценка 0-100)
 2. АНАЛИЗ (3 сильные стороны, 3 зоны роста)
@@ -165,7 +165,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты Вероника, продюсер экспертов. Говоришь разговорно, с эмодзи, на 'ты'."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 2000}
+    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты Вероника, продюсер экспертов. Говоришь разговорно, с эмодзи, на 'ты'. НИКОГДА не используй символы *, #, _, `, ~. Только обычный текст и эмодзи."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 2000}
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=120)
@@ -196,7 +196,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
 Описание: {description}
 {survey_info}
 
-Напиши план в разговорном стиле Вероники:
+Напиши план в разговорном стиле Вероники. НЕ ИСПОЛЬЗУЙ символы *, #, _, `, ~. Для списков используй просто дефис. Для заголовков используй ЗАГЛАВНЫЕ БУКВЫ.
 
 1. ОЦЕНКА СИТУАЦИИ
 2. АНАЛИЗ КОНКУРЕНТОВ (3-5 игроков)
@@ -207,10 +207,10 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
     
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты Вероника, продюсер экспертов."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 4000}
+    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты Вероника, продюсер экспертов. НИКОГДА не используй символы *, #, _, `, ~. Только обычный текст и эмодзи."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 4000}
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=180)
+        response = requests.post(url, headers=headers, json=data, timeout=300)
         if response.status_code == 200:
             report_text = response.json()["choices"][0]["message"]["content"]
             filename = f"premium_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -304,11 +304,14 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     </style>
     <script>
         let attempts = 0;
+        let isRedirected = false;
         function checkStatus() {{
+            if (isRedirected) return;
             fetch('/check_status?user_id={user_id}&report_type={report_type}')
                 .then(res => res.json())
                 .then(data => {{
                     if (data.ready) {{
+                        isRedirected = true;
                         window.location.href = '{redirect_url}';
                     }} else {{
                         attempts++;
@@ -347,12 +350,16 @@ def render_premium_waiting_page(user_id: str):
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
+        .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
+        .step.active{{background:#007aff;color:#fff}}
         .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
-        .btn:hover{{background:#005fc5}}
+        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
+        .btn-outline:hover{{background:#007aff;color:#fff}}
     </style>
     <script>
         let attempts = 0;
         let isRedirected = false;
+        let step = 1;
         function checkStatus() {{
             if (isRedirected) return;
             fetch('/check_premium_status?user_id={user_id}')
@@ -363,7 +370,11 @@ def render_premium_waiting_page(user_id: str):
                         window.location.href = '/payment/success?user_id={user_id}';
                     }} else {{
                         attempts++;
-                        if (attempts < 120) {{
+                        step = Math.min(3, Math.floor(attempts / 20) + 1);
+                        document.getElementById('step1').className = step >= 1 ? 'step active' : 'step';
+                        document.getElementById('step2').className = step >= 2 ? 'step active' : 'step';
+                        document.getElementById('step3').className = step >= 3 ? 'step active' : 'step';
+                        if (attempts < 180) {{
                             setTimeout(checkStatus, 3000);
                         }}
                     }}
@@ -380,13 +391,20 @@ def render_premium_waiting_page(user_id: str):
     <div class="spinner"></div>
     <h1>📊 Анализируем рынок и конкурентов</h1>
     <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>5–15 минут</strong>.</p>
+    
+    <div style="margin: 30px 0;">
+        <span id="step1" class="step active">1. Анализ конкурентов</span>
+        <span id="step2" class="step">2. Сбор стратегии</span>
+        <span id="step3" class="step">3. Формирование плана</span>
+    </div>
+    
     <p style="font-size:14px;color:#8e8e93;margin:20px 0">Страница обновится автоматически, когда план будет готов</p>
     
     <hr style="margin: 30px 0;">
     
     <p style="font-size: 15px;">⚡️ Не хотите ждать?</p>
     <p style="font-size: 14px; color: #6e6e73;">Мы пришлём готовый план в MAX по вашему номеру телефона</p>
-    <button onclick="requestByPhone()" class="btn" style="background:transparent;border:1px solid #007aff;color:#007aff">📲 Отправить в MAX по номеру телефона</button>
+    <button onclick="requestByPhone()" class="btn btn-outline" style="margin-top: 15px;">📲 Отправить в MAX по номеру телефона</button>
 </div>
 
 <script>
@@ -395,9 +413,9 @@ def render_premium_waiting_page(user_id: str):
             .then(res => res.json())
             .then(data => {{
                 if (data.success) {{
-                    alert('✅ Заявка принята! План придёт в MAX, как только будет готов.');
+                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
                 }} else {{
-                    alert('❌ Ошибка. Пожалуйста, обновите страницу.');
+                    alert('Ошибка. Пожалуйста, обновите страницу.');
                 }}
             }});
     }}
@@ -444,7 +462,7 @@ async def survey_submit(
         if diagnostic_text:
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (diagnostic_text, report_id))
         else:
-            fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации: 1. Проанализируйте целевую аудиторию 2. Настройте воронку продаж 3. Добавьте призывы к действию"
+            fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации:\n- Проанализируйте целевую аудиторию\n- Настройте воронку продаж\n- Добавьте призывы к действию"
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (fallback_text, report_id))
         conn.commit()
         conn.close()
@@ -471,7 +489,9 @@ async def diagnostic(user_id: str):
     if not row or not row[0]:
         return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
     
-    content = f'<div class="hero"><h1>✨ Ваша диагностика готова</h1><p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p></div><div class="form-card" style="text-align: center;"><div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;"><div style="font-size: 56px; margin-bottom: 16px;">📄</div><a href="/download/{user_id}/free" class="btn" style="background: #007aff; padding: 16px 32px; font-size: 18px;">📥 Скачать диагностику (.txt)</a><p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Файл придет в формате .txt</p></div><hr style="margin: 32px 0;"><h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2><p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p><div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;"><p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p><p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</p></div><div style="display: flex; flex-wrap: wrap; gap: 16px; margin: 32px 0; text-align: left;"><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div><p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p></div><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🧠</div><p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p></div><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🌊</div><p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p></div><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🏫</div><p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p></div></div><div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;"><h3 style="font-size: 24px; margin-bottom: 20px;">📋 В детальном плане продаж:</h3><div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;"><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span></div></div><div style="margin: 32px 0;"><div style="font-size: 36px; font-weight: 700; color: #007aff;">490 ₽</div><div style="font-size: 20px; color: #8e8e93; text-decoration: line-through;">990 ₽</div><p style="margin-top: 8px;">⚡ Только сейчас — специальная цена<br>Предложение действует 24 часа</p></div><form action="/payment/create" method="post" style="margin-top: 24px;"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group" style="margin-bottom: 20px;"><label>📞 Оставьте ваш номер телефона — я пришлю ссылку на оплату:</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;"></div><button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button><p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p></form></div>'
+    report_text = row[0].replace("\n", "<br>")
+    
+    content = f'<div class="hero"><h1>✨ Ваша диагностика готова</h1><p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p></div><div class="form-card" style="text-align: center;"><div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;"><div style="font-size: 56px; margin-bottom: 16px;">📄</div><a href="/download/{user_id}/free" class="btn" style="background: #007aff; padding: 16px 32px; font-size: 18px;">📥 Скачать диагностику (.txt)</a><p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Файл придет в формате .txt</p></div><div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 400px; overflow-y: auto;"><div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text}</div></div><hr style="margin: 32px 0;"><h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2><p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p><div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;"><p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p><p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</p></div><div style="display: flex; flex-wrap: wrap; gap: 16px; margin: 32px 0; text-align: left;"><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div><p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p></div><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🧠</div><p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p></div><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🌊</div><p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p></div><div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);"><div style="font-size: 32px; margin-bottom: 12px;">🏫</div><p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p></div></div><div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;"><h3 style="font-size: 24px; margin-bottom: 20px;">📋 В детальном плане продаж:</h3><div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;"><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span><span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span></div></div><div style="margin: 32px 0;"><div style="font-size: 36px; font-weight: 700; color: #007aff;">490 ₽</div><div style="font-size: 20px; color: #8e8e93; text-decoration: line-through;">990 ₽</div><p style="margin-top: 8px;">⚡ Только сейчас — специальная цена<br>Предложение действует 24 часа</p></div><form action="/payment/create" method="post" style="margin-top: 24px;"><input type="hidden" name="user_id" value="{user_id}"><div class="form-group" style="margin-bottom: 20px;"><label>📞 Оставьте номер телефона, оплатите, вернитесь на страницу и скачайте отчёт:</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;"></div><button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button><p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p></form></div>'
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
@@ -494,6 +514,7 @@ async def payment_success(user_id: str):
     row = cursor.fetchone()
     conn.close()
     phone = row[0] if row else "не указан"
+    
     send_telegram_message(f"ПОДТВЕРЖДЕНА ОПЛАТА!\nID: {user_id}\nТелефон: {phone}\nСумма: 490 ₽")
     
     biz = get_business_data(user_id)
@@ -501,8 +522,25 @@ async def payment_success(user_id: str):
     
     # Проверяем, есть ли уже готовый отчёт
     existing_report = get_report(user_id, "premium")
+    
     if existing_report and existing_report["status"] == "ready":
-        content = f'<div class="hero"><h1>🎉 Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж готов к скачиванию:</p><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/premium" class="btn">📄 Скачать план продаж (.txt)</a></div><hr><h2>👩‍💼 Хотите разобрать план вместе со мной?</h2><p>Я предлагаю 30-минутный разбор твоего плана: найду ТВОЁ одно действие, которое принесёт деньги прямо сейчас.</p><div style="text-align:center;margin-top:20px"><a href="/consultation?user_id={user_id}" class="btn">→ Записаться на разбор</a></div></div>'
+        content = f"""
+<div class="hero">
+    <h1>🎉 Спасибо за покупку!</h1>
+    <p>Ваш план продаж уже готов</p>
+</div>
+<div class="form-card" style="text-align: center;">
+    <div style="text-align:center;margin:20px 0">
+        <a href="/download/{user_id}/premium" class="btn">📄 Скачать план продаж (.txt)</a>
+    </div>
+    <hr>
+    <h2>🎁 Бесплатный бонус</h2>
+    <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
+    <div style="text-align:center;margin-top:20px">
+        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+    </div>
+</div>
+"""
         return HTMLResponse(content=render_page(content))
     
     if biz and answers and DEEPSEEK_API_KEY:
@@ -518,7 +556,22 @@ async def payment_success(user_id: str):
     else:
         premium_text = f"План продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
         save_report(user_id, "premium", premium_text)
-        content = f'<div class="hero"><h1>🎉 Спасибо за покупку!</h1></div><div class="form-card"><p>Ваш план продаж готов к скачиванию:</p><div style="text-align:center;margin:20px 0"><a href="/download/{user_id}/premium" class="btn">📄 Скачать план продаж (.txt)</a></div><hr><h2>👩‍💼 Хотите разобрать план вместе со мной?</h2><p>Я предлагаю 30-минутный разбор твоего плана: найду ТВОЁ одно действие, которое принесёт деньги прямо сейчас.</p><div style="text-align:center;margin-top:20px"><a href="/consultation?user_id={user_id}" class="btn">→ Записаться на разбор</a></div></div>'
+        content = f"""
+<div class="hero">
+    <h1>🎉 Спасибо за покупку!</h1>
+</div>
+<div class="form-card" style="text-align: center;">
+    <div style="text-align:center;margin:20px 0">
+        <a href="/download/{user_id}/premium" class="btn">📄 Скачать план продаж (.txt)</a>
+    </div>
+    <hr>
+    <h2>🎁 Бесплатный бонус</h2>
+    <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
+    <div style="text-align:center;margin-top:20px">
+        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+    </div>
+</div>
+"""
         return HTMLResponse(content=render_page(content))
 
 @app.get("/check_premium_status")
@@ -531,7 +584,6 @@ async def check_premium_status(user_id: str):
 
 @app.post("/request_report_by_phone")
 async def request_report_by_phone(user_id: str):
-    # Получаем телефон пользователя
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -557,6 +609,8 @@ async def consultation_page(user_id: str):
 </div>
 
 <div class="form-card" style="text-align: center;">
+    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами для согласования времени</p>
+    
     <div style="margin-bottom: 30px;">
         <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
         <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
@@ -569,8 +623,6 @@ async def consultation_page(user_id: str):
     <hr style="margin: 30px 0;">
     
     <div id="formBlock">
-        <p><strong>Уже подписались?</strong></p>
-        <p>Оставьте заявку — я проверю и свяжусь с вами</p>
         <form action="/consultation/submit" method="post">
             <input type="hidden" name="user_id" value="{user_id}">
             <div class="form-group">
@@ -581,11 +633,14 @@ async def consultation_page(user_id: str):
                 <label>Ваш username в MAX (необязательно)</label>
                 <input type="text" name="username" placeholder="@username">
             </div>
+            <div class="form-group">
+                <label>🕐 Удобное время для созвона (по Москве)</label>
+                <input type="text" name="time" placeholder="например: завтра в 15:00" required>
+            </div>
             <div style="text-align: center;">
                 <button type="submit" class="btn">Отправить заявку</button>
             </div>
         </form>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 20px;">После проверки подписки я свяжусь с вами для согласования времени</p>
     </div>
 </div>
 
@@ -605,14 +660,24 @@ async def consultation_page(user_id: str):
 
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
-    save_consultation(user_id, time)
+    save_consultation(user_id, time, phone, username)
     message = f"📞 Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}"
     if phone:
         message += f"\nТелефон: {phone}"
     if username:
         message += f"\nUsername MAX: {username}"
     send_telegram_message(message)
-    content = '<div class="hero"><h1>✅ Заявка принята!</h1></div><div class="form-card"><p>Я свяжусь с вами в ближайшее время, чтобы подтвердить время.</p><div style="text-align:center;margin-top:20px"><a href="/" class="btn">→ На главную</a></div></div>'
+    content = """
+<div class="hero">
+    <h1>✅ Заявка принята!</h1>
+</div>
+<div class="form-card" style="text-align: center;">
+    <p>Я свяжусь с вами в ближайшее время, чтобы подтвердить время.</p>
+    <div style="text-align:center;margin-top:20px">
+        <a href="/" class="btn">→ На главную</a>
+    </div>
+</div>
+"""
     return HTMLResponse(content=render_page(content))
 
 @app.get("/download/{user_id}/{report_type}")
