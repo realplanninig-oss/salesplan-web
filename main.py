@@ -217,7 +217,6 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             filepath = REPORTS_DIR / filename
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
-            # Обновляем статус и путь к файлу
             update_report_status(report_id, 'ready', str(filepath))
             logger.info(f"Premium report generated for {user_id}, file: {filepath}")
             return True
@@ -234,13 +233,11 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     loop = asyncio.get_event_loop()
     success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
     if success:
-        # Отправляем уведомление админу с файлом
         report = get_report(user_id, "premium")
         if report and report["file_path"]:
             filepath = Path(report["file_path"])
             if filepath.exists():
                 try:
-                    # Отправляем файл админу в Telegram
                     with open(filepath, "rb") as f:
                         await asyncio.get_event_loop().run_in_executor(
                             None,
@@ -528,10 +525,8 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
 
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str):
-    # Проверяем, есть ли уже готовый отчёт
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
-        # Если отчёт уже готов, сразу на страницу успеха
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
     content = f'<div class="hero"><h1>💰 План продаж — 490 ₽</h1></div><div class="form-card"><h3>Что вы получите:</h3><ul><li>✅ Разбор 5 конкурентов</li><li>✅ Готовую воронку продаж</li><li>✅ Пошаговый план запуска продаж на месяц</li><li>✅ Скрипты для продаж</li></ul><div style="text-align:center;margin:30px 0"><a href="{PAYMENT_URL}" target="_blank" class="btn">💳 Оплатить 490 ₽</a></div><hr><div style="text-align:center"><p>✅ Уже оплатили?</p><a href="/payment/success?user_id={user_id}" class="btn" style="margin-top:16px">→ Я оплатил(а) — получить план</a></div></div>'
@@ -550,7 +545,6 @@ async def payment_success(user_id: str):
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     
-    # Проверяем, есть ли уже готовый отчёт
     existing_report = get_report(user_id, "premium")
     
     if existing_report and existing_report["status"] == "ready":
@@ -635,7 +629,7 @@ async def consultation_page(user_id: str):
     content = f"""
 <div class="hero">
     <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
-    <p style="font-size: 18px;">Подпишитесь на мой канал в MAX и получите 30-минутный разбор вашего плана продаж бесплатно</p>
+    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
@@ -713,6 +707,22 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
+    row = cursor.fetchone()
+    
+    if row and row[0]:
+        file_path = row[0]
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            filename = f"{report_type}_{user_id}.txt"
+            conn.close()
+            return Response(
+                content=content,
+                media_type="text/plain",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+    
     cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
