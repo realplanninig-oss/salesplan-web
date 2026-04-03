@@ -217,18 +217,42 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             filepath = REPORTS_DIR / filename
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
+            # Обновляем статус и путь к файлу
             update_report_status(report_id, 'ready', str(filepath))
-            logger.info(f"Premium report generated for {user_id}")
+            logger.info(f"Premium report generated for {user_id}, file: {filepath}")
+            return True
         else:
             update_report_status(report_id, 'failed')
             logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
+            return False
     except Exception as e:
         update_report_status(report_id, 'failed')
         logger.error(f"Premium report error: {e}")
+        return False
 
 async def generate_premium_report_background(user_id: str, name: str, description: str, answers: dict, report_id: int):
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
+    success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
+    if success:
+        # Отправляем уведомление админу с файлом
+        report = get_report(user_id, "premium")
+        if report and report["file_path"]:
+            filepath = Path(report["file_path"])
+            if filepath.exists():
+                try:
+                    # Отправляем файл админу в Telegram
+                    with open(filepath, "rb") as f:
+                        await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: requests.post(
+                                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument",
+                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 План продаж для пользователя {user_id}"},
+                                files={"document": f}
+                            )
+                        )
+                    logger.info(f"Premium report file sent to admin for user {user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send file to admin: {e}")
 
 app = FastAPI(title="Salesplan")
 
@@ -504,6 +528,12 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
 
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str):
+    # Проверяем, есть ли уже готовый отчёт
+    existing_report = get_report(user_id, "premium")
+    if existing_report and existing_report["status"] == "ready":
+        # Если отчёт уже готов, сразу на страницу успеха
+        return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+    
     content = f'<div class="hero"><h1>💰 План продаж — 490 ₽</h1></div><div class="form-card"><h3>Что вы получите:</h3><ul><li>✅ Разбор 5 конкурентов</li><li>✅ Готовую воронку продаж</li><li>✅ Пошаговый план запуска продаж на месяц</li><li>✅ Скрипты для продаж</li></ul><div style="text-align:center;margin:30px 0"><a href="{PAYMENT_URL}" target="_blank" class="btn">💳 Оплатить 490 ₽</a></div><hr><div style="text-align:center"><p>✅ Уже оплатили?</p><a href="/payment/success?user_id={user_id}" class="btn" style="margin-top:16px">→ Я оплатил(а) — получить план</a></div></div>'
     return HTMLResponse(content=render_page(content))
 
