@@ -411,7 +411,7 @@ def render_premium_waiting_page(user_id: str):
 <div class="container">
     <div class="spinner"></div>
     <h1>📊 Анализируем рынок и конкурентов</h1>
-    <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>5–15 минут</strong>.</p>
+    <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>1–5 минут</strong>.</p>
     
     <div style="margin: 30px 0;">
         <span id="step1" class="step active">1. Анализ конкурентов</span>
@@ -451,7 +451,80 @@ async def index():
 
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
-    content = '<div class="hero"><h1>Расскажите о вашем бизнесе — 2 минуты</h1><p>Анализируем данные — диагностика будет готова через 60 секунд</p></div><div class="form-card"><form action="/survey/submit" method="post"><div class="form-group"><label>1. Название бизнеса</label><input type="text" name="business_name" required></div><div class="form-group"><label>2. Короткое описание (чем занимаетесь, кому помогаете)</label><textarea name="business_description" rows="3" required></textarea></div><div class="form-group"><label>3. Что вы продаёте?</label><div class="radio-group"><label><input type="radio" name="q1" value="Услугу" required> Услугу</label><label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label><label><input type="radio" name="q1" value="Консультацию"> Консультацию</label><label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label></div></div><div class="form-group"><label>4. Средний чек (₽)</label><div class="radio-group"><label><input type="radio" name="q2" value="до 5k" required> до 5k</label><label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label><label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label><label><input type="radio" name="q2" value=">50k"> >50k</label></div></div><div class="form-group"><label>5. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q3" value="<10" required> меньше 10</label><label><input type="radio" name="q3" value="10-50"> 10-50</label><label><input type="radio" name="q3" value="50-200"> 50-200</label><label><input type="radio" name="q3" value=">200"> более 200</label></div></div><div class="form-group"><label>6. Цель на 2026</label><div class="radio-group"><label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q4" value="Масштаб"> Масштаб</label></div></div><div class="form-group"><label>7. Уже есть автоворонка?</label><div class="radio-group"><label><input type="radio" name="q5" value="Да" required> Да</label><label><input type="radio" name="q5" value="Нет"> Нет</label><label><input type="radio" name="q5" value="В разработке"> В разработке</label></div></div><div style="text-align:center"><button type="submit" class="btn">Получить диагностику</button></div></form></div>'
+    content = """
+<div class="hero">
+    <h1>Расскажите о вашем бизнесе — 2 минуты</h1>
+    <p>Анализируем данные — диагностика будет готова через 60 секунд</p>
+</div>
+
+<div class="form-card">
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin-bottom: 30px;">
+        <p style="font-size: 14px; color: #6e6e73; margin-bottom: 10px;">📌 Пример заполнения (мой бизнес):</p>
+        <p style="font-size: 15px; font-weight: 500;">Продюсирую экспертов (психологов, коучей, фрилансеров)</p>
+        <p style="font-size: 14px; color: #6e6e73; margin-top: 8px;">Бесплатная диагностика онлайн бизнеса — почему нет продаж в онлайн.<br>
+        🔥 Перестань гадать, почему не покупают. Получи пошаговый план запуска продаж в онлайн для вашей экспертизы.<br>
+        ✅ После внедрения воронки продаж клиенты получают результат за 1–2 недели. Кейсы от 60 до 2 млн.</p>
+    </div>
+    
+    <form action="/survey/submit" method="post">
+        <div class="form-group">
+            <label>1. Название бизнеса</label>
+            <input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required>
+        </div>
+        <div class="form-group">
+            <label>2. Короткое описание (чем занимаетесь, кому помогаете)</label>
+            <textarea name="business_description" rows="3" placeholder="например: Бесплатная диагностика онлайн бизнеса — почему нет продаж. Перестань гадать, получи пошаговый план запуска продаж..." required></textarea>
+        </div>
+        <div class="form-group">
+            <label>3. Что вы продаёте?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="q1" value="Услугу" required> Услугу</label>
+                <label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label>
+                <label><input type="radio" name="q1" value="Консультацию"> Консультацию</label>
+                <label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>4. Средний чек (₽)</label>
+            <div class="radio-group">
+                <label><input type="radio" name="q2" value="до 5k" required> до 5k</label>
+                <label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label>
+                <label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label>
+                <label><input type="radio" name="q2" value=">50k"> >50k</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>5. Клиентов в месяц (примерно)</label>
+            <div class="radio-group">
+                <label><input type="radio" name="q3" value="<10" required> меньше 10</label>
+                <label><input type="radio" name="q3" value="10-50"> 10-50</label>
+                <label><input type="radio" name="q3" value="50-200"> 50-200</label>
+                <label><input type="radio" name="q3" value=">200"> более 200</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>6. Цель на 2026</label>
+            <div class="radio-group">
+                <label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label>
+                <label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label>
+                <label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label>
+                <label><input type="radio" name="q4" value="Масштаб"> Масштаб</label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>7. Уже есть автоворонка?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="q5" value="Да" required> Да</label>
+                <label><input type="radio" name="q5" value="Нет"> Нет</label>
+                <label><input type="radio" name="q5" value="В разработке"> В разработке</label>
+            </div>
+        </div>
+        <div style="text-align:center">
+            <button type="submit" class="btn">Получить диагностику</button>
+        </div>
+    </form>
+</div>
+"""
     return HTMLResponse(content=render_page(content))
 
 @app.post("/survey/submit")
