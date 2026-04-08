@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (версия с полными улучшениями)
+# File: main.py — веб-приложение Salesplan (полная версия со всеми улучшениями)
 
 import logging
 import sqlite3
@@ -96,15 +96,18 @@ def save_form(user_id: str, answers: dict):
 
 def save_report(user_id: str, report_type: str, report_text: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO reports (user_id, report_type, report_text, file_path, status) VALUES (?, ?, ?, ?, 'ready')", 
+    conn.execute("INSERT OR REPLACE INTO reports (user_id, report_type, report_text, file_path, status) VALUES (?, ?, ?, ?, 'ready')", 
                  (user_id, report_type, report_text, file_path))
     conn.commit()
     conn.close()
 
-def update_report_status(report_id: int, status: str, file_path: str = None):
+def update_report_status(report_id: int, status: str, file_path: str = None, report_text: str = None):
     conn = sqlite3.connect(DB_PATH)
     if status == 'ready':
-        conn.execute("UPDATE reports SET status = ?, file_path = ?, ready_at = CURRENT_TIMESTAMP WHERE id = ?", (status, file_path, report_id))
+        if report_text:
+            conn.execute("UPDATE reports SET status = ?, file_path = ?, report_text = ?, ready_at = CURRENT_TIMESTAMP WHERE id = ?", (status, file_path, report_text, report_id))
+        else:
+            conn.execute("UPDATE reports SET status = ?, file_path = ?, ready_at = CURRENT_TIMESTAMP WHERE id = ?", (status, file_path, report_id))
     else:
         conn.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id))
     conn.commit()
@@ -217,7 +220,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             filepath = REPORTS_DIR / filename
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
-            update_report_status(report_id, 'ready', str(filepath))
+            update_report_status(report_id, 'ready', str(filepath), report_text)
             logger.info(f"Premium report generated for {user_id}, file: {filepath}")
             return True
         else:
@@ -243,7 +246,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
                             None,
                             lambda: requests.post(
                                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument",
-                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 План продаж для пользователя {user_id}"},
+                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 Профессиональный маркетинговый план запуска продаж для пользователя {user_id}"},
                                 files={"document": f}
                             )
                         )
@@ -279,20 +282,21 @@ HTML_HEAD = """<!DOCTYPE html>
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        .radio-group{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal}
+        .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal}
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
         .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
         hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
         .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
         .price-new{font-size:36px;font-weight:700;color:#007aff}
+        .scroll-hint{text-align:center;font-size:12px;color:#8e8e93;margin-top:8px}
+        .report-preview{background:#f5f5f7;border-radius:20px;padding:20px;margin:20px 0;text-align:left;max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5}
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:32px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
-            .radio-group{flex-direction:column;gap:8px}
             input,textarea,.btn{font-size:16px}
         }
     </style>
@@ -306,7 +310,7 @@ HTML_FOOT = """
         <div class="social-links">
             <a href="https://t.me/YourProducerOnline">Telegram-канал</a>
             <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
-            <a href="https://t.me/zapuskintelega_bot">Мини-курс "Раскрутка блога без вложений" — 1490 ₽</a>
+            <a href="https://t.me/zapuskintelega_bot">Мини-курс "Раскрутка блога без вложений"</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <p>© 2026 Все права защищены</p>
@@ -363,7 +367,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 <div class="container">
     <div class="spinner"></div>
     <h1>🔍 Анализируем конкурентов и рынок</h1>
-    <p>Лопатим вашу нишу, ищем точки роста и слабые места. Это займет 1-2 минуты.</p>
+    <p>Диагностика будет готова через 1 минуту.</p>
     <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
 </div>
 </body>
@@ -422,7 +426,7 @@ def render_premium_waiting_page(user_id: str):
 <div class="container">
     <div class="spinner"></div>
     <h1>📊 Анализируем рынок и конкурентов</h1>
-    <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>1–5 минут</strong>.</p>
+    <p>Профессиональный маркетинговый план запуска продаж будет готов через 2 минуты.<br>Это займёт немного времени.</p>
     
     <div style="margin: 30px 0;">
         <span id="step1" class="step active">1. Анализ конкурентов</span>
@@ -457,7 +461,7 @@ def render_premium_waiting_page(user_id: str):
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
+    content = '<div class="hero"><h1>Готовый профессиональный маркетинговый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 1 минута</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 2 минуты</h3><p>Профессиональный маркетинговый план запуска продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 30 минут</h3><p>Внедрите работающее решение, которое принесёт деньги</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
 @app.get("/survey", response_class=HTMLResponse)
@@ -476,7 +480,7 @@ async def survey():
         </div>
         <div class="form-group">
             <label>2. Короткое описание (чем занимаетесь, кому помогаете)</label>
-            <textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж за 490₽ → бесплатный разбор плана за подписку в MAX" required></textarea>
+            <textarea name="business_description" rows="4" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → профессиональный маркетинговый план запуска продаж → бесплатный разбор плана за подписку в MAX" required></textarea>
         </div>
         <div class="form-group">
             <label>3. Что вы продаёте?</label>
@@ -595,19 +599,34 @@ async def diagnostic(user_id: str):
     <p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p>
 </div>
 <div class="form-card" style="text-align: center;">
-    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Полный текст диагностики ниже</p>
+    <div style="font-size: 24px; margin-bottom: 16px;">📄</div>
+    <div class="scroll-hint">↓ Листайте вниз для полного текста ↓</div>
+    
+    <div class="report-preview">
+        <div>{report_text_html}</div>
     </div>
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
+    
     <hr style="margin: 32px 0;">
+    
     <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
-    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p>
+    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатную диагностику — это только первый шаг. Чтобы реально увеличить/запустить продажи, нужен профессиональный маркетинговый план.</p>
+    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Ваш план уже формируется и через минуту будет готов — нажмите кнопку ниже, чтобы получить доступ к плану.</p>
+    
+    <div style="margin: 32px 0;">
+        <form action="/payment/create" method="post">
+            <input type="hidden" name="user_id" value="{user_id}">
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label>📞 Оставьте номер телефона:</label>
+                <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+            </div>
+            <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к профессиональному маркетинговому плану запуска продаж</button>
+            <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план и бонусы.</p>
+        </form>
+    </div>
     
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
+        <p>Моё отличие — довожу до результата, а не просто консультирую.</p>
         <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
     </div>
     
@@ -635,7 +654,7 @@ async def diagnostic(user_id: str):
     </div>
     
     <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В детальном плане продаж:</h3>
+        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В плане запуска продаж:</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
             <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
             <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
@@ -649,16 +668,6 @@ async def diagnostic(user_id: str):
         <div class="price-new">490 ₽</div>
         <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
     </div>
-    
-    <form action="/payment/create" method="post" style="margin-top: 24px;">
-        <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group" style="margin-bottom: 20px;">
-            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный план:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
-        </div>
-        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button>
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p>
-    </form>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -679,7 +688,7 @@ async def payment_page(user_id: str):
     
     content = f'''
 <div class="hero">
-    <h1>💰 План продаж — 490 ₽</h1>
+    <h1>💰 Профессиональный маркетинговый план запуска продаж — 490 ₽</h1>
 </div>
 <div class="form-card">
     <h3>Что вы получите:</h3>
@@ -705,7 +714,7 @@ async def payment_page(user_id: str):
 <script>
     let timeoutId;
     function showExitPopup(e) {{
-        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
+        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Профессиональный маркетинговый план запуска продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
         (e || window.event).returnValue = message;
         return message;
     }}
@@ -729,8 +738,9 @@ async def payment_success(user_id: str):
     
     existing_report = get_report(user_id, "premium")
     
-    if existing_report and existing_report["status"] == "ready":
-        report_text_full = existing_report["text"] or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
+    # Если отчёт уже готов
+    if existing_report and existing_report["status"] == "ready" and existing_report["text"]:
+        report_text_full = existing_report["text"]
         report_text_html = report_text_full.replace("\n", "<br>")
         
         content = f'''
@@ -738,41 +748,19 @@ async def payment_success(user_id: str):
     <h1>🎉 Спасибо за покупку!</h1>
 </div>
 <div class="form-card" style="text-align: center;">
-    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш план продаж — полная версия ниже</p>
-    </div>
+    <div style="font-size: 24px; margin-bottom: 16px;">📄</div>
+    <div class="scroll-hint">↓ Листайте вниз для полного текста профессионального маркетингового плана запуска продаж ↓</div>
     
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
+    <div class="report-preview">
+        <div>{report_text_html}</div>
     </div>
     
     <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
     
     <hr style="margin: 32px 0;">
     
-    <h2>🎁 Бесплатный бонус</h2>
-    <p><strong>План у вас уже есть. Теперь про реализацию.</strong></p>
-    <p>Давайте честно: получив готовую стратегию, многие откладывают её «на потом». Знаете, почему? Потому что внедрение требует времени, технических навыков и дисциплины. А их как раз чаще всего не хватает.</p>
-    <p>У вас есть время на этой неделе?</p>
-    <p>Если да — у меня для вас вариант, который решит проблему «руками».</p>
-    <p><strong>Онлайн-интенсив «Запуск с нуля» — 1490 ₽ вместо 14 900 ₽</strong></p>
-    <p>Формат простой и действенный:</p>
-    <ul style="text-align: left; display: inline-block;">
-        <li>Я на ваших глазах настраиваю свою воронку продаж и демонстрирую вам</li>
-        <li>Вы повторяете за мной — и через 7 уроков (видео по 10 минут) у вас работает система</li>
-        <li>С обратной связью от меня лично</li>
-    </ul>
-    <p>Никакой теории. Только практика. Только результат.</p>
-    <p>Это решение для тех, кто ценит своё время и готов инвестировать в системный подход.</p>
-    <div style="margin: 32px 0;">
-        <a href="https://t.me/zapuskintelega_bot" target="_blank" class="btn">👉 Участвовать в интенсиве за 1490₽</a>
-    </div>
-    
-    <hr style="margin: 32px 0;">
-    
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
+        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш профессиональный маркетинговый план запуска продаж и дала честный фидбек?</p>
         <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
@@ -800,6 +788,7 @@ async def payment_success(user_id: str):
 '''
         return HTMLResponse(content=render_page(content))
     
+    # Если отчёт ещё генерируется
     if biz and answers and DEEPSEEK_API_KEY:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
@@ -810,27 +799,30 @@ async def payment_success(user_id: str):
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
         
         return HTMLResponse(content=render_premium_waiting_page(user_id))
-    else:
-        premium_text = f"План продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
-        save_report(user_id, "premium", premium_text)
-        report_text_html = premium_text.replace("\n", "<br>")
-        
-        content = f'''
+    
+    # Fallback
+    premium_text = f"Профессиональный маркетинговый план запуска продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
+    save_report(user_id, "premium", premium_text)
+    report_text_html = premium_text.replace("\n", "<br>")
+    
+    content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
 </div>
 <div class="form-card" style="text-align: center;">
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
+    <div class="report-preview">
+        <div>{report_text_html}</div>
     </div>
     
     <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
     
     <hr>
-    <h2>🎁 Бесплатный бонус</h2>
-    <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
-    <div style="text-align:center;margin-top:20px">
-        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
+        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш профессиональный маркетинговый план запуска продаж и дала честный фидбек?</p>
+        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        <div style="text-align:center;margin-top:20px">
+            <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+        </div>
     </div>
 </div>
 
@@ -848,7 +840,7 @@ async def payment_success(user_id: str):
     }}
 </script>
 '''
-        return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/check_premium_status")
 async def check_premium_status(user_id: str):
@@ -866,7 +858,7 @@ async def request_report_by_phone(user_id: str):
     conn.close()
     
     if row and row[0]:
-        send_telegram_message(f"📱 Пользователь запросил отправить план в MAX!\nID: {user_id}\nТелефон: {row[0]}")
+        send_telegram_message(f"📱 Пользователь запросил отправить профессиональный маркетинговый план запуска продаж в MAX!\nID: {user_id}\nТелефон: {row[0]}")
         return {"success": True}
     return {"success": False, "error": "Телефон не найден"}
 
@@ -894,6 +886,24 @@ async def consultation_page(user_id: str):
     
     <div style="margin: 30px 0;">
         <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
+    </div>
+    
+    <hr style="margin: 30px 0;">
+    
+    <div style="text-align: left; margin-bottom: 30px;">
+        <p><strong>Ты эксперт. У тебя есть знания. Но денег нет.</strong></p>
+        <p>Почему? Потому что нет системы. Ты продаёшь вручную в личке, а не через воронку, которая работает 24/7.</p>
+        <p>Я — Вероника. Продюсер экспертов. Я не консультирую. Я <strong>довожу до результата</strong>.</p>
+        <p>За 8 лет я помогла десяткам специалистов (психологи, диетологи, коучи, фитнес-тренеры) упаковать воронку продаж персонально под их бизнес.</p>
+        <p><strong>Что ты получишь за 30 минут разбора:</strong></p>
+        <ul>
+            <li>1 конкретное действие, которое внедришь завтра и оно принесёт деньги</li>
+            <li>Карту твоей текущей воронки (где утекают клиенты)</li>
+            <li>Чек-лист «3 ошибки в твоём прогреве»</li>
+        </ul>
+        <p><strong>Формат:</strong> честно, без воды, только по делу.</p>
+        <p><strong>Не хочешь разбираться в технических деталях сама?</strong> Я сделаю это за тебя. За неделю упакую твою воронку под ключ.</p>
+        <p>👇 Жми. Мест не много. Первым 100 — бесплатно.</p>
     </div>
     
     <hr style="margin: 30px 0;">
@@ -944,7 +954,36 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 <div class="form-card" style="text-align: center;">
     <p>✅ Я свяжусь с вами в MAX в ближайшее время, чтобы подтвердить время разбора.</p>
     <div style="text-align:center;margin-top:20px">
-        <a href="/" class="btn">→ На главную</a>
+        <a href="/bonus" class="btn">→ Получить бонус</a>
+    </div>
+</div>
+"""
+    return HTMLResponse(content=render_page(content))
+
+@app.get("/bonus", response_class=HTMLResponse)
+async def bonus_page():
+    content = """
+<div class="hero">
+    <h1>🎁 Ваш бонус</h1>
+    <p>Онлайн-интенсив «Запуск с нуля»</p>
+</div>
+
+<div class="form-card" style="text-align: center;">
+    <p>Формат простой и действенный:</p>
+    <ul style="text-align: left; display: inline-block;">
+        <li>Я на ваших глазах настраиваю свою воронку продаж и демонстрирую вам</li>
+        <li>Вы повторяете за мной — и через 7 уроков (видео по 10 минут) у вас работает система</li>
+        <li>С обратной связью от меня лично</li>
+    </ul>
+    <p>Никакой теории. Только практика. Только результат.</p>
+    <p>Это решение для тех, кто ценит своё время и готов инвестировать в системный подход.</p>
+    
+    <div style="margin: 32px 0;">
+        <a href="https://t.me/zapuskintelega_bot" target="_blank" class="btn">👉 Участвовать в интенсиве</a>
+    </div>
+    
+    <div style="margin-top: 32px;">
+        <a href="/" class="btn btn-outline">→ На главную</a>
     </div>
 </div>
 """
