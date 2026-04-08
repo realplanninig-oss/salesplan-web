@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (полная версия со всеми улучшениями)
+# File: main.py — веб-приложение Salesplan (финальная версия со всеми правками)
 
 import logging
 import sqlite3
@@ -7,11 +7,13 @@ import requests
 import uuid
 import re
 import asyncio
+import json
+import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 load_dotenv()
@@ -19,7 +21,11 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-PAYMENT_URL = "https://yookassa.ru/my/i/adO_-KVsYKuY/l"
+
+# ЮKassa API
+YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
+YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
+YOOKASSA_API_URL = "https://api.yookassa.ru/v3/payments"
 
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
@@ -45,7 +51,7 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, payment_id TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.commit()
     conn.close()
 
@@ -126,11 +132,24 @@ def save_consultation(user_id: str, time: str, phone: str = None, username: str 
     conn.commit()
     conn.close()
 
-def save_payment_request(user_id: str, phone: str):
+def save_payment_request(user_id: str, phone: str, payment_id: str = None):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO payments (user_id, phone) VALUES (?, ?)", (user_id, phone))
+    conn.execute("INSERT INTO payments (user_id, phone, payment_id, status) VALUES (?, ?, ?, 'pending')", (user_id, phone, payment_id))
     conn.commit()
     conn.close()
+
+def update_payment_status(payment_id: str, status: str):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE payments SET status = ? WHERE payment_id = ?", (status, payment_id))
+    conn.commit()
+    conn.close()
+
+def get_user_id_by_payment_id(payment_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT user_id FROM payments WHERE payment_id = ?", (payment_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
 
 def send_telegram_message(text: str):
     if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
@@ -138,6 +157,55 @@ def send_telegram_message(text: str):
             requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": ADMIN_CHAT_ID, "text": text})
         except Exception as e:
             logger.error(f"Failed to send telegram: {e}")
+
+def create_yookassa_payment(amount: float, description: str, return_url: str, user_id: str) -> dict:
+    """Создаёт платёж в ЮKassa и возвращает ссылку для оплаты"""
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        logger.error("YOOKASSA_SHOP_ID or YOOKASSA_SECRET_KEY not set")
+        return None
+    
+    auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
+    
+    payload = {
+        "amount": {
+            "value": str(amount),
+            "currency": "RUB"
+        },
+        "payment_method_data": {
+            "type": "bank_card"
+        },
+        "confirmation": {
+            "type": "redirect",
+            "return_url": return_url
+        },
+        "description": description,
+        "metadata": {
+            "user_id": user_id
+        }
+    }
+    
+    headers = {
+        "Authorization": f"Basic {auth}",
+        "Content-Type": "application/json",
+        "Idempotence-Key": str(uuid.uuid4())
+    }
+    
+    try:
+        response = requests.post(YOOKASSA_API_URL, headers=headers, json=payload, timeout=30)
+        logger.info(f"YooKassa response status: {response.status_code}")
+        
+        if response.status_code in (200, 201):
+            data = response.json()
+            return {
+                "payment_id": data["id"],
+                "confirmation_url": data["confirmation"]["confirmation_url"]
+            }
+        else:
+            logger.error(f"YooKassa error: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"YooKassa create payment failed: {e}")
+        return None
 
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
@@ -264,26 +332,26 @@ HTML_HEAD = """<!DOCTYPE html>
     <title>Salesplan</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
+        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f;font-size:16px;line-height:1.5}
         .container{max-width:1000px;margin:0 auto;padding:40px 20px}
         .hero{text-align:center;margin-bottom:60px}
-        .hero h1{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
-        .hero p{font-size:20px;color:#6e6e73}
+        .hero h1{font-size:32px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
+        .hero p{font-size:18px;color:#6e6e73}
         .features{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}
         .feature{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
         .feature-icon{font-size:36px;margin-bottom:12px}
         .feature h3{font-size:18px;font-weight:600;margin-bottom:8px}
         .feature p{font-size:14px;color:#6e6e73}
-        .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}
-        .btn:hover{background:#005fc5;transform:scale(1.02)}
+        .btn, button, .btn-outline{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease;font-family:inherit;line-height:1.2}
+        .btn:hover, button:hover{background:#005fc5;transform:scale(1.02)}
         .btn-outline{background:transparent;border:1px solid #007aff;color:#007aff}
         .btn-outline:hover{background:#007aff10;transform:scale(1.02)}
         .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
         .form-group{margin-bottom:24px}
-        label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
-        input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal}
+        label{font-size:16px;font-weight:500;display:block;margin-bottom:8px}
+        input,textarea{width:100%;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
+        .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px;align-items:flex-start}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;font-size:16px}
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
         .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
@@ -294,10 +362,14 @@ HTML_HEAD = """<!DOCTYPE html>
         .report-preview{background:#f5f5f7;border-radius:20px;padding:20px;margin:20px 0;text-align:left;max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5}
         @media (max-width:700px){
             .container{padding:20px 16px}
-            .hero h1{font-size:32px}
+            .hero h1{font-size:28px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
-            input,textarea,.btn{font-size:16px}
+            input,textarea,.btn,button{font-size:15px}
+            .btn,button{padding:12px 24px}
+            body, p, li, label{font-size:15px}
+            h2{font-size:22px}
+            h3{font-size:18px}
         }
     </style>
 </head>
@@ -331,12 +403,13 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <title>Анализируем рынок | Salesplan</title>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f;font-size:16px;line-height:1.5}}
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;font-family:inherit}}
         .btn:hover{{background:#005fc5}}
+        @media (max-width:700px){{.btn{{padding:12px 24px;font-size:15px}}}}
     </style>
     <script>
         let attempts = 0;
@@ -366,7 +439,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 <body>
 <div class="container">
     <div class="spinner"></div>
-    <h1>🔍 Анализируем конкурентов и рынок</h1>
+    <h1 style="font-size:28px">🔍 Анализируем конкурентов и рынок</h1>
     <p>Диагностика будет готова через 1 минуту.</p>
     <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
 </div>
@@ -382,15 +455,16 @@ def render_premium_waiting_page(user_id: str):
     <title>Готовим стратегию | Salesplan</title>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f;font-size:16px;line-height:1.5}}
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
         .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
         .step.active{{background:#007aff;color:#fff}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn, .btn-outline{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;font-family:inherit}}
         .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
         .btn-outline:hover{{background:#007aff;color:#fff}}
+        @media (max-width:700px){{.btn,.btn-outline{{padding:12px 24px;font-size:15px}}}}
     </style>
     <script>
         let attempts = 0;
@@ -425,7 +499,7 @@ def render_premium_waiting_page(user_id: str):
 <body>
 <div class="container">
     <div class="spinner"></div>
-    <h1>📊 Анализируем рынок и конкурентов</h1>
+    <h1 style="font-size:28px">📊 Анализируем рынок и конкурентов</h1>
     <p>Профессиональный маркетинговый план запуска продаж будет готов через 2 минуты.<br>Это займёт немного времени.</p>
     
     <div style="margin: 30px 0;">
@@ -440,7 +514,7 @@ def render_premium_waiting_page(user_id: str):
     
     <p style="font-size: 15px;">⚡️ Не хотите ждать?</p>
     <p style="font-size: 14px; color: #6e6e73;">Мы пришлём готовый план в MAX по вашему номеру телефона</p>
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin-top: 15px;">📲 Отправить в MAX по номеру телефона</button>
+    <button onclick="requestByPhone()" class="btn-outline" style="margin-top: 15px;">📲 Отправить в MAX по номеру телефона</button>
 </div>
 
 <script>
@@ -613,7 +687,7 @@ async def diagnostic(user_id: str):
     <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Ваш план уже формируется и через минуту будет готов — нажмите кнопку ниже, чтобы получить доступ к плану.</p>
     
     <div style="margin: 32px 0;">
-        <form action="/payment/create" method="post">
+        <form action="/create-payment" method="post">
             <input type="hidden" name="user_id" value="{user_id}">
             <div class="form-group" style="margin-bottom: 20px;">
                 <label>📞 Оставьте номер телефона:</label>
@@ -650,7 +724,7 @@ async def diagnostic(user_id: str):
     </div>
     
     <div style="margin: 32px 0;">
-        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
+        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn-outline" style="margin: 10px; display: inline-block;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
     
     <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
@@ -672,59 +746,48 @@ async def diagnostic(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-@app.post("/payment/create")
-async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
+@app.post("/create-payment")
+async def create_payment(user_id: str = Form(...), phone: str = Form(...)):
+    """Создаёт платёж в ЮKassa и перенаправляет на оплату"""
     phone = format_phone(phone)
     save_user(user_id, phone, None)
-    save_payment_request(user_id, phone)
-    send_telegram_message(f"Новая заявка на оплату!\nID: {user_id}\nТелефон: {phone}")
-    return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
-
-@app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str):
-    existing_report = get_report(user_id, "premium")
-    if existing_report and existing_report["status"] == "ready":
-        return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
-    content = f'''
+    return_url = f"https://realplanninig-oss-salesplan-web-7eb2.twc1.net/payment/success?user_id={user_id}"
+    
+    payment = create_yookassa_payment(
+        amount=490.00,
+        description="Профессиональный маркетинговый план запуска продаж",
+        return_url=return_url,
+        user_id=user_id
+    )
+    
+    if payment:
+        save_payment_request(user_id, phone, payment["payment_id"])
+        send_telegram_message(f"🔄 Создан платёж ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment['payment_id']}")
+        return RedirectResponse(url=payment["confirmation_url"], status_code=303)
+    else:
+        send_telegram_message(f"❌ Ошибка создания платежа ЮKassa!\nID: {user_id}\nТелефон: {phone}")
+        content = """
 <div class="hero">
-    <h1>💰 Профессиональный маркетинговый план запуска продаж — 490 ₽</h1>
+    <h1>❌ Ошибка создания платежа</h1>
 </div>
-<div class="form-card">
-    <h3>Что вы получите:</h3>
-    <ul>
-        <li>✅ Разбор 5 конкурентов</li>
-        <li>✅ Готовую воронку продаж</li>
-        <li>✅ Пошаговый план запуска продаж на месяц</li>
-        <li>✅ Скрипты для продаж</li>
-    </ul>
-    <div class="price-old" style="text-align:center">4 900 ₽</div>
-    <div class="price-new" style="text-align:center">490 ₽</div>
-    <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
-    <div style="text-align:center;margin:30px 0">
-        <a href="{PAYMENT_URL}" target="_blank" class="btn">💳 Оплатить 490 ₽</a>
-    </div>
-    <hr>
-    <div style="text-align:center">
-        <p>✅ Уже оплатили?</p>
-        <a href="/payment/success?user_id={user_id}" class="btn" style="margin-top:16px">→ Я оплатил(а) — получить план</a>
+<div class="form-card" style="text-align: center;">
+    <p>К сожалению, не удалось создать платёж. Пожалуйста, попробуйте позже или свяжитесь с поддержкой.</p>
+    <div style="text-align:center;margin-top:20px">
+        <a href="/" class="btn">→ На главную</a>
     </div>
 </div>
-
-<script>
-    let timeoutId;
-    function showExitPopup(e) {{
-        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Профессиональный маркетинговый план запуска продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
-        (e || window.event).returnValue = message;
-        return message;
-    }}
-    window.addEventListener('beforeunload', showExitPopup);
-</script>
-'''
-    return HTMLResponse(content=render_page(content))
+"""
+        return HTMLResponse(content=render_page(content))
 
 @app.get("/payment/success", response_class=HTMLResponse)
-async def payment_success(user_id: str):
+async def payment_success(user_id: str, payment_id: str = None):
+    """Страница успеха после оплаты (редирект от ЮKassa)"""
+    
+    if payment_id:
+        update_payment_status(payment_id, "succeeded")
+        send_telegram_message(f"✅ Платёж подтверждён!\nID: {user_id}\nPayment ID: {payment_id}")
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -738,7 +801,6 @@ async def payment_success(user_id: str):
     
     existing_report = get_report(user_id, "premium")
     
-    # Если отчёт уже готов
     if existing_report and existing_report["status"] == "ready" and existing_report["text"]:
         report_text_full = existing_report["text"]
         report_text_html = report_text_full.replace("\n", "<br>")
@@ -755,20 +817,20 @@ async def payment_success(user_id: str):
         <div>{report_text_html}</div>
     </div>
     
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
+    <button onclick="requestByPhone()" class="btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
     
     <hr style="margin: 32px 0;">
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш профессиональный маркетинговый план запуска продаж и дала честный фидбек?</p>
-        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш профессиональный маркетинговый план запуска продаж и нашла 1 действие, которое приведёт к деньгам?</p>
+        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я внедряю воронки продаж для увеличения дохода. Пока вы спите — воронка работает.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
         </div>
     </div>
     
     <div style="margin: 32px 0;">
-        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
+        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn-outline" style="margin: 10px; display: inline-block;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
 </div>
 
@@ -788,7 +850,6 @@ async def payment_success(user_id: str):
 '''
         return HTMLResponse(content=render_page(content))
     
-    # Если отчёт ещё генерируется
     if biz and answers and DEEPSEEK_API_KEY:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
@@ -800,7 +861,6 @@ async def payment_success(user_id: str):
         
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     
-    # Fallback
     premium_text = f"Профессиональный маркетинговый план запуска продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
     save_report(user_id, "premium", premium_text)
     report_text_html = premium_text.replace("\n", "<br>")
@@ -814,12 +874,12 @@ async def payment_success(user_id: str):
         <div>{report_text_html}</div>
     </div>
     
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
+    <button onclick="requestByPhone()" class="btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
     
     <hr>
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш профессиональный маркетинговый план запуска продаж и дала честный фидбек?</p>
-        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш профессиональный маркетинговый план запуска продаж и нашла 1 действие, которое приведёт к деньгам?</p>
+        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я внедряю воронки продаж для увеличения дохода. Пока вы спите — воронка работает.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
         </div>
@@ -873,7 +933,7 @@ async def consultation_page(user_id: str):
     content = f'''
 <div class="hero">
     <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
-    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
+    <p style="font-size: 18px;">Внедрение воронки продаж с сопровождением за неделю.</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
@@ -899,7 +959,6 @@ async def consultation_page(user_id: str):
         <ul>
             <li>1 конкретное действие, которое внедришь завтра и оно принесёт деньги</li>
             <li>Карту твоей текущей воронки (где утекают клиенты)</li>
-            <li>Чек-лист «3 ошибки в твоём прогреве»</li>
         </ul>
         <p><strong>Формат:</strong> честно, без воды, только по делу.</p>
         <p><strong>Не хочешь разбираться в технических деталях сама?</strong> Я сделаю это за тебя. За неделю упакую твою воронку под ключ.</p>
@@ -965,7 +1024,7 @@ async def bonus_page():
     content = """
 <div class="hero">
     <h1>🎁 Ваш бонус</h1>
-    <p>Онлайн-интенсив «Запуск с нуля»</p>
+    <p>Раскрутка блога без вложений — технология из 8 лет практики продюсера</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
@@ -983,7 +1042,7 @@ async def bonus_page():
     </div>
     
     <div style="margin-top: 32px;">
-        <a href="/" class="btn btn-outline">→ На главную</a>
+        <a href="/" class="btn-outline" style="display: inline-block;">→ На главную</a>
     </div>
 </div>
 """
@@ -991,7 +1050,6 @@ async def bonus_page():
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
-    # Эндпоинт оставлен для совместимости, но ссылки на него убраны со всех страниц
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
