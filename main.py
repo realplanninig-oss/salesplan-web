@@ -627,7 +627,7 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК: Что дальше? + План продаж (ПЕРЕД КНОПКОЙ) -->
+    <!-- БЛОК: Что дальше? + План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
     <div style="margin: 32px 0; text-align: center;">
         <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
         <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
