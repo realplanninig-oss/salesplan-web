@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (полностью исправленная версия, стиль Apple)
+# File: main.py — веб-приложение Salesplan (финальная версия)
 
 import logging
 import sqlite3
@@ -192,7 +192,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель: {q4_map.get(answers.get('q4'), 'не указано')}\n• Автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
     
-    prompt = f"""Сделай профессиональный план запуска продаж для онлайн-бизнеса.
+    prompt = f"""Сделай профессиональный маркетинговый план для онлайн-бизнеса.
 
 ДАННЫЕ:
 Название: {name}
@@ -246,7 +246,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
                             None,
                             lambda: requests.post(
                                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument",
-                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 План продаж для пользователя {user_id}"},
+                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 Маркетинговый план для пользователя {user_id}"},
                                 files={"document": f}
                             )
                         )
@@ -338,7 +338,7 @@ HTML_FOOT = """
         <div class="social-links">
             <a href="https://t.me/YourProducerOnline">Telegram-канал</a>
             <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
-            <a href="/minicourse">Мини-курс "Раскрутка блога без вложений" — 1490 ₽</a>
+            <a href="/minicourse">Мини-курс "Раскрутка блога без вложений"</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <p>© 2026 Все права защищены</p>
@@ -543,7 +543,7 @@ async def survey():
         </div>
         <div class="form-group">
             <label>2. Короткое описание (чем занимаетесь, кому помогаете)</label>
-            <textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж за 490₽ → бесплатный разбор плана за подписку в MAX" required></textarea>
+            <textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → профессиональный маркетинговый план за 490₽ → бесплатный разбор плана за подписку в MAX" required></textarea>
         </div>
         <div class="form-group">
             <label>3. Что вы продаёте?</label>
@@ -679,7 +679,7 @@ async def diagnostic(user_id: str):
     </div>
     <hr style="margin: 32px 0;">
     <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
-    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p>
+    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный профессиональный маркетинговый план.</p>
     
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
@@ -710,7 +710,7 @@ async def diagnostic(user_id: str):
     </div>
     
     <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В детальном плане продаж:</h3>
+        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане:</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
             <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
             <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
@@ -728,11 +728,11 @@ async def diagnostic(user_id: str):
     <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group" style="margin-bottom: 20px;">
-            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный план:</label>
+            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
         <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button>
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p>
+        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
     </form>
 </div>
 
@@ -760,7 +760,7 @@ async def payment_page(user_id: str):
     
     content = f'''
 <div class="hero">
-    <h1>💰 План продаж — 490 ₽</h1>
+    <h1>💰 Профессиональный маркетинговый план — 490 ₽</h1>
 </div>
 <div class="form-card">
     <h3>Что вы получите:</h3>
@@ -785,7 +785,7 @@ async def payment_page(user_id: str):
 
 <script>
     function showExitPopup(e) {{
-        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
+        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Профессиональный маркетинговый план с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
         (e || window.event).returnValue = message;
         return message;
     }}
@@ -817,7 +817,7 @@ async def payment_success(user_id: str):
     if not report_text_full:
         # Маркетинговый план, если API не сработал
         if biz and answers:
-            report_text_full = f"""МАРКЕТИНГОВЫЙ ПЛАН ДЛЯ ВАШЕГО БИЗНЕСА
+            report_text_full = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН ДЛЯ ВАШЕГО БИЗНЕСА
 
 Дорогой эксперт!
 
@@ -857,7 +857,7 @@ async def payment_success(user_id: str):
 5. ВОРОНКА ПРОДАЖ ШАГ ЗА ШАГОМ
 Шаг 1: Бесплатная диагностика (анкета на сайте)
 Шаг 2: Получение диагностики с 3 точками роста
-Шаг 3: Оплата маркетингового плана (490 ₽)
+Шаг 3: Оплата профессионального маркетингового плана (490 ₽)
 Шаг 4: Внедрение первого действия (15 минут)
 Шаг 5: Бесплатный разбор плана (консультация)
 Шаг 6: Переход на продюсирование под ключ
@@ -870,7 +870,7 @@ async def payment_success(user_id: str):
 
 Вероника Макаревич | Продюсер экспертов"""
         else:
-            report_text_full = "Маркетинговый план временно недоступен. Пожалуйста, напишите мне в MAX, я отправлю его лично."
+            report_text_full = "Профессиональный маркетинговый план временно недоступен. Пожалуйста, напишите мне в MAX, я отправлю его лично."
     
     report_text_html = report_text_full.replace("\n", "<br>")
     
@@ -882,7 +882,7 @@ async def payment_success(user_id: str):
     <!-- БЛОК 1: ПОЛНЫЙ ТЕКСТ МАРКЕТИНГОВОГО ПЛАНА -->
     <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
         <div style="font-size: 56px; margin-bottom: 16px;">📊</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш маркетинговый план — полная версия ниже</p>
+        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш профессиональный маркетинговый план — полная версия ниже</p>
     </div>
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
@@ -894,21 +894,48 @@ async def payment_success(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 2: БЕСПЛАТНЫЙ РАЗБОР (с отличием Вероники) -->
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 24px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">🎁 Бесплатный бонус</p>
-        <p><strong>План у вас уже есть. Теперь про внедрение.</strong></p>
-        <p>Давайте честно: получив готовую стратегию, многие откладывают её «на потом». Знаете, почему? Потому что внедрение требует времени, технических навыков и дисциплины. А их как раз чаще всего не хватает.</p>
-        <p><strong>Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш маркетинговый план и дала честный фидбек?</strong></p>
-        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
-        <div style="text-align:center;margin-top:20px">
-            <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+    <!-- БЛОК 2: Я ВЕРОНИКА, ПРОДЮСЕР ЭКСПЕРТОВ -->
+    <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
+        <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
+        <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
+    </div>
+    
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; margin: 32px 0; text-align: left;">
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div>
+            <p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p>
+        </div>
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
+            <p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p>
+        </div>
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🌊</div>
+            <p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p>
+        </div>
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🏫</div>
+            <p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p>
         </div>
     </div>
     
-    <!-- БЛОК 3: ОТЗЫВЫ -->
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
+    </div>
+    
+    <hr style="margin: 32px 0;">
+    
+    <!-- БЛОК 3: БЕСПЛАТНЫЙ БОНУС -->
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 28px; text-align: left; margin: 32px 0;">
+        <p style="font-size: 22px; font-weight: 600; color: #1d1d1f; margin-bottom: 16px;">🎁 Бесплатный бонус</p>
+        <p style="font-size: 17px; color: #1d1d1f; line-height: 1.4; margin-bottom: 16px;"><strong>План у вас уже есть. Теперь про внедрение.</strong></p>
+        <p style="font-size: 17px; color: #1d1d1f; line-height: 1.4; margin-bottom: 16px;">Давайте честно: получив готовую стратегию, многие откладывают её «на потом». Знаете, почему? Потому что внедрение требует времени, технических навыков и дисциплины. А их как раз чаще всего не хватает.</p>
+        <p style="font-size: 17px; font-weight: 500; color: #1d1d1f; margin-bottom: 16px;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш маркетинговый план и дала честный фидбек?</p>
+        <p style="font-size: 17px; color: #1d1d1f; line-height: 1.4; margin-bottom: 24px;">Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        
+        <div style="text-align: center;">
+            <a href="/consultation?user_id={user_id}" class="btn" style="display: inline-block;">→ Записаться на бесплатный разбор</a>
+        </div>
     </div>
 </div>
 
@@ -961,38 +988,38 @@ async def consultation_page(user_id: str):
     phone = row[0] if row else "не указан"
     
     content = f'''
-<div class="hero">
-    <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
-    <p style="font-size: 18px; color: #1d1d1f;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
+<div class="hero" style="margin-bottom: 20px;">
+    <h1 style="font-size: 28px; margin-bottom: 12px;">🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
+    <p style="font-size: 16px; color: #1d1d1f;">Найду 1 действие, которое принесет деньги прямо сейчас</p>
 </div>
 
-<div class="form-card" style="text-align: center;">
-    <p style="font-size: 16px; color: #1d1d1f; margin-bottom: 20px;">После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
+<div class="form-card" style="padding: 24px; text-align: center;">
+    <p style="font-size: 14px; color: #1d1d1f; margin-bottom: 16px;">После проверки подписки я свяжусь с вами в MAX</p>
     
-    <div style="margin-bottom: 30px;">
-        <div style="font-size: 48px; font-weight: 700; color: #1d1d1f;">Осталось мест: <span id="counter" style="color: #007aff;">87</span></div>
-        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
+    <div style="margin-bottom: 20px;">
+        <div style="font-size: 16px; font-weight: 500; color: #1d1d1f;">Осталось мест: <span id="counter" style="color: #007aff; font-weight: 600;">87</span></div>
+        <p style="color: #6e6e73; margin-top: 4px; font-size: 12px;">Только для первых 100 подписчиков</p>
     </div>
     
-    <div style="margin: 30px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="background: transparent; border: 2px solid #007aff; color: #007aff; padding: 16px 32px; width: auto;">📢 Подписаться на канал в MAX</a>
+    <div style="margin: 20px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="background: transparent; border: 2px solid #007aff; color: #007aff; padding: 12px 24px; width: 100%; font-size: 16px; display: block;">📢 Подписаться на канал в MAX</a>
     </div>
     
-    <hr style="margin: 30px 0;">
+    <hr style="margin: 20px 0;">
     
     <div id="formBlock">
         <form action="/consultation/submit" method="post" id="consultationForm">
             <input type="hidden" name="user_id" value="{user_id}">
-            <div class="form-group">
-                <label>Ваш телефон (проверим подписку)</label>
-                <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label style="font-size: 14px; margin-bottom: 6px;">Ваш телефон (проверим подписку)</label>
+                <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="padding: 10px; font-size: 14px;">
             </div>
-            <div class="form-group">
-                <label>🕐 Удобное время для созвона (по Москве)</label>
-                <input type="text" name="time" placeholder="например: завтра в 15:00" required>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-size: 14px; margin-bottom: 6px;">🕐 Удобное время для созвона (по Москве)</label>
+                <input type="text" name="time" placeholder="например: завтра в 15:00" required style="padding: 10px; font-size: 14px;">
             </div>
             <div style="text-align: center;">
-                <button type="submit" class="btn" style="background: #007aff; color: #fff;">Отправить заявку</button>
+                <button type="submit" class="btn" style="background: #007aff; color: #fff; padding: 12px 20px; width: 100%; font-size: 16px;">Отправить заявку</button>
             </div>
         </form>
     </div>
