@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с исправлениями)
+# File: main.py — веб-приложение Salesplan (финальная версия)
 
 import logging
 import sqlite3
@@ -229,7 +229,6 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
             
-            # Сохраняем текст отчёта в БД
             conn = sqlite3.connect(DB_PATH)
             conn.execute("UPDATE reports SET report_text = ?, file_path = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", 
                          (report_text, str(filepath), report_id))
@@ -307,14 +306,22 @@ HTML_HEAD = """<!DOCTYPE html>
         .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
         .price-new{font-size:36px;font-weight:700;color:#007aff}
         .course-card{background:linear-gradient(135deg,#667eea10 0%,#764ba210 100%);border-radius:28px;padding:32px;margin:32px 0;text-align:left}
-        @media (max-width:700px){
+        
+        @media (max-width: 700px){
             .container{padding:20px 16px}
             .hero h1{font-size:32px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
             .radio-group{flex-direction:column;gap:8px}
-            .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal;font-size:14px;padding:8px 12px;background:#f5f5f7;border-radius:12px;width:100%}
+            .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;font-size:16px;padding:10px 12px;background:#f5f5f7;border-radius:12px;width:100%;margin:0}
             input,textarea,.btn{font-size:16px}
+            .form-group{margin-bottom:16px}
+        }
+        
+        @media (max-width: 480px){
+            .hero h1{font-size:28px}
+            .price-new{font-size:28px}
+            .btn{padding:12px 20px;font-size:14px}
         }
     </style>
 </head>
@@ -635,7 +642,6 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК: Что дальше? + План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
     <div style="margin: 32px 0; text-align: center;">
         <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
         <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
@@ -653,7 +659,6 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК С ЦЕНОЙ И ФОРМОЙ -->
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
@@ -804,16 +809,14 @@ async def payment_success(user_id: str):
     <hr style="margin: 32px 0;">
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">🚀 Стоп.</p>
-        <p>Ты только что получила план. Молодец. Но давай без иллюзий — план без внедрения стоит ровно ноль.</p>
-        <p>Я не просто «консультант», который даст обратную связь и пожелает удачи. Моя система работает, пока ты спишь. Воронка, скрипты, автовебинары — я собираю это под ключ.</p>
-        <p>Хочешь, чтобы я лично разобрала твой план и сказала:</p>
+        <p style="font-size: 18px; font-weight: 600;">🎯 Хотите, чтобы я лично разобрала ваш план?</p>
+        <p>Я не просто консультирую — я веду экспертов к продажам по чёткой системе. Пока вы спите, воронка работает.</p>
+        <p>Получите бесплатный 30-минутный разбор вашего плана продаж:</p>
         <ul style="margin: 10px 0 10px 20px;">
-            <li>📍 где у тебя утекают деньги</li>
-            <li>📍 что поправить за 15 минут</li>
-            <li>📍 какой первый шаг сделать завтра утром?</li>
+            <li>📍 3 точки утечки клиентов</li>
+            <li>📍 Что поправить за 15 минут</li>
+            <li>📍 Первый шаг для запуска продаж</li>
         </ul>
-        <p>👇 Жми. Бесплатно. Но честно — мест не много.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
         </div>
@@ -953,18 +956,16 @@ async def consultation_page(user_id: str):
     
     content = f'''
 <div class="hero">
-    <h1>🔥 Слушай сюда, эксперт.</h1>
-    <p style="font-size: 18px;">Ты уже получила диагностику. Увидела дыры в воронке. Но сама их зашить — это время, нервы и куча ошибок.</p>
-    <p style="font-size: 18px;">Я за 8 лет продюсирования насмотрелась на одно и то же: умные женщины с классными знаниями сливают клиентов на этапе «подумаю».</p>
-    <p style="font-size: 18px; font-weight: 600;">Хватит думать. Давай делать.</p>
+    <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
+    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
-    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ Подпишись на MAX-канал — я проверю и пришлю тебе 3 точки утечки клиентов лично в MAX</p>
+    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
     
     <div style="margin-bottom: 30px;">
         <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
-        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100. Дальше — платно.</p>
+        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
     </div>
     
     <div style="margin: 30px 0;">
@@ -977,7 +978,7 @@ async def consultation_page(user_id: str):
         <form action="/consultation/submit" method="post">
             <input type="hidden" name="user_id" value="{user_id}">
             <div class="form-group">
-                <label>📞 Твой телефон (проверю подписку)</label>
+                <label>📞 Ваш телефон (проверим подписку)</label>
                 <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
             </div>
             <div class="form-group">
@@ -985,7 +986,7 @@ async def consultation_page(user_id: str):
                 <input type="text" name="time" placeholder="например: завтра в 15:00" required>
             </div>
             <div style="text-align: center;">
-                <button type="submit" class="btn">🔥 Отправить заявку</button>
+                <button type="submit" class="btn">Отправить заявку</button>
             </div>
         </form>
     </div>
