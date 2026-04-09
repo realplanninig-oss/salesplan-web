@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (полностью исправленная версия)
+# File: main.py — веб-приложение Salesplan (полностью исправленная версия, стиль Apple)
 
 import logging
 import sqlite3
@@ -256,7 +256,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
-# Базовый HTML с Яндекс Метрикой
+# Базовый HTML с Яндекс Метрикой и стилями Apple
 HTML_HEAD = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -283,38 +283,40 @@ HTML_HEAD = f"""<!DOCTYPE html>
     
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
         .container{{max-width:1000px;margin:0 auto;padding:40px 20px}}
         .hero{{text-align:center;margin-bottom:60px}}
-        .hero h1{{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}}
+        .hero h1{{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em;color:#1d1d1f}}
         .hero p{{font-size:20px;color:#6e6e73}}
         .features{{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}}
-        .feature{{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}}
+        .feature{{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05);border:1px solid #e5e5e5}}
         .feature-icon{{font-size:36px;margin-bottom:12px}}
-        .feature h3{{font-size:18px;font-weight:600;margin-bottom:8px}}
+        .feature h3{{font-size:18px;font-weight:600;margin-bottom:8px;color:#1d1d1f}}
         .feature p{{font-size:14px;color:#6e6e73}}
         .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}}
         .btn:hover{{background:#005fc5;transform:scale(1.02)}}
         .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
         .btn-outline:hover{{background:#007aff10;transform:scale(1.02)}}
-        .form-card{{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}}
+        .form-card{{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto;border:1px solid #e5e5e5}}
         .form-group{{margin-bottom:24px}}
-        label{{font-size:15px;font-weight:500;display:block;margin-bottom:8px}}
-        input,textarea{{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}}
+        label{{font-size:15px;font-weight:500;display:block;margin-bottom:8px;color:#1d1d1f}}
+        input,textarea{{width:100%;padding:12px;font-size:15px;border:1px solid #d2d2d7;border-radius:10px;font-family:inherit;background:#fff;transition:border 0.2s ease}}
+        input:focus,textarea:focus{{outline:none;border-color:#007aff;box-shadow:0 0 0 4px rgba(0,122,255,0.1)}}
         .radio-group{{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}}
-        .radio-group label{{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;font-size:15px}}
-        .radio-group input[type="radio"]{{width:18px;height:18px;margin:0}}
+        .radio-group label{{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;font-size:15px;color:#1d1d1f}}
+        .radio-group input[type="radio"]{{width:18px;height:18px;margin:0;accent-color:#007aff}}
         .footer{{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}}
         .social-links{{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}}
         .social-links a{{color:#007aff;text-decoration:none;font-size:12px}}
+        .social-links a:hover{{text-decoration:underline}}
         hr{{margin:30px 0;border:none;border-top:1px solid #e5e5e5}}
         .price-old{{font-size:20px;color:#8e8e93;text-decoration:line-through}}
-        .price-new{{font-size:36px;font-weight:700;color:#007aff}}
+        .price-new{{font-size:36px;font-weight:700;color:#1d1d1f}}
         
         @media (max-width: 600px) {{
             .container{{padding:20px 16px}}
-            .hero h1{{font-size:28px}}
-            .hero p{{font-size:16px}}
+            .hero h1{{font-size:32px}}
+            .hero p{{font-size:18px}}
             .form-card{{padding:20px}}
             .radio-group{{flex-direction:column;gap:12px}}
             .radio-group label{{font-size:16px;padding:4px 0}}
@@ -372,7 +374,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <noscript><div><img src="https://mc.yandex.ru/watch/{YANDEX_METRIKA_ID}" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
@@ -439,11 +441,11 @@ def render_premium_waiting_page(user_id: str):
     <noscript><div><img src="https://mc.yandex.ru/watch/{YANDEX_METRIKA_ID}" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
+        .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px;color:#1d1d1f}}
         .step.active{{background:#007aff;color:#fff}}
         .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
         .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
@@ -807,38 +809,68 @@ async def payment_success(user_id: str):
     
     existing_report = get_report(user_id, "premium")
     
-    # Получаем текст плана (из БД или генерируем)
+    # Получаем текст маркетингового плана (из БД или генерируем)
     report_text_full = None
     if existing_report and existing_report["status"] == "ready":
         report_text_full = existing_report["text"]
     
     if not report_text_full:
-        # Если плана нет, генерируем базовый
+        # Маркетинговый план, если API не сработал
         if biz and answers:
-            report_text_full = f"""ПЛАН ПРОДАЖ ДЛЯ ВАШЕГО БИЗНЕСА
+            report_text_full = f"""МАРКЕТИНГОВЫЙ ПЛАН ДЛЯ ВАШЕГО БИЗНЕСА
 
 Дорогой эксперт!
 
-Вот ваш персональный план действий. Он составлен на основе анкеты, которую вы заполнили.
+Вот ваш персональный маркетинговый план. Он составлен на основе анкеты, которую вы заполнили.
 
 ДАННЫЕ ИЗ ВАШЕЙ АНКЕТЫ:
 Название бизнеса: {biz['name']}
 Описание: {biz['description']}
 
-1. ВАША СИТУАЦИЯ СЕЙЧАС
-Вы продаёте свои знания и опыт. Но система продаж либо отсутствует, либо работает не в полную силу.
+1. ОЦЕНКА СИТУАЦИИ
+Вы продаёте свои знания и опыт. Но система продаж либо отсутствует, либо работает не в полную силу. 
+Ваша целевая аудитория — эксперты, которые хотят монетизировать свой опыт, но не хотят разбираться в технических деталях воронок самостоятельно.
 
-2. ПЕРВЫЙ ШАГ ЗА 24 ЧАСА
-- Откройте бесплатную диагностику (ссылка есть на сайте)
-- Посмотрите, где у вас утекают клиенты
-- Сделайте один конкретный шаг из рекомендаций
+2. АНАЛИЗ КОНКУРЕНТОВ
+На рынке есть 3 типа игроков:
+- Маркетинговые агентства (дорого, сложно)
+- Инфо-бизнесмены (общие курсы, без персонализации)
+- Продюсеры-одиночки (как я)
 
-3. ЧТО ДАЛЬШЕ
-Если вы хотите получить полный разбор с анализом конкурентов, готовой воронкой и скриптами — напишите мне в MAX. Я помогу вам настроить систему, которая будет продавать 24/7.
+Ваше преимущество — вы не просто консультируете, вы ведёте эксперта за руку к продажам по чёткой системе.
+
+3. КОМУ ПРОДАВАТЬ (ЦА)
+Женщины 30-45 лет, уже эксперт в своей сфере (психология, коучинг, диетология, фитнес, образование). 
+У них есть знания, но нет отлаженной системы продаж. Они активны в соцсетях, но устали от ручных продаж в личке.
+
+4. СИЛЬНЫЕ И СЛАБЫЕ СТОРОНЫ
+Сильные стороны:
+- Вы даёте не просто консультацию, а систему
+- У вас есть кейсы с конкретными цифрами
+- Вы работаете с экспертами, а не с новичками
+
+Зоны роста:
+- Нужно больше публичных кейсов
+- Усилить позиционирование «продюсер, а не маркетолог»
+- Добавить автоматизацию в воронку
+
+5. ВОРОНКА ПРОДАЖ ШАГ ЗА ШАГОМ
+Шаг 1: Бесплатная диагностика (анкета на сайте)
+Шаг 2: Получение диагностики с 3 точками роста
+Шаг 3: Оплата маркетингового плана (490 ₽)
+Шаг 4: Внедрение первого действия (15 минут)
+Шаг 5: Бесплатный разбор плана (консультация)
+Шаг 6: Переход на продюсирование под ключ
+
+6. ПЛАН ДЕЙСТВИЙ НА МЕСЯЦ
+Неделя 1: Настроить автоворонку в MAX/Telegram
+Неделя 2: Запустить рекламу на диагностику (Яндекс Директ)
+Неделя 3: Собрать первые 10 оплат, проанализировать
+Неделя 4: Масштабировать работающие связки
 
 Вероника Макаревич | Продюсер экспертов"""
         else:
-            report_text_full = "План продаж временно недоступен. Пожалуйста, напишите мне в MAX, я отправлю его лично."
+            report_text_full = "Маркетинговый план временно недоступен. Пожалуйста, напишите мне в MAX, я отправлю его лично."
     
     report_text_html = report_text_full.replace("\n", "<br>")
     
@@ -847,49 +879,34 @@ async def payment_success(user_id: str):
     <h1>🎉 Спасибо за покупку!</h1>
 </div>
 <div class="form-card" style="text-align: center;">
-    <!-- БЛОК 1: ПОЛНЫЙ ТЕКСТ ПЛАНА (без скачивания) -->
+    <!-- БЛОК 1: ПОЛНЫЙ ТЕКСТ МАРКЕТИНГОВОГО ПЛАНА -->
     <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш план продаж — полная версия ниже</p>
+        <div style="font-size: 56px; margin-bottom: 16px;">📊</div>
+        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш маркетинговый план — полная версия ниже</p>
     </div>
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
     
+    <!-- КНОПКА ОТПРАВКИ В MAX -->
     <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 2: ТОЛЬКО ПРО ВНЕДРЕНИЕ 1 ДЕЙСТВИЯ -->
-    <h2>⚡️ Ваше первое действие — 15 минут</h2>
-    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">План у вас есть. Теперь самое важное — внедрить первое работающее решение.</p>
-    
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 24px; text-align: left; margin: 20px 0;">
-        <p style="font-size: 18px; font-weight: 600;">🎯 Что сделать прямо сейчас:</p>
-        <ol style="margin-top: 16px; margin-left: 20px; line-height: 1.8;">
-            <li>Выберите <strong>один канал</strong> для привлечения клиентов (MAX, Telegram или ВК)</li>
-            <li>Напишите <strong>один пост</strong> о своей бесплатной диагностике</li>
-            <li>Пригласите <strong>5 человек</strong> из вашего окружения</li>
-        </ol>
-        <p style="margin-top: 16px;">✅ Это займёт 15 минут. Результат — первые диалоги с потенциальными клиентами уже сегодня.</p>
-    </div>
-    
-    <hr style="margin: 32px 0;">
-    
-    <!-- БЛОК 3: БЕСПЛАТНЫЙ РАЗБОР (с отличием Вероники) -->
+    <!-- БЛОК 2: БЕСПЛАТНЫЙ РАЗБОР (с отличием Вероники) -->
     <div style="background: #f5f5f7; border-radius: 20px; padding: 24px; text-align: left;">
         <p style="font-size: 18px; font-weight: 600;">🎁 Бесплатный бонус</p>
         <p><strong>План у вас уже есть. Теперь про внедрение.</strong></p>
         <p>Давайте честно: получив готовую стратегию, многие откладывают её «на потом». Знаете, почему? Потому что внедрение требует времени, технических навыков и дисциплины. А их как раз чаще всего не хватает.</p>
-        <p><strong>Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</strong></p>
+        <p><strong>Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш маркетинговый план и дала честный фидбек?</strong></p>
         <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
         </div>
     </div>
     
-    <!-- БЛОК 4: ОТЗЫВЫ -->
+    <!-- БЛОК 3: ОТЗЫВЫ -->
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
@@ -946,19 +963,19 @@ async def consultation_page(user_id: str):
     content = f'''
 <div class="hero">
     <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
-    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
+    <p style="font-size: 18px; color: #1d1d1f;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
-    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
+    <p style="font-size: 16px; color: #1d1d1f; margin-bottom: 20px;">После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
     
     <div style="margin-bottom: 30px;">
-        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
+        <div style="font-size: 48px; font-weight: 700; color: #1d1d1f;">Осталось мест: <span id="counter" style="color: #007aff;">87</span></div>
         <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
     </div>
     
     <div style="margin: 30px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="background: transparent; border: 2px solid #007aff; color: #007aff; padding: 16px 32px; width: auto;">📢 Подписаться на канал в MAX</a>
     </div>
     
     <hr style="margin: 30px 0;">
@@ -975,7 +992,7 @@ async def consultation_page(user_id: str):
                 <input type="text" name="time" placeholder="например: завтра в 15:00" required>
             </div>
             <div style="text-align: center;">
-                <button type="submit" class="btn">Отправить заявку</button>
+                <button type="submit" class="btn" style="background: #007aff; color: #fff;">Отправить заявку</button>
             </div>
         </form>
     </div>
