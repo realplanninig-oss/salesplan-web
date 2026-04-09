@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (полностью исправленная версия с фиксом анкеты)
+# File: main.py — веб-приложение Salesplan (с интеграцией Яндекс Метрики, ID счётчика: 108348240)
 
 import logging
 import sqlite3
@@ -20,6 +20,9 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 PAYMENT_URL = "https://yookassa.ru/my/i/adO_-KVsYKuY/l"
+
+# ID счётчика Яндекс Метрики
+YANDEX_METRIKA_ID = "108348240"
 
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
@@ -253,63 +256,75 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
-HTML_HEAD = """<!DOCTYPE html>
+# Базовый HTML с Яндекс Метрикой (ID: 108348240)
+HTML_HEAD = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Salesplan</title>
+    
+    <!-- Яндекс Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+        ym({YANDEX_METRIKA_ID}, "init", {{
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true,
+            webvisor:true
+        }});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/{YANDEX_METRIKA_ID}" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Яндекс Метрика -->
+    
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
-        .container{max-width:1000px;margin:0 auto;padding:40px 20px}
-        .hero{text-align:center;margin-bottom:60px}
-        .hero h1{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
-        .hero p{font-size:20px;color:#6e6e73}
-        .features{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}
-        .feature{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-        .feature-icon{font-size:36px;margin-bottom:12px}
-        .feature h3{font-size:18px;font-weight:600;margin-bottom:8px}
-        .feature p{font-size:14px;color:#6e6e73}
-        .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}
-        .btn:hover{background:#005fc5;transform:scale(1.02)}
-        .btn-outline{background:transparent;border:1px solid #007aff;color:#007aff}
-        .btn-outline:hover{background:#007aff10;transform:scale(1.02)}
-        .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
-        .form-group{margin-bottom:24px}
-        label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
-        input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
+        *{{margin:0;padding:0;box-sizing:border-box}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        .container{{max-width:1000px;margin:0 auto;padding:40px 20px}}
+        .hero{{text-align:center;margin-bottom:60px}}
+        .hero h1{{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}}
+        .hero p{{font-size:20px;color:#6e6e73}}
+        .features{{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}}
+        .feature{{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}}
+        .feature-icon{{font-size:36px;margin-bottom:12px}}
+        .feature h3{{font-size:18px;font-weight:600;margin-bottom:8px}}
+        .feature p{{font-size:14px;color:#6e6e73}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}}
+        .btn:hover{{background:#005fc5;transform:scale(1.02)}}
+        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
+        .btn-outline:hover{{background:#007aff10;transform:scale(1.02)}}
+        .form-card{{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}}
+        .form-group{{margin-bottom:24px}}
+        label{{font-size:15px;font-weight:500;display:block;margin-bottom:8px}}
+        input,textarea{{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}}
+        .radio-group{{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}}
+        .radio-group label{{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;font-size:15px}}
+        .radio-group input[type="radio"]{{width:18px;height:18px;margin:0}}
+        .footer{{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}}
+        .social-links{{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}}
+        .social-links a{{color:#007aff;text-decoration:none;font-size:12px}}
+        hr{{margin:30px 0;border:none;border-top:1px solid #e5e5e5}}
+        .price-old{{font-size:20px;color:#8e8e93;text-decoration:line-through}}
+        .price-new{{font-size:36px;font-weight:700;color:#007aff}}
         
-        /* Радиокнопки - горизонтально на десктопе */
-        .radio-group{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;font-size:15px}
-        .radio-group input[type="radio"]{width:18px;height:18px;margin:0}
-        
-        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
-        .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-        .social-links a{color:#007aff;text-decoration:none;font-size:12px}
-        hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
-        .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
-        .price-new{font-size:36px;font-weight:700;color:#007aff}
-        
-        /* МОБИЛЬНАЯ АДАПТАЦИЯ - радиокнопки вертикально */
-        @media (max-width: 600px) {
-            .container{padding:20px 16px}
-            .hero h1{font-size:28px}
-            .hero p{font-size:16px}
-            .form-card{padding:20px}
-            
-            /* Радиокнопки ВЕРТИКАЛЬНО на мобильных */
-            .radio-group{flex-direction:column;gap:12px}
-            .radio-group label{font-size:16px;padding:4px 0}
-            
-            input,textarea,.btn{font-size:16px;width:100%}
-            .form-group label{font-size:14px;word-break:break-word}
-            .form-group{margin-bottom:20px}
-            .btn{width:100%;text-align:center;padding:14px 20px}
-            .features{flex-direction:column}
-            .social-links{flex-direction:column;gap:8px}
-        }
+        @media (max-width: 600px) {{
+            .container{{padding:20px 16px}}
+            .hero h1{{font-size:28px}}
+            .hero p{{font-size:16px}}
+            .form-card{{padding:20px}}
+            .radio-group{{flex-direction:column;gap:12px}}
+            .radio-group label{{font-size:16px;padding:4px 0}}
+            input,textarea,.btn{{font-size:16px;width:100%}}
+            .form-group label{{font-size:14px;word-break:break-word}}
+            .form-group{{margin-bottom:20px}}
+            .btn{{width:100%;text-align:center;padding:14px 20px}}
+            .features{{flex-direction:column}}
+            .social-links{{flex-direction:column;gap:8px}}
+        }}
     </style>
 </head>
 <body>
@@ -340,6 +355,21 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Анализируем рынок | Salesplan</title>
+    <!-- Яндекс Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+        ym({YANDEX_METRIKA_ID}, "init", {{
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true,
+            webvisor:true
+        }});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/{YANDEX_METRIKA_ID}" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -392,6 +422,21 @@ def render_premium_waiting_page(user_id: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Готовим стратегию | Salesplan</title>
+    <!-- Яндекс Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+        ym({YANDEX_METRIKA_ID}, "init", {{
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true,
+            webvisor:true
+        }});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/{YANDEX_METRIKA_ID}" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -489,7 +534,7 @@ async def survey():
 </div>
 
 <div class="form-card">
-    <form action="/survey/submit" method="post">
+    <form action="/survey/submit" method="post" id="surveyForm">
         <div class="form-group">
             <label>1. Название бизнеса</label>
             <input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required>
@@ -547,6 +592,14 @@ async def survey():
         </div>
     </form>
 </div>
+
+<script>
+    document.getElementById('surveyForm').addEventListener('submit', function() {
+        if (typeof ym !== 'undefined') {
+            ym(108348240, 'reachGoal', 'survey_submit');
+        }
+    });
+</script>
 """
     return HTMLResponse(content=render_page(content))
 
@@ -680,6 +733,12 @@ async def diagnostic(user_id: str):
         <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p>
     </form>
 </div>
+
+<script>
+    if (typeof ym !== 'undefined') {{
+        ym(108348240, 'reachGoal', 'diagnostic_got');
+    }}
+</script>
 '''
     return HTMLResponse(content=render_page(content))
 
@@ -713,7 +772,7 @@ async def payment_page(user_id: str):
     <div class="price-new" style="text-align:center">490 ₽</div>
     <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
     <div style="text-align:center;margin:30px 0">
-        <a href="{PAYMENT_URL}" target="_blank" class="btn">💳 Оплатить 490 ₽</a>
+        <a href="{PAYMENT_URL}" target="_blank" class="btn" onclick="ym(108348240, 'reachGoal', 'payment_start');">💳 Оплатить 490 ₽</a>
     </div>
     <hr>
     <div style="text-align:center">
@@ -804,6 +863,10 @@ async def payment_success(user_id: str):
 </div>
 
 <script>
+    if (typeof ym !== 'undefined') {{
+        ym(108348240, 'reachGoal', 'pay_490');
+    }}
+    
     function requestByPhone() {{
         fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
             .then(res => res.json())
@@ -854,6 +917,10 @@ async def payment_success(user_id: str):
 </div>
 
 <script>
+    if (typeof ym !== 'undefined') {{
+        ym(108348240, 'reachGoal', 'pay_490');
+    }}
+    
     function requestByPhone() {{
         fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
             .then(res => res.json())
@@ -918,7 +985,7 @@ async def consultation_page(user_id: str):
     <hr style="margin: 30px 0;">
     
     <div id="formBlock">
-        <form action="/consultation/submit" method="post">
+        <form action="/consultation/submit" method="post" id="consultationForm">
             <input type="hidden" name="user_id" value="{user_id}">
             <div class="form-group">
                 <label>Ваш телефон (проверим подписку)</label>
@@ -939,10 +1006,13 @@ async def consultation_page(user_id: str):
     let counter = 87;
     const counterElement = document.getElementById('counter');
     
-    document.querySelector('form').addEventListener('submit', function() {{
+    document.getElementById('consultationForm').addEventListener('submit', function() {{
         if (counter > 0) {{
             counter--;
             counterElement.textContent = counter;
+        }}
+        if (typeof ym !== 'undefined') {{
+            ym(108348240, 'reachGoal', 'consultation_request');
         }}
     }});
 </script>
