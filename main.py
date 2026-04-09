@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (полностью исправленная версия)
+# File: main.py — веб-приложение Salesplan (полностью исправленная версия с фиксом анкеты)
 
 import logging
 import sqlite3
@@ -279,8 +279,12 @@ HTML_HEAD = """<!DOCTYPE html>
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        .radio-group{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer}
+        
+        /* Радиокнопки - горизонтально на десктопе */
+        .radio-group{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;font-size:15px}
+        .radio-group input[type="radio"]{width:18px;height:18px;margin:0}
+        
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
         .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
@@ -288,14 +292,17 @@ HTML_HEAD = """<!DOCTYPE html>
         .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
         .price-new{font-size:36px;font-weight:700;color:#007aff}
         
-        /* МОБИЛЬНАЯ АДАПТАЦИЯ - полная поддержка */
+        /* МОБИЛЬНАЯ АДАПТАЦИЯ - радиокнопки вертикально */
         @media (max-width: 600px) {
             .container{padding:20px 16px}
             .hero h1{font-size:28px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
-            .radio-group{flex-direction:column;gap:10px}
-            .radio-group label{font-size:15px;padding:4px 0}
+            
+            /* Радиокнопки ВЕРТИКАЛЬНО на мобильных */
+            .radio-group{flex-direction:column;gap:12px}
+            .radio-group label{font-size:16px;padding:4px 0}
+            
             input,textarea,.btn{font-size:16px;width:100%}
             .form-group label{font-size:14px;word-break:break-word}
             .form-group{margin-bottom:20px}
@@ -716,7 +723,6 @@ async def payment_page(user_id: str):
 </div>
 
 <script>
-    let timeoutId;
     function showExitPopup(e) {{
         const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
         (e || window.event).returnValue = message;
