@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с исправленным порядком блоков)
+# File: main.py — веб-приложение Salesplan (исправленная версия)
 
 import logging
 import sqlite3
@@ -7,12 +7,13 @@ import requests
 import uuid
 import re
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+import uvicorn
 
 load_dotenv()
 
@@ -596,6 +597,7 @@ async def check_status(user_id: str, report_type: str):
     logger.info(f"Check status: user={user_id}, type={report_type}, ready={ready}")
     return {"ready": ready}
 
+# ИСПРАВЛЕННАЯ ФУНКЦИЯ DIAGNOSTIC - с правильным порядком блоков
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
     logger.info(f"Diagnostic page requested for user {user_id}")
@@ -627,25 +629,26 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК: Что дальше? + План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
+    <!-- БЛОК 1: Что дальше? (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
     <div style="margin: 32px 0; text-align: center;">
         <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
         <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
-        
-        <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-            <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
-            <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
-                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
-                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
-                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
-            </div>
+    </div>
+    
+    <!-- БЛОК 2: План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
+    <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
+        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
         </div>
     </div>
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК С ЦЕНОЙ И ФОРМОЙ -->
+    <!-- БЛОК 3: Цена и форма оплаты -->
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
@@ -664,6 +667,7 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
+    <!-- БЛОК 4: Кейсы и отзывы -->
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
         <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
