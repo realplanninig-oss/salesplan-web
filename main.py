@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия со всеми исправлениями)
+# File: main.py — веб-приложение Salesplan (финальная версия с полной диагностикой)
 
 import logging
 import sqlite3
@@ -76,7 +76,10 @@ def get_business_data(user_id: str):
     cursor = conn.execute("SELECT business_name, business_description FROM business_data WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return {"name": row[0], "description": row[1]} if row else None
+    if row:
+        return {"name": row[0], "description": row[1]}
+    logger.warning(f"Business data not found for user_id: {user_id}")
+    return None
 
 def get_form_data(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -85,6 +88,7 @@ def get_form_data(user_id: str):
     conn.close()
     if row:
         return {"q1": row[0], "q2": row[1], "q3": row[2], "q4": row[3], "q5": row[4]}
+    logger.warning(f"Form data not found for user_id: {user_id}")
     return None
 
 def save_form(user_id: str, answers: dict):
@@ -93,6 +97,7 @@ def save_form(user_id: str, answers: dict):
                  (user_id, answers.get("q1"), answers.get("q2"), answers.get("q3"), answers.get("q4"), answers.get("q5"), answers.get("q6"), answers.get("q7")))
     conn.commit()
     conn.close()
+    logger.info(f"Form data saved for user_id: {user_id}")
 
 def save_report(user_id: str, report_type: str, report_text: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -100,6 +105,7 @@ def save_report(user_id: str, report_type: str, report_text: str, file_path: str
                  (user_id, report_type, report_text, file_path))
     conn.commit()
     conn.close()
+    logger.info(f"Report saved for user_id: {user_id}, type: {report_type}")
 
 def update_report_status(report_id: int, status: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -109,13 +115,16 @@ def update_report_status(report_id: int, status: str, file_path: str = None):
         conn.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id))
     conn.commit()
     conn.close()
+    logger.info(f"Report {report_id} status updated to {status}")
 
 def get_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT id, report_text, file_path, status FROM reports WHERE user_id = ? AND report_type = ? ORDER BY created_at DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
-    return {"id": row[0], "text": row[1], "file_path": row[2], "status": row[3]} if row else None
+    if row:
+        return {"id": row[0], "text": row[1], "file_path": row[2], "status": row[3]}
+    return None
 
 def save_consultation(user_id: str, time: str, phone: str = None, username: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -169,7 +178,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=120)
-        logger.info(f"DeepSeek response status: {response.status_code}")
+        logger.info(f"DeepSeek diagnostic response status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
             return result["choices"][0]["message"]["content"]
@@ -181,6 +190,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
         return None
 
 def generate_premium_report_sync(user_id: str, name: str, description: str, answers: dict, report_id: int):
+    logger.info(f"Starting premium report generation for user {user_id}")
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
     q2_map = {"до 5k": "до 5k", "5k-20k": "5k-20k", "20k-50k": "20k-50k", ">50k": ">50k"}
     q3_map = {"<10": "<10", "10-50": "10-50", "50-200": "50-200", ">200": ">200"}
@@ -211,6 +221,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=300)
+        logger.info(f"DeepSeek premium response status: {response.status_code}")
         if response.status_code == 200:
             report_text = response.json()["choices"][0]["message"]["content"]
             filename = f"premium_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -230,6 +241,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
         return False
 
 async def generate_premium_report_background(user_id: str, name: str, description: str, answers: dict, report_id: int):
+    logger.info(f"Background task started for user {user_id}")
     loop = asyncio.get_event_loop()
     success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
     if success:
@@ -542,6 +554,7 @@ async def survey_submit(
     q5: str = Form(...)
 ):
     user_id = str(uuid.uuid4())
+    logger.info(f"New survey submission: user_id={user_id}, business={business_name}")
     save_user(user_id, None, None)
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
@@ -553,15 +566,19 @@ async def survey_submit(
     report_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    logger.info(f"Free report {report_id} created for user {user_id}")
     
     async def generate_and_save():
+        logger.info(f"Starting free report generation for user {user_id}")
         diagnostic_text = call_deepseek_diagnostic(business_name, business_description, answers)
         conn = sqlite3.connect(DB_PATH)
         if diagnostic_text:
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (diagnostic_text, report_id))
+            logger.info(f"Free report {report_id} generated successfully")
         else:
             fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации:\n- Проанализируйте целевую аудиторию\n- Настройте воронку продаж\n- Добавьте призывы к действию"
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (fallback_text, report_id))
+            logger.warning(f"Free report {report_id} using fallback text")
         conn.commit()
         conn.close()
     
@@ -575,16 +592,20 @@ async def check_status(user_id: str, report_type: str):
     cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
-    return {"ready": row and row[0] == 'ready'}
+    ready = row and row[0] == 'ready'
+    logger.info(f"Check status: user={user_id}, type={report_type}, ready={ready}")
+    return {"ready": ready}
 
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
+    logger.info(f"Diagnostic page requested for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = 'free' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
     conn.close()
     
     if not row or not row[0]:
+        logger.warning(f"Diagnostic not ready for user {user_id}, showing waiting page")
         return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
     
     report_text_full = row[0]
@@ -605,7 +626,6 @@ async def diagnostic(user_id: str):
     </div>
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК С ЦЕНОЙ И ФОРМОЙ (ПОДНЯТ НАВЕРХ) -->
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
@@ -671,6 +691,7 @@ async def diagnostic(user_id: str):
 @app.post("/payment/create")
 async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
+    logger.info(f"Payment create for user {user_id}, phone {phone}")
     save_user(user_id, phone, None)
     save_payment_request(user_id, phone)
     send_telegram_message(f"Новая заявка на оплату!\nID: {user_id}\nТелефон: {phone}")
@@ -678,8 +699,10 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
 
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str):
+    logger.info(f"Payment page for user {user_id}")
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
+        logger.info(f"Premium report already ready for {user_id}, redirecting to success")
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
     content = f'''
@@ -708,19 +731,20 @@ async def payment_page(user_id: str):
 </div>
 
 <script>
-    let timeoutId;
-    function showExitPopup(e) {{
-        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.\\n\\nНикаких скрытых подписок. Только то, за чем вы пришли.";
-        (e || window.event).returnValue = message;
+    window.addEventListener('beforeunload', function(e) {{
+        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.";
+        e.preventDefault();
+        e.returnValue = message;
         return message;
-    }}
-    window.addEventListener('beforeunload', showExitPopup);
+    }});
 </script>
 '''
     return HTMLResponse(content=render_page(content))
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
+    logger.info(f"Payment success page for user {user_id}")
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -732,9 +756,18 @@ async def payment_success(user_id: str):
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     
+    # Диагностика в логах
+    logger.info(f"Payment success data: biz_exists={biz is not None}, answers_exists={answers is not None}, api_key={bool(DEEPSEEK_API_KEY)}")
+    if biz:
+        logger.info(f"Biz name: {biz.get('name')}")
+    if answers:
+        logger.info(f"Answers: {answers}")
+    
     existing_report = get_report(user_id, "premium")
     
+    # Если отчёт уже готов — показываем
     if existing_report and existing_report["status"] == "ready":
+        logger.info(f"Premium report already ready for {user_id}")
         report_text_full = existing_report["text"] or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
         report_text_html = report_text_full.replace("\n", "<br>")
         
@@ -786,18 +819,52 @@ async def payment_success(user_id: str):
 '''
         return HTMLResponse(content=render_page(content))
     
-    if biz and answers and DEEPSEEK_API_KEY:
+    # Если отчёта нет — создаём
+    logger.info(f"No existing premium report for {user_id}, starting generation")
+    
+    # Проверяем наличие данных
+    if not biz:
+        logger.warning(f"Business data missing for {user_id}, creating placeholder")
+        biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
+    if not answers:
+        logger.warning(f"Form answers missing for {user_id}, creating placeholder")
+        answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
+    
+    if DEEPSEEK_API_KEY:
+        # Создаём запись в reports со статусом generating
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
         report_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        logger.info(f"Created premium report {report_id} for user {user_id}")
         
+        # Запускаем фоновую генерацию
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
         
+        # Показываем страницу ожидания
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
-        premium_text = f"План продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
+        # Фоллбек без DeepSeek
+        logger.warning(f"DEEPSEEK_API_KEY missing, using fallback for user {user_id}")
+        premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
+
+Данные о бизнесе:
+Название: {biz['name'] if biz else 'не указано'}
+Описание: {biz['description'] if biz else 'не указано'}
+
+Рекомендации для увеличения продаж:
+
+1. Проанализируйте целевую аудиторию
+2. Настройте автоворонку в MAX или Telegram
+3. Добавьте триггерные сообщения для лидов
+4. Используйте скрипты продаж для консультаций
+5. Настройте ретаргетинг на непрогретых клиентов
+
+Следующие шаги:
+- Запишитесь на бесплатный разбор плана
+- Получите обратную связь от Вероники
+"""
         save_report(user_id, "premium", premium_text)
         report_text_html = premium_text.replace("\n", "<br>")
         
@@ -842,10 +909,13 @@ async def check_premium_status(user_id: str):
     cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = 'premium' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return {"ready": row and row[0] == 'ready'}
+    ready = row and row[0] == 'ready'
+    logger.info(f"Check premium status: user={user_id}, ready={ready}")
+    return {"ready": ready}
 
 @app.post("/request_report_by_phone")
 async def request_report_by_phone(user_id: str):
+    logger.info(f"Request report by phone for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -854,10 +924,12 @@ async def request_report_by_phone(user_id: str):
     if row and row[0]:
         send_telegram_message(f"📱 Пользователь запросил отправить план в MAX!\nID: {user_id}\nТелефон: {row[0]}")
         return {"success": True}
+    logger.warning(f"Phone not found for user {user_id}")
     return {"success": False, "error": "Телефон не найден"}
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
+    logger.info(f"Consultation page for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -918,13 +990,13 @@ async def consultation_page(user_id: str):
 
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
+    logger.info(f"Consultation submit for user {user_id}, time={time}")
     save_consultation(user_id, time, phone, username)
     message = f"📞 Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}"
     if phone:
         message += f"\nТелефон: {phone}"
     send_telegram_message(message)
     
-    # Страница после заявки — с мини-курсом и прогревом
     content = f"""
 <div class="hero">
     <h1>✅ Заявка принята!</h1>
@@ -972,7 +1044,7 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
-    # Эндпоинт оставлен для совместимости, но ссылки на него убраны со всех страниц
+    logger.info(f"Download request for user {user_id}, type {report_type}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
@@ -1005,6 +1077,5 @@ async def download_report(user_id: str, report_type: str):
     )
 
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
