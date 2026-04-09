@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с полной диагностикой)
+# File: main.py — веб-приложение Salesplan (финальная версия с исправленным порядком блоков)
 
 import logging
 import sqlite3
@@ -624,8 +624,28 @@ async def diagnostic(user_id: str):
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
+    
     <hr style="margin: 32px 0;">
     
+    <!-- БЛОК: Что дальше? + План продаж (ПЕРЕД КНОПКОЙ) -->
+    <div style="margin: 32px 0; text-align: center;">
+        <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
+        <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
+        
+        <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
+            <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
+            </div>
+        </div>
+    </div>
+    
+    <hr style="margin: 32px 0;">
+    
+    <!-- БЛОК С ЦЕНОЙ И ФОРМОЙ -->
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
@@ -643,9 +663,6 @@ async def diagnostic(user_id: str):
     </form>
     
     <hr style="margin: 32px 0;">
-    
-    <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
-    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный план.</p>
     
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
@@ -673,16 +690,6 @@ async def diagnostic(user_id: str):
     
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
-    </div>
-    
-    <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В детальном плане продаж:</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
-        </div>
     </div>
 </div>
 '''
@@ -756,7 +763,6 @@ async def payment_success(user_id: str):
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     
-    # Диагностика в логах
     logger.info(f"Payment success data: biz_exists={biz is not None}, answers_exists={answers is not None}, api_key={bool(DEEPSEEK_API_KEY)}")
     if biz:
         logger.info(f"Biz name: {biz.get('name')}")
@@ -765,7 +771,6 @@ async def payment_success(user_id: str):
     
     existing_report = get_report(user_id, "premium")
     
-    # Если отчёт уже готов — показываем
     if existing_report and existing_report["status"] == "ready":
         logger.info(f"Premium report already ready for {user_id}")
         report_text_full = existing_report["text"] or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
@@ -819,10 +824,8 @@ async def payment_success(user_id: str):
 '''
         return HTMLResponse(content=render_page(content))
     
-    # Если отчёта нет — создаём
     logger.info(f"No existing premium report for {user_id}, starting generation")
     
-    # Проверяем наличие данных
     if not biz:
         logger.warning(f"Business data missing for {user_id}, creating placeholder")
         biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
@@ -831,7 +834,6 @@ async def payment_success(user_id: str):
         answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
     
     if DEEPSEEK_API_KEY:
-        # Создаём запись в reports со статусом generating
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
         report_id = cursor.lastrowid
@@ -839,13 +841,10 @@ async def payment_success(user_id: str):
         conn.close()
         logger.info(f"Created premium report {report_id} for user {user_id}")
         
-        # Запускаем фоновую генерацию
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
         
-        # Показываем страницу ожидания
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
-        # Фоллбек без DeepSeek
         logger.warning(f"DEEPSEEK_API_KEY missing, using fallback for user {user_id}")
         premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
 
