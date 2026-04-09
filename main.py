@@ -297,30 +297,6 @@ HTML_HEAD = """<!DOCTYPE html>
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        
-        /* Радиокнопки — всегда вертикально */
-        .radio-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 8px;
-        }
-        .radio-group label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: normal;
-            padding: 10px 14px;
-            background: #f5f5f7;
-            border-radius: 12px;
-            cursor: pointer;
-            width: 100%;
-            margin: 0;
-        }
-        .radio-group label:hover {
-            background: #e5e5ea;
-        }
-        
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
         .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
@@ -334,8 +310,6 @@ HTML_HEAD = """<!DOCTYPE html>
             .hero h1{font-size:32px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
-            .radio-group{gap:8px}
-            .radio-group label{padding:10px 12px;font-size:15px}
             input,textarea,.btn{font-size:16px}
             .form-group{margin-bottom:16px}
         }
@@ -530,46 +504,46 @@ async def survey():
         </div>
         <div class="form-group">
             <label>3. Что вы продаёте?</label>
-            <div class="radio-group">
-                <label><input type="radio" name="q1" value="Услугу" required> Услугу</label>
-                <label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label>
-                <label><input type="radio" name="q1" value="Консультацию"> Консультацию</label>
-                <label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q1" value="Услугу" required> Услугу</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q1" value="Консультацию"> Консультацию</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label>
             </div>
         </div>
         <div class="form-group">
             <label>4. Средний чек (₽)</label>
-            <div class="radio-group">
-                <label><input type="radio" name="q2" value="до 5k" required> до 5k</label>
-                <label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label>
-                <label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label>
-                <label><input type="radio" name="q2" value=">50k"> >50k</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q2" value="до 5k" required> до 5k</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q2" value="5k-20k"> 5k-20k</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q2" value="20k-50k"> 20k-50k</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q2" value=">50k"> >50k</label>
             </div>
         </div>
         <div class="form-group">
             <label>5. Клиентов в месяц (примерно)</label>
-            <div class="radio-group">
-                <label><input type="radio" name="q3" value="<10" required> меньше 10</label>
-                <label><input type="radio" name="q3" value="10-50"> 10-50</label>
-                <label><input type="radio" name="q3" value="50-200"> 50-200</label>
-                <label><input type="radio" name="q3" value=">200"> более 200</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q3" value="<10" required> меньше 10</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q3" value="10-50"> 10-50</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q3" value="50-200"> 50-200</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q3" value=">200"> более 200</label>
             </div>
         </div>
         <div class="form-group">
             <label>6. Цель на 2026</label>
-            <div class="radio-group">
-                <label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label>
-                <label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label>
-                <label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label>
-                <label><input type="radio" name="q4" value="Масштаб"> Масштаб</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q4" value="500k/мес"> 500k/мес</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q4" value="1M/мес"> 1M/мес</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q4" value="Масштаб"> Масштаб</label>
             </div>
         </div>
         <div class="form-group">
             <label>7. Уже есть автоворонка?</label>
-            <div class="radio-group">
-                <label><input type="radio" name="q5" value="Да" required> Да</label>
-                <label><input type="radio" name="q5" value="Нет"> Нет</label>
-                <label><input type="radio" name="q5" value="В разработке"> В разработке</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q5" value="Да" required> Да</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q5" value="Нет"> Нет</label>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f5f5f7; border-radius: 12px; width: 100%;"><input type="radio" name="q5" value="В разработке"> В разработке</label>
             </div>
         </div>
         <div style="text-align:center">
