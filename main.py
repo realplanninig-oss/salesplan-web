@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (исправленная версия)
+# File: main.py — веб-приложение Salesplan (финальная версия с исправлениями)
 
 import logging
 import sqlite3
@@ -7,13 +7,12 @@ import requests
 import uuid
 import re
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-import uvicorn
 
 load_dotenv()
 
@@ -229,8 +228,15 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             filepath = REPORTS_DIR / filename
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
-            update_report_status(report_id, 'ready', str(filepath))
-            logger.info(f"Premium report generated for {user_id}, file: {filepath}")
+            
+            # Сохраняем текст отчёта в БД
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("UPDATE reports SET report_text = ?, file_path = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", 
+                         (report_text, str(filepath), report_id))
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Premium report generated and saved for {user_id}, file: {filepath}")
             return True
         else:
             update_report_status(report_id, 'failed')
@@ -307,6 +313,7 @@ HTML_HEAD = """<!DOCTYPE html>
             .hero p{font-size:16px}
             .form-card{padding:20px}
             .radio-group{flex-direction:column;gap:8px}
+            .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal;font-size:14px;padding:8px 12px;background:#f5f5f7;border-radius:12px;width:100%}
             input,textarea,.btn{font-size:16px}
         }
     </style>
@@ -597,7 +604,6 @@ async def check_status(user_id: str, report_type: str):
     logger.info(f"Check status: user={user_id}, type={report_type}, ready={ready}")
     return {"ready": ready}
 
-# ИСПРАВЛЕННАЯ ФУНКЦИЯ DIAGNOSTIC - с правильным порядком блоков
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
     logger.info(f"Diagnostic page requested for user {user_id}")
@@ -629,26 +635,25 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 1: Что дальше? (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
+    <!-- БЛОК: Что дальше? + План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
     <div style="margin: 32px 0; text-align: center;">
         <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
         <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
-    </div>
-    
-    <!-- БЛОК 2: План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
-    <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
+        
+        <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
+            <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
+                <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
+            </div>
         </div>
     </div>
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 3: Цена и форма оплаты -->
+    <!-- БЛОК С ЦЕНОЙ И ФОРМОЙ -->
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
@@ -667,7 +672,6 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 4: Кейсы и отзывы -->
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
         <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
@@ -800,8 +804,16 @@ async def payment_success(user_id: str):
     <hr style="margin: 32px 0;">
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
-        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        <p style="font-size: 18px; font-weight: 600;">🚀 Стоп.</p>
+        <p>Ты только что получила план. Молодец. Но давай без иллюзий — план без внедрения стоит ровно ноль.</p>
+        <p>Я не просто «консультант», который даст обратную связь и пожелает удачи. Моя система работает, пока ты спишь. Воронка, скрипты, автовебинары — я собираю это под ключ.</p>
+        <p>Хочешь, чтобы я лично разобрала твой план и сказала:</p>
+        <ul style="margin: 10px 0 10px 20px;">
+            <li>📍 где у тебя утекают деньги</li>
+            <li>📍 что поправить за 15 минут</li>
+            <li>📍 какой первый шаг сделать завтра утром?</li>
+        </ul>
+        <p>👇 Жми. Бесплатно. Но честно — мест не много.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
         </div>
@@ -941,16 +953,18 @@ async def consultation_page(user_id: str):
     
     content = f'''
 <div class="hero">
-    <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
-    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
+    <h1>🔥 Слушай сюда, эксперт.</h1>
+    <p style="font-size: 18px;">Ты уже получила диагностику. Увидела дыры в воронке. Но сама их зашить — это время, нервы и куча ошибок.</p>
+    <p style="font-size: 18px;">Я за 8 лет продюсирования насмотрелась на одно и то же: умные женщины с классными знаниями сливают клиентов на этапе «подумаю».</p>
+    <p style="font-size: 18px; font-weight: 600;">Хватит думать. Давай делать.</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
-    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
+    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ Подпишись на MAX-канал — я проверю и пришлю тебе 3 точки утечки клиентов лично в MAX</p>
     
     <div style="margin-bottom: 30px;">
         <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
-        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
+        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100. Дальше — платно.</p>
     </div>
     
     <div style="margin: 30px 0;">
@@ -963,7 +977,7 @@ async def consultation_page(user_id: str):
         <form action="/consultation/submit" method="post">
             <input type="hidden" name="user_id" value="{user_id}">
             <div class="form-group">
-                <label>Ваш телефон (проверим подписку)</label>
+                <label>📞 Твой телефон (проверю подписку)</label>
                 <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
             </div>
             <div class="form-group">
@@ -971,7 +985,7 @@ async def consultation_page(user_id: str):
                 <input type="text" name="time" placeholder="например: завтра в 15:00" required>
             </div>
             <div style="text-align: center;">
-                <button type="submit" class="btn">Отправить заявку</button>
+                <button type="submit" class="btn">🔥 Отправить заявку</button>
             </div>
         </form>
     </div>
