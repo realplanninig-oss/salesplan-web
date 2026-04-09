@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия)
+# File: main.py — веб-приложение Salesplan (финальная версия с вертикальными радиокнопками)
 
 import logging
 import sqlite3
@@ -297,8 +297,30 @@ HTML_HEAD = """<!DOCTYPE html>
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        .radio-group{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:10px;font-weight:normal;padding:10px 14px;background:#f5f5f7;border-radius:12px;cursor:pointer;width:100%}
+        
+        /* Радиокнопки — всегда вертикально */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: normal;
+            padding: 10px 14px;
+            background: #f5f5f7;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            margin: 0;
+        }
+        .radio-group label:hover {
+            background: #e5e5ea;
+        }
+        
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
         .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
@@ -312,7 +334,7 @@ HTML_HEAD = """<!DOCTYPE html>
             .hero h1{font-size:32px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
-            .radio-group{flex-direction:column;gap:8px}
+            .radio-group{gap:8px}
             .radio-group label{padding:10px 12px;font-size:15px}
             input,textarea,.btn{font-size:16px}
             .form-group{margin-bottom:16px}
