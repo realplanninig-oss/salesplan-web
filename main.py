@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с интеграцией Яндекс Метрики, ID счётчика: 108348240)
+# File: main.py — веб-приложение Salesplan (полностью исправленная версия)
 
 import logging
 import sqlite3
@@ -256,7 +256,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
-# Базовый HTML с Яндекс Метрикой (ID: 108348240)
+# Базовый HTML с Яндекс Метрикой
 HTML_HEAD = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -336,7 +336,7 @@ HTML_FOOT = """
         <div class="social-links">
             <a href="https://t.me/YourProducerOnline">Telegram-канал</a>
             <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
-            <a href="https://t.me/zapuskintelega_bot">Мини-курс "Раскрутка блога без вложений" — 1490 ₽</a>
+            <a href="/minicourse">Мини-курс "Раскрутка блога без вложений" — 1490 ₽</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <p>© 2026 Все права защищены</p>
@@ -807,15 +807,47 @@ async def payment_success(user_id: str):
     
     existing_report = get_report(user_id, "premium")
     
+    # Получаем текст плана (из БД или генерируем)
+    report_text_full = None
     if existing_report and existing_report["status"] == "ready":
-        report_text_full = existing_report["text"] or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
-        report_text_html = report_text_full.replace("\n", "<br>")
-        
-        content = f'''
+        report_text_full = existing_report["text"]
+    
+    if not report_text_full:
+        # Если плана нет, генерируем базовый
+        if biz and answers:
+            report_text_full = f"""ПЛАН ПРОДАЖ ДЛЯ ВАШЕГО БИЗНЕСА
+
+Дорогой эксперт!
+
+Вот ваш персональный план действий. Он составлен на основе анкеты, которую вы заполнили.
+
+ДАННЫЕ ИЗ ВАШЕЙ АНКЕТЫ:
+Название бизнеса: {biz['name']}
+Описание: {biz['description']}
+
+1. ВАША СИТУАЦИЯ СЕЙЧАС
+Вы продаёте свои знания и опыт. Но система продаж либо отсутствует, либо работает не в полную силу.
+
+2. ПЕРВЫЙ ШАГ ЗА 24 ЧАСА
+- Откройте бесплатную диагностику (ссылка есть на сайте)
+- Посмотрите, где у вас утекают клиенты
+- Сделайте один конкретный шаг из рекомендаций
+
+3. ЧТО ДАЛЬШЕ
+Если вы хотите получить полный разбор с анализом конкурентов, готовой воронкой и скриптами — напишите мне в MAX. Я помогу вам настроить систему, которая будет продавать 24/7.
+
+Вероника Макаревич | Продюсер экспертов"""
+        else:
+            report_text_full = "План продаж временно недоступен. Пожалуйста, напишите мне в MAX, я отправлю его лично."
+    
+    report_text_html = report_text_full.replace("\n", "<br>")
+    
+    content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
 </div>
 <div class="form-card" style="text-align: center;">
+    <!-- БЛОК 1: ПОЛНЫЙ ТЕКСТ ПЛАНА (без скачивания) -->
     <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
         <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
         <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш план продаж — полная версия ниже</p>
@@ -829,34 +861,35 @@ async def payment_success(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <h2>🎁 Бесплатный бонус</h2>
-    <p><strong>План у вас уже есть. Теперь про реализацию.</strong></p>
-    <p>Давайте честно: получив готовую стратегию, многие откладывают её «на потом». Знаете, почему? Потому что внедрение требует времени, технических навыков и дисциплины. А их как раз чаще всего не хватает.</p>
-    <p>У вас есть время на этой неделе?</p>
-    <p>Если да — у меня для вас вариант, который решит проблему «руками».</p>
-    <p><strong>Онлайн-интенсив «Запуск с нуля» — 1490 ₽ вместо 14 900 ₽</strong></p>
-    <p>Формат простой и действенный:</p>
-    <ul style="text-align: left; display: inline-block;">
-        <li>Я на ваших глазах настраиваю свою воронку продаж и демонстрирую вам</li>
-        <li>Вы повторяете за мной — и через 7 уроков (видео по 10 минут) у вас работает система</li>
-        <li>С обратной связью от меня лично</li>
-    </ul>
-    <p>Никакой теории. Только практика. Только результат.</p>
-    <p>Это решение для тех, кто ценит своё время и готов инвестировать в системный подход.</p>
-    <div style="margin: 32px 0;">
-        <a href="https://t.me/zapuskintelega_bot" target="_blank" class="btn">👉 Участвовать в интенсиве за 1490₽</a>
+    <!-- БЛОК 2: ТОЛЬКО ПРО ВНЕДРЕНИЕ 1 ДЕЙСТВИЯ -->
+    <h2>⚡️ Ваше первое действие — 15 минут</h2>
+    <p style="font-size: 17px; color: #6e6e73; margin-bottom: 24px;">План у вас есть. Теперь самое важное — внедрить первое работающее решение.</p>
+    
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 24px; text-align: left; margin: 20px 0;">
+        <p style="font-size: 18px; font-weight: 600;">🎯 Что сделать прямо сейчас:</p>
+        <ol style="margin-top: 16px; margin-left: 20px; line-height: 1.8;">
+            <li>Выберите <strong>один канал</strong> для привлечения клиентов (MAX, Telegram или ВК)</li>
+            <li>Напишите <strong>один пост</strong> о своей бесплатной диагностике</li>
+            <li>Пригласите <strong>5 человек</strong> из вашего окружения</li>
+        </ol>
+        <p style="margin-top: 16px;">✅ Это займёт 15 минут. Результат — первые диалоги с потенциальными клиентами уже сегодня.</p>
     </div>
     
     <hr style="margin: 32px 0;">
     
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
+    <!-- БЛОК 3: БЕСПЛАТНЫЙ РАЗБОР (с отличием Вероники) -->
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 24px; text-align: left;">
+        <p style="font-size: 18px; font-weight: 600;">🎁 Бесплатный бонус</p>
+        <p><strong>План у вас уже есть. Теперь про внедрение.</strong></p>
+        <p>Давайте честно: получив готовую стратегию, многие откладывают её «на потом». Знаете, почему? Потому что внедрение требует времени, технических навыков и дисциплины. А их как раз чаще всего не хватает.</p>
+        <p><strong>Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</strong></p>
         <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
         </div>
     </div>
     
+    <!-- БЛОК 4: ОТЗЫВЫ -->
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
@@ -880,61 +913,7 @@ async def payment_success(user_id: str):
     }}
 </script>
 '''
-        return HTMLResponse(content=render_page(content))
-    
-    if biz and answers and DEEPSEEK_API_KEY:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
-        report_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-        
-        return HTMLResponse(content=render_premium_waiting_page(user_id))
-    else:
-        premium_text = f"План продаж для вашего бизнеса\n\nДанные:\nНазвание: {biz['name'] if biz else 'не указано'}\nОписание: {biz['description'] if biz else 'не указано'}"
-        save_report(user_id, "premium", premium_text)
-        report_text_html = premium_text.replace("\n", "<br>")
-        
-        content = f'''
-<div class="hero">
-    <h1>🎉 Спасибо за покупку!</h1>
-</div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
-    
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
-    
-    <hr>
-    <h2>🎁 Бесплатный бонус</h2>
-    <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
-    <div style="text-align:center;margin-top:20px">
-        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
-    </div>
-</div>
-
-<script>
-    if (typeof ym !== 'undefined') {{
-        ym(108348240, 'reachGoal', 'pay_490');
-    }}
-    
-    function requestByPhone() {{
-        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
-            .then(res => res.json())
-            .then(data => {{
-                if (data.success) {{
-                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
-                }} else {{
-                    alert('Ошибка. Пожалуйста, обновите страницу.');
-                }}
-            }});
-    }}
-</script>
-'''
-        return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content))
 
 @app.get("/check_premium_status")
 async def check_premium_status(user_id: str):
@@ -1037,6 +1016,40 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
     </div>
 </div>
 """
+    return HTMLResponse(content=render_page(content))
+
+@app.get("/minicourse", response_class=HTMLResponse)
+async def minicourse_page():
+    content = '''
+<div class="hero">
+    <h1>📚 Мини-курс «Раскрутка блога без вложений»</h1>
+    <p style="font-size: 18px;">Пошаговая система для экспертов, которые хотят привлекать клиентов бесплатно</p>
+</div>
+
+<div class="form-card" style="text-align: center;">
+    <div style="font-size: 56px; margin-bottom: 16px;">🎯</div>
+    <h2>Что вы получите:</h2>
+    <ul style="text-align: left; margin: 20px 0;">
+        <li>✅ 7 видеоуроков по 10 минут</li>
+        <li>✅ Готовую структуру блога, который продаёт</li>
+        <li>✅ 10 рабочих тем для постов</li>
+        <li>✅ Чек-лист «Как привлечь первых 10 клиентов»</li>
+        <li>✅ Обратную связь от меня лично</li>
+    </ul>
+    
+    <div style="margin: 32px 0;">
+        <div class="price-old">14 900 ₽</div>
+        <div class="price-new">1 490 ₽</div>
+        <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена</p>
+    </div>
+    
+    <a href="https://t.me/zapuskintelega_bot" target="_blank" class="btn" style="margin: 20px 0;">👉 Получить мини-курс в боте</a>
+    
+    <hr style="margin: 30px 0;">
+    
+    <p style="font-size: 14px; color: #6e6e73;">После оплаты в боте вы получите доступ к урокам и обратную связь от Вероники</p>
+</div>
+'''
     return HTMLResponse(content=render_page(content))
 
 @app.get("/download/{user_id}/{report_type}")
