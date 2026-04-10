@@ -13,6 +13,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+import uvicorn
 
 load_dotenv()
 
@@ -76,7 +77,10 @@ def get_business_data(user_id: str):
     cursor = conn.execute("SELECT business_name, business_description FROM business_data WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return {"name": row[0], "description": row[1]} if row else None
+    if row:
+        return {"name": row[0], "description": row[1]}
+    logger.warning(f"Business data not found for user_id: {user_id}")
+    return None
 
 def get_form_data(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -85,6 +89,7 @@ def get_form_data(user_id: str):
     conn.close()
     if row:
         return {"q1": row[0], "q2": row[1], "q3": row[2], "q4": row[3], "q5": row[4]}
+    logger.warning(f"Form data not found for user_id: {user_id}")
     return None
 
 def save_form(user_id: str, answers: dict):
@@ -93,6 +98,7 @@ def save_form(user_id: str, answers: dict):
                  (user_id, answers.get("q1"), answers.get("q2"), answers.get("q3"), answers.get("q4"), answers.get("q5"), answers.get("q6"), answers.get("q7")))
     conn.commit()
     conn.close()
+    logger.info(f"Form data saved for user_id: {user_id}")
 
 def save_report(user_id: str, report_type: str, report_text: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -100,6 +106,7 @@ def save_report(user_id: str, report_type: str, report_text: str, file_path: str
                  (user_id, report_type, report_text, file_path))
     conn.commit()
     conn.close()
+    logger.info(f"Report saved for user_id: {user_id}, type: {report_type}")
 
 def update_report_status(report_id: int, status: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -109,13 +116,16 @@ def update_report_status(report_id: int, status: str, file_path: str = None):
         conn.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id))
     conn.commit()
     conn.close()
+    logger.info(f"Report {report_id} status updated to {status}")
 
 def get_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT id, report_text, file_path, status FROM reports WHERE user_id = ? AND report_type = ? ORDER BY created_at DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
-    return {"id": row[0], "text": row[1], "file_path": row[2], "status": row[3]} if row else None
+    if row:
+        return {"id": row[0], "text": row[1], "file_path": row[2], "status": row[3]}
+    return None
 
 def save_consultation(user_id: str, time: str, phone: str = None, username: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -130,20 +140,11 @@ def save_payment_request(user_id: str, phone: str):
     conn.close()
 
 def send_telegram_message(text: str):
-    """Отправка сообщения в Telegram с игнорированием ошибок"""
-    if not TELEGRAM_TOKEN or not ADMIN_CHAT_ID:
-        return
-    
-    try:
-        # Таймаут 3 секунды, чтобы не блокировать пользователя
-        requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-            json={"chat_id": ADMIN_CHAT_ID, "text": text},
-            timeout=3
-        )
-    except Exception as e:
-        # Ошибка логируется, но НЕ выбрасывается — приложение продолжает работу
-        logger.warning(f"Telegram error (ignored): {e}")
+    if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
+        try:
+            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": ADMIN_CHAT_ID, "text": text})
+        except Exception as e:
+            logger.error(f"Failed to send telegram: {e}")
 
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
@@ -154,6 +155,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}\n• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
     
+    logger.info(f"DEEPSEEK_API_KEY loaded: {'YES' if DEEPSEEK_API_KEY else 'NO'}")
     if not DEEPSEEK_API_KEY:
         logger.error("DEEPSEEK_API_KEY is missing!")
         return None
@@ -177,17 +179,19 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=120)
+        logger.info(f"DeepSeek diagnostic response status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
             return result["choices"][0]["message"]["content"]
         else:
-            logger.error(f"DeepSeek error: {response.status_code}")
+            logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
         logger.error(f"DeepSeek failed: {e}")
         return None
 
 def generate_premium_report_sync(user_id: str, name: str, description: str, answers: dict, report_id: int):
+    logger.info(f"Starting premium report generation for user {user_id}")
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
     q2_map = {"до 5k": "до 5k", "5k-20k": "5k-20k", "20k-50k": "20k-50k", ">50k": ">50k"}
     q3_map = {"<10": "<10", "10-50": "10-50", "50-200": "50-200", ">200": ">200"}
@@ -218,6 +222,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=300)
+        logger.info(f"DeepSeek premium response status: {response.status_code}")
         if response.status_code == 200:
             report_text = response.json()["choices"][0]["message"]["content"]
             filename = f"premium_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -225,9 +230,11 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
             update_report_status(report_id, 'ready', str(filepath))
+            logger.info(f"Premium report generated for {user_id}, file: {filepath}")
             return True
         else:
             update_report_status(report_id, 'failed')
+            logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
             return False
     except Exception as e:
         update_report_status(report_id, 'failed')
@@ -235,82 +242,73 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
         return False
 
 async def generate_premium_report_background(user_id: str, name: str, description: str, answers: dict, report_id: int):
+    logger.info(f"Background task started for user {user_id}")
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
+    success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
+    if success:
+        report = get_report(user_id, "premium")
+        if report and report["file_path"]:
+            filepath = Path(report["file_path"])
+            if filepath.exists():
+                try:
+                    with open(filepath, "rb") as f:
+                        await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: requests.post(
+                                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument",
+                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 План продаж для пользователя {user_id}"},
+                                files={"document": f}
+                            )
+                        )
+                    logger.info(f"Premium report file sent to admin for user {user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to send file to admin: {e}")
 
 app = FastAPI(title="Salesplan")
 
-# Яндекс Метрика
-YANDEX_METRIKA = """<!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-   m[i].l=1*new Date();
-   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-   ym(108348240, "init", {
-        clickmap:true,
-        trackLinks:true,
-        accurateTrackBounce:true,
-        webvisor:true
-   });
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->"""
-
-HTML_HEAD = f"""<!DOCTYPE html>
+HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Salesplan | План продаж для экспертов</title>
-    {YANDEX_METRIKA}
+    <title>Salesplan</title>
     <style>
-        *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
-        .container{{max-width:1000px;margin:0 auto;padding:40px 20px}}
-        .hero{{text-align:center;margin-bottom:40px}}
-        .hero h1{{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}}
-        .hero p{{font-size:20px;color:#6e6e73}}
-        .features{{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}}
-        .feature{{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}}
-        .feature-icon{{font-size:36px;margin-bottom:12px}}
-        .feature h3{{font-size:18px;font-weight:600;margin-bottom:8px}}
-        .feature p{{font-size:14px;color:#6e6e73}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}}
-        .btn:hover{{background:#005fc5;transform:scale(1.02)}}
-        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
-        .btn-outline:hover{{background:#007aff10;transform:scale(1.02)}}
-        .form-card{{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}}
-        .form-group{{margin-bottom:24px}}
-        label{{font-size:15px;font-weight:500;display:block;margin-bottom:8px}}
-        input,textarea{{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}}
-        .radio-group{{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px}}
-        .radio-group label{{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer}}
-        .footer{{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}}
-        .social-links{{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}}
-        .social-links a{{color:#007aff;text-decoration:none;font-size:12px}}
-        hr{{margin:30px 0;border:none;border-top:1px solid #e5e5e5}}
-        .price-old{{font-size:20px;color:#8e8e93;text-decoration:line-through}}
-        .price-new{{font-size:36px;font-weight:700;color:#007aff}}
-        .price-block{{background:linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%);border-radius:28px;padding:32px;margin:32px 0;text-align:center}}
-        .cases-grid{{display:flex;flex-wrap:wrap;gap:16px;margin:32px 0}}
-        .case-card{{flex:1;min-width:180px;background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}}
-        .plan-badge{{background:linear-gradient(135deg, #007aff10 0%, #005fc510 100%);border-radius:28px;padding:32px;margin:32px 0}}
-        .plan-items{{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}}
-        .plan-items span{{background:#fff;padding:8px 20px;border-radius:30px;font-size:14px}}
-        @media (max-width:700px){{
-            .container{{padding:20px 16px}}
-            .hero h1{{font-size:32px}}
-            .hero p{{font-size:16px}}
-            .form-card{{padding:20px}}
-            .radio-group{{flex-direction:column;gap:12px}}
-            .radio-group label{{padding:8px 12px;background:#f5f5f7;border-radius:12px}}
-            input,textarea,.btn{{font-size:16px}}
-            .price-new{{font-size:28px}}
-            .cases-grid{{flex-direction:column}}
-            .case-card{{min-width:auto}}
-        }}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
+        .container{max-width:1000px;margin:0 auto;padding:40px 20px}
+        .hero{text-align:center;margin-bottom:60px}
+        .hero h1{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
+        .hero p{font-size:20px;color:#6e6e73}
+        .features{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}
+        .feature{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .feature-icon{font-size:36px;margin-bottom:12px}
+        .feature h3{font-size:18px;font-weight:600;margin-bottom:8px}
+        .feature p{font-size:14px;color:#6e6e73}
+        .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}
+        .btn:hover{background:#005fc5;transform:scale(1.02)}
+        .btn-outline{background:transparent;border:1px solid #007aff;color:#007aff}
+        .btn-outline:hover{background:#007aff10;transform:scale(1.02)}
+        .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
+        .form-group{margin-bottom:24px}
+        label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
+        input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
+        .radio-group{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+        .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal}
+        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
+        .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+        .social-links a{color:#007aff;text-decoration:none;font-size:12px}
+        hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
+        .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
+        .price-new{font-size:36px;font-weight:700;color:#007aff}
+        .course-card{background:linear-gradient(135deg,#667eea10 0%,#764ba210 100%);border-radius:28px;padding:32px;margin:32px 0;text-align:left}
+        @media (max-width:700px){
+            .container{padding:20px 16px}
+            .hero h1{font-size:32px}
+            .hero p{font-size:16px}
+            .form-card{padding:20px}
+            .radio-group{flex-direction:column;gap:8px}
+            input,textarea,.btn{font-size:16px}
+        }
     </style>
 </head>
 <body>
@@ -341,13 +339,14 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Анализируем рынок | Salesplan</title>
-    {YANDEX_METRIKA}
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn:hover{{background:#005fc5}}
     </style>
     <script>
         let attempts = 0;
@@ -362,10 +361,14 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
                         window.location.href = '{redirect_url}';
                     }} else {{
                         attempts++;
-                        if (attempts < 120) setTimeout(checkStatus, 3000);
+                        if (attempts < 120) {{
+                            setTimeout(checkStatus, 3000);
+                        }}
                     }}
                 }})
-                .catch(() => setTimeout(checkStatus, 3000));
+                .catch(() => {{
+                    setTimeout(checkStatus, 3000);
+                }});
         }}
         setTimeout(checkStatus, 3000);
     </script>
@@ -374,7 +377,8 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 <div class="container">
     <div class="spinner"></div>
     <h1>🔍 Анализируем конкурентов и рынок</h1>
-    <p>Это займет 1-2 минуты. Страница обновится автоматически</p>
+    <p>Лопатим вашу нишу, ищем точки роста и слабые места. Это займет 1-2 минуты.</p>
+    <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
 </div>
 </body>
 </html>"""
@@ -386,7 +390,6 @@ def render_premium_waiting_page(user_id: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Готовим стратегию | Salesplan</title>
-    {YANDEX_METRIKA}
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -395,7 +398,9 @@ def render_premium_waiting_page(user_id: str):
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
         .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
         .step.active{{background:#007aff;color:#fff}}
-        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff;padding:14px 28px;border-radius:12px;cursor:pointer}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
+        .btn-outline:hover{{background:#007aff;color:#fff}}
     </style>
     <script>
         let attempts = 0;
@@ -415,41 +420,58 @@ def render_premium_waiting_page(user_id: str):
                         document.getElementById('step1').className = step >= 1 ? 'step active' : 'step';
                         document.getElementById('step2').className = step >= 2 ? 'step active' : 'step';
                         document.getElementById('step3').className = step >= 3 ? 'step active' : 'step';
-                        if (attempts < 180) setTimeout(checkStatus, 3000);
+                        if (attempts < 180) {{
+                            setTimeout(checkStatus, 3000);
+                        }}
                     }}
                 }})
-                .catch(() => setTimeout(checkStatus, 3000));
-        }}
-        setTimeout(checkStatus, 3000);
-        function requestByPhone() {{
-            fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
-                .then(res => res.json())
-                .then(data => {{
-                    if (data.success) alert('Заявка принята! План придёт в MAX.');
-                    else alert('Ошибка. Обновите страницу.');
+                .catch(() => {{
+                    setTimeout(checkStatus, 3000);
                 }});
         }}
+        setTimeout(checkStatus, 3000);
     </script>
 </head>
 <body>
 <div class="container">
     <div class="spinner"></div>
     <h1>📊 Анализируем рынок и конкурентов</h1>
-    <p>Готовим персональную стратегию продаж.<br>Это 1–5 минут.</p>
+    <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>1–5 минут</strong>.</p>
+    
     <div style="margin: 30px 0;">
         <span id="step1" class="step active">1. Анализ конкурентов</span>
         <span id="step2" class="step">2. Сбор стратегии</span>
         <span id="step3" class="step">3. Формирование плана</span>
     </div>
+    
+    <p style="font-size:14px;color:#8e8e93;margin:20px 0">Страница обновится автоматически, когда план будет готов</p>
+    
     <hr style="margin: 30px 0;">
-    <button onclick="requestByPhone()" class="btn-outline">📲 Отправить в MAX по номеру телефона</button>
+    
+    <p style="font-size: 15px;">⚡️ Не хотите ждать?</p>
+    <p style="font-size: 14px; color: #6e6e73;">Мы пришлём готовый план в MAX по вашему номеру телефона</p>
+    <button onclick="requestByPhone()" class="btn btn-outline" style="margin-top: 15px;">📲 Отправить в MAX по номеру телефона</button>
 </div>
+
+<script>
+    function requestByPhone() {{
+        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
+            .then(res => res.json())
+            .then(data => {{
+                if (data.success) {{
+                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
+                }} else {{
+                    alert('Ошибка. Пожалуйста, обновите страницу.');
+                }}
+            }});
+    }}
+</script>
 </body>
 </html>"""
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
+    content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
 @app.get("/survey", response_class=HTMLResponse)
@@ -457,17 +479,18 @@ async def survey():
     content = """
 <div class="hero">
     <h1>Расскажите о вашем бизнесе — 2 минуты</h1>
-    <p>Анализируем данные — диагностика через 60 секунд</p>
+    <p>Анализируем данные — диагностика будет готова через 60 секунд</p>
 </div>
+
 <div class="form-card">
-    <form action="/survey/submit" method="post" onsubmit="ym(108348240, 'reachGoal', 'survey_submit'); return true;">
+    <form action="/survey/submit" method="post">
         <div class="form-group">
             <label>1. Название бизнеса</label>
             <input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required>
         </div>
         <div class="form-group">
-            <label>2. Короткое описание</label>
-            <textarea name="business_description" rows="3" placeholder="Чем занимаетесь, кому помогаете?" required></textarea>
+            <label>2. Короткое описание (чем занимаетесь, кому помогаете)</label>
+            <textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж за 490₽ → бесплатный разбор плана за подписку в MAX" required></textarea>
         </div>
         <div class="form-group">
             <label>3. Что вы продаёте?</label>
@@ -481,28 +504,28 @@ async def survey():
         <div class="form-group">
             <label>4. Средний чек (₽)</label>
             <div class="radio-group">
-                <label><input type="radio" name="q2" value="до 5k" required> до 5 000 ₽</label>
-                <label><input type="radio" name="q2" value="5k-20k"> 5 000–20 000 ₽</label>
-                <label><input type="radio" name="q2" value="20k-50k"> 20 000–50 000 ₽</label>
-                <label><input type="radio" name="q2" value=">50k"> более 50 000 ₽</label>
+                <label><input type="radio" name="q2" value="до 5k" required> до 5k</label>
+                <label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label>
+                <label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label>
+                <label><input type="radio" name="q2" value=">50k"> >50k</label>
             </div>
         </div>
         <div class="form-group">
-            <label>5. Клиентов в месяц</label>
+            <label>5. Клиентов в месяц (примерно)</label>
             <div class="radio-group">
-                <label><input type="radio" name="q3" value="<10" required> до 10</label>
-                <label><input type="radio" name="q3" value="10-50"> 10–50</label>
-                <label><input type="radio" name="q3" value="50-200"> 50–200</label>
+                <label><input type="radio" name="q3" value="<10" required> меньше 10</label>
+                <label><input type="radio" name="q3" value="10-50"> 10-50</label>
+                <label><input type="radio" name="q3" value="50-200"> 50-200</label>
                 <label><input type="radio" name="q3" value=">200"> более 200</label>
             </div>
         </div>
         <div class="form-group">
             <label>6. Цель на 2026</label>
             <div class="radio-group">
-                <label><input type="radio" name="q4" value="300k/мес" required> 300 000 ₽/мес</label>
-                <label><input type="radio" name="q4" value="500k/мес"> 500 000 ₽/мес</label>
-                <label><input type="radio" name="q4" value="1M/мес"> 1 000 000 ₽/мес</label>
-                <label><input type="radio" name="q4" value="Масштаб"> Масштабирование</label>
+                <label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label>
+                <label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label>
+                <label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label>
+                <label><input type="radio" name="q4" value="Масштаб"> Масштаб</label>
             </div>
         </div>
         <div class="form-group">
@@ -514,7 +537,7 @@ async def survey():
             </div>
         </div>
         <div style="text-align:center">
-            <button type="submit" class="btn">Получить диагностику →</button>
+            <button type="submit" class="btn">Получить диагностику</button>
         </div>
     </form>
 </div>
@@ -532,6 +555,7 @@ async def survey_submit(
     q5: str = Form(...)
 ):
     user_id = str(uuid.uuid4())
+    logger.info(f"New survey submission: user_id={user_id}, business={business_name}")
     save_user(user_id, None, None)
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
@@ -543,15 +567,19 @@ async def survey_submit(
     report_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    logger.info(f"Free report {report_id} created for user {user_id}")
     
     async def generate_and_save():
+        logger.info(f"Starting free report generation for user {user_id}")
         diagnostic_text = call_deepseek_diagnostic(business_name, business_description, answers)
         conn = sqlite3.connect(DB_PATH)
         if diagnostic_text:
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (diagnostic_text, report_id))
+            logger.info(f"Free report {report_id} generated successfully")
         else:
             fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации:\n- Проанализируйте целевую аудиторию\n- Настройте воронку продаж\n- Добавьте призывы к действию"
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (fallback_text, report_id))
+            logger.warning(f"Free report {report_id} using fallback text")
         conn.commit()
         conn.close()
     
@@ -565,102 +593,108 @@ async def check_status(user_id: str, report_type: str):
     cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
-    return {"ready": row and row[0] == 'ready'}
+    ready = row and row[0] == 'ready'
+    logger.info(f"Check status: user={user_id}, type={report_type}, ready={ready}")
+    return {"ready": ready}
 
+# ИСПРАВЛЕННАЯ ФУНКЦИЯ DIAGNOSTIC - с правильным порядком блоков
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
-    diagnostic_got_script = "<script>ym(108348240, 'reachGoal', 'diagnostic_got');</script>"
-    
+    logger.info(f"Diagnostic page requested for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = 'free' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
     conn.close()
     
     if not row or not row[0]:
+        logger.warning(f"Diagnostic not ready for user {user_id}, showing waiting page")
         return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
     
     report_text_full = row[0]
     report_text_html = report_text_full.replace("\n", "<br>")
     
     content = f'''
-{diagnostic_got_script}
 <div class="hero">
     <h1>✨ Ваша диагностика готова</h1>
-    <p style="font-size: 18px;">Первый шаг к стабильным продажам</p>
+    <p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p>
 </div>
 <div class="form-card" style="text-align: center;">
+    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
+        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
+        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Полный текст диагностики ниже</p>
+    </div>
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
-</div>
-
-<!-- БЛОК ЦЕНА + ФОРМА (теперь первым после диагностики) -->
-<div class="price-block">
-    <div class="price-old">4 900 ₽</div>
-    <div class="price-new">490 ₽</div>
-    <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
     
-    <form action="/payment/create" method="post" onsubmit="ym(108348240, 'reachGoal', 'payment_start'); return true;" style="margin-top: 32px;">
+    <hr style="margin: 32px 0;">
+    
+    <!-- БЛОК 1: Что дальше? (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
+    <div style="margin: 32px 0; text-align: center;">
+        <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
+        <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
+    </div>
+    
+    <!-- БЛОК 2: План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
+    <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
+        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
+        </div>
+    </div>
+    
+    <hr style="margin: 32px 0;">
+    
+    <!-- БЛОК 3: Цена и форма оплаты -->
+    <div style="margin: 32px 0;">
+        <div class="price-old">4 900 ₽</div>
+        <div class="price-new">490 ₽</div>
+        <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
+    </div>
+    
+    <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group" style="margin-bottom: 20px;">
-            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный план:</label>
+            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
         <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button>
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p>
+        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
     </form>
-</div>
-
-<!-- ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН -->
-<div class="plan-badge">
-    <h3 style="font-size: 24px; margin-bottom: 20px; text-align: center;">📋 ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН ВКЛЮЧАЕТ:</h3>
-    <div class="plan-items">
-        <span>🔍 Разбор 5 конкурентов</span>
-        <span>⚡ Готовая воронка под ваш бизнес</span>
-        <span>📅 Пошаговый план запуска на месяц</span>
-        <span>💬 Скрипты для продаж</span>
+    
+    <hr style="margin: 32px 0;">
+    
+    <!-- БЛОК 4: Кейсы и отзывы -->
+    <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
+        <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
+        <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
     </div>
-</div>
-
-<!-- БЛОК ВЕРОНИКА (стиль Хакамада) -->
-<div style="background: #f5f5f7; border-radius: 28px; padding: 32px; margin: 32px 0; text-align: center;">
-    <p style="font-size: 48px; margin-bottom: 16px;">🎯</p>
-    <p style="font-size: 22px; font-weight: 700; margin-bottom: 16px;">СТОП-ИГРА. НАЧАЛО ДЕЙСТВИЯ.</p>
-    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-        Меня зовут Вероника. Я не даю советы. Я создаю системы, которые продают, пока вы спите.
-    </p>
-    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-        8 лет назад я тоже была там — в болоте "клиентов нет", "денег нет", "времени нет". 
-        Знаете, что изменило всё? Система. Не талант, не удача, не связи. Система.
-    </p>
-    <p style="font-size: 16px; line-height: 1.5;">
-        Я построила её, обкатала на десятках экспертов и теперь даю вам. 
-        Берите. Или продолжайте ждать у моря погоды — выбор за вами.
-    </p>
-</div>
-
-<!-- КЕЙСЫ -->
-<div class="cases-grid">
-    <div class="case-card">
-        <div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div>
-        <p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p>
+    
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; margin: 32px 0; text-align: left;">
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div>
+            <p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p>
+        </div>
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
+            <p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p>
+        </div>
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🌊</div>
+            <p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p>
+        </div>
+        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 32px; margin-bottom: 12px;">🏫</div>
+            <p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p>
+        </div>
     </div>
-    <div class="case-card">
-        <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
-        <p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p>
+    
+    <div style="margin: 32px 0;">
+        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
-    <div class="case-card">
-        <div style="font-size: 32px; margin-bottom: 12px;">🌊</div>
-        <p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p>
-    </div>
-    <div class="case-card">
-        <div style="font-size: 32px; margin-bottom: 12px;">🏫</div>
-        <p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p>
-    </div>
-</div>
-
-<div style="margin: 32px 0; text-align: center;">
-    <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -668,6 +702,7 @@ async def diagnostic(user_id: str):
 @app.post("/payment/create")
 async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
+    logger.info(f"Payment create for user {user_id}, phone {phone}")
     save_user(user_id, phone, None)
     save_payment_request(user_id, phone)
     send_telegram_message(f"Новая заявка на оплату!\nID: {user_id}\nТелефон: {phone}")
@@ -675,8 +710,10 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
 
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str):
+    logger.info(f"Payment page for user {user_id}")
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
+        logger.info(f"Premium report already ready for {user_id}, redirecting to success")
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
     content = f'''
@@ -693,9 +730,9 @@ async def payment_page(user_id: str):
     </ul>
     <div class="price-old" style="text-align:center">4 900 ₽</div>
     <div class="price-new" style="text-align:center">490 ₽</div>
-    <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена</p>
+    <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
     <div style="text-align:center;margin:30px 0">
-        <a href="{PAYMENT_URL}" target="_blank" class="btn" onclick="ym(108348240, 'reachGoal', 'payment_start');">💳 Оплатить 490 ₽</a>
+        <a href="{PAYMENT_URL}" target="_blank" class="btn">💳 Оплатить 490 ₽</a>
     </div>
     <hr>
     <div style="text-align:center">
@@ -703,12 +740,21 @@ async def payment_page(user_id: str):
         <a href="/payment/success?user_id={user_id}" class="btn" style="margin-top:16px">→ Я оплатил(а) — получить план</a>
     </div>
 </div>
+
+<script>
+    window.addEventListener('beforeunload', function(e) {{
+        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.";
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+    }});
+</script>
 '''
     return HTMLResponse(content=render_page(content))
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
-    pay_490_script = "<script>ym(108348240, 'reachGoal', 'pay_490');</script>"
+    logger.info(f"Payment success page for user {user_id}")
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
@@ -721,59 +767,142 @@ async def payment_success(user_id: str):
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     
+    logger.info(f"Payment success data: biz_exists={biz is not None}, answers_exists={answers is not None}, api_key={bool(DEEPSEEK_API_KEY)}")
+    if biz:
+        logger.info(f"Biz name: {biz.get('name')}")
+    if answers:
+        logger.info(f"Answers: {answers}")
+    
     existing_report = get_report(user_id, "premium")
     
     if existing_report and existing_report["status"] == "ready":
-        report_text_full = existing_report["text"] or "Текст плана временно недоступен."
+        logger.info(f"Premium report already ready for {user_id}")
+        report_text_full = existing_report["text"] or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
         report_text_html = report_text_full.replace("\n", "<br>")
         
         content = f'''
-{pay_490_script}
-<div class="hero"><h1>🎉 Спасибо за покупку!</h1></div>
-<div class="form-card">
-    <div style="background:#f5f5f7;border-radius:20px;padding:20px;max-height:500px;overflow-y:auto;">
-        <div style="white-space:pre-wrap;">{report_text_html}</div>
+<div class="hero">
+    <h1>🎉 Спасибо за покупку!</h1>
+    <p>Ваш профессиональный маркетинговый план — полная версия ниже</p>
+</div>
+<div class="form-card" style="text-align: center;">
+    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
+        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
+        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш профессиональный маркетинговый план — полная версия ниже</p>
     </div>
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin:20px auto;display:block;">📲 Отправить план в MAX</button>
-    <hr>
-    <h2 style="text-align:center;">🎁 Бесплатный бонус</h2>
-    <p style="text-align:center;">30-минутный разбор вашего плана продаж</p>
-    <div style="text-align:center;margin-top:20px">
-        <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request');">→ Записаться на бесплатный разбор</a>
+    
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
+        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
+    </div>
+    
+    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
+    
+    <hr style="margin: 32px 0;">
+    
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
+        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
+        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        <div style="text-align:center;margin-top:20px">
+            <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+        </div>
+    </div>
+    
+    <div style="margin: 32px 0;">
+        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
 </div>
+
 <script>
-function requestByPhone() {{
-    fetch('/request_report_by_phone?user_id={user_id}',{{method:'POST'}})
-        .then(res=>res.json())
-        .then(data=>{{if(data.success) alert('Заявка принята!'); else alert('Ошибка');}});
-}}
+    function requestByPhone() {{
+        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
+            .then(res => res.json())
+            .then(data => {{
+                if (data.success) {{
+                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
+                }} else {{
+                    alert('Ошибка. Пожалуйста, обновите страницу.');
+                }}
+            }});
+    }}
 </script>
 '''
         return HTMLResponse(content=render_page(content))
     
-    if biz and answers and DEEPSEEK_API_KEY:
+    logger.info(f"No existing premium report for {user_id}, starting generation")
+    
+    if not biz:
+        logger.warning(f"Business data missing for {user_id}, creating placeholder")
+        biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
+    if not answers:
+        logger.warning(f"Form answers missing for {user_id}, creating placeholder")
+        answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
+    
+    if DEEPSEEK_API_KEY:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
         report_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        logger.info(f"Created premium report {report_id} for user {user_id}")
+        
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
+        
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
-        premium_text = f"План продаж\n\nНазвание: {biz['name'] if biz else 'не указано'}"
+        logger.warning(f"DEEPSEEK_API_KEY missing, using fallback for user {user_id}")
+        premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
+
+Данные о бизнесе:
+Название: {biz['name'] if biz else 'не указано'}
+Описание: {biz['description'] if biz else 'не указано'}
+
+Рекомендации для увеличения продаж:
+
+1. Проанализируйте целевую аудиторию
+2. Настройте автоворонку в MAX или Telegram
+3. Добавьте триггерные сообщения для лидов
+4. Используйте скрипты продаж для консультаций
+5. Настройте ретаргетинг на непрогретых клиентов
+
+Следующие шаги:
+- Запишитесь на бесплатный разбор плана
+- Получите обратную связь от Вероники
+"""
         save_report(user_id, "premium", premium_text)
+        report_text_html = premium_text.replace("\n", "<br>")
+        
         content = f'''
-{pay_490_script}
-<div class="hero"><h1>🎉 Спасибо за покупку!</h1></div>
-<div class="form-card">
-    <div style="background:#f5f5f7;border-radius:20px;padding:20px;">
-        <div style="white-space:pre-wrap;">{premium_text}</div>
+<div class="hero">
+    <h1>🎉 Спасибо за покупку!</h1>
+</div>
+<div class="form-card" style="text-align: center;">
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
+        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
+    
+    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
+    
+    <hr>
+    <h2>🎁 Бесплатный бонус</h2>
+    <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
     <div style="text-align:center;margin-top:20px">
-        <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request');">→ Записаться на бесплатный разбор</a>
+        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
     </div>
 </div>
+
+<script>
+    function requestByPhone() {{
+        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
+            .then(res => res.json())
+            .then(data => {{
+                if (data.success) {{
+                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
+                }} else {{
+                    alert('Ошибка. Пожалуйста, обновите страницу.');
+                }}
+            }});
+    }}
+</script>
 '''
         return HTMLResponse(content=render_page(content))
 
@@ -783,82 +912,173 @@ async def check_premium_status(user_id: str):
     cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = 'premium' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    return {"ready": row and row[0] == 'ready'}
+    ready = row and row[0] == 'ready'
+    logger.info(f"Check premium status: user={user_id}, ready={ready}")
+    return {"ready": ready}
 
 @app.post("/request_report_by_phone")
 async def request_report_by_phone(user_id: str):
+    logger.info(f"Request report by phone for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
+    
     if row and row[0]:
-        send_telegram_message(f"📱 Запрос на отправку плана в MAX\nID: {user_id}\nТелефон: {row[0]}")
+        send_telegram_message(f"📱 Пользователь запросил отправить план в MAX!\nID: {user_id}\nТелефон: {row[0]}")
         return {"success": True}
+    logger.warning(f"Phone not found for user {user_id}")
     return {"success": False, "error": "Телефон не найден"}
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
+    logger.info(f"Consultation page for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    phone = row[0] if row else ""
+    phone = row[0] if row else "не указан"
     
     content = f'''
 <div class="hero">
     <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
+    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
 </div>
-<div class="form-card">
-    <div style="margin-bottom:30px;text-align:center;">
-        <div style="font-size:48px;font-weight:700;color:#007aff;">Осталось мест: 87</div>
+
+<div class="form-card" style="text-align: center;">
+    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
+    
+    <div style="margin-bottom: 30px;">
+        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
+        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
     </div>
-    <div style="margin:30px 0;text-align:center;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" onclick="ym(108348240,'reachGoal','consultation_request');">📢 Подписаться на канал в MAX</a>
+    
+    <div style="margin: 30px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
     </div>
-    <hr>
-    <form action="/consultation/submit" method="post" onsubmit="ym(108348240,'reachGoal','consultation_request'); return true;">
-        <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group">
-            <label>Ваш телефон</label>
-            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
-        </div>
-        <div class="form-group">
-            <label>Удобное время (по Москве)</label>
-            <input type="text" name="time" placeholder="например: завтра в 15:00" required>
-        </div>
-        <button type="submit" class="btn" style="width:100%;">Отправить заявку</button>
-    </form>
+    
+    <hr style="margin: 30px 0;">
+    
+    <div id="formBlock">
+        <form action="/consultation/submit" method="post">
+            <input type="hidden" name="user_id" value="{user_id}">
+            <div class="form-group">
+                <label>Ваш телефон (проверим подписку)</label>
+                <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
+            </div>
+            <div class="form-group">
+                <label>🕐 Удобное время для созвона (по Москве)</label>
+                <input type="text" name="time" placeholder="например: завтра в 15:00" required>
+            </div>
+            <div style="text-align: center;">
+                <button type="submit" class="btn">Отправить заявку</button>
+            </div>
+        </form>
+    </div>
 </div>
+
+<script>
+    let counter = 87;
+    const counterElement = document.getElementById('counter');
+    
+    document.querySelector('form').addEventListener('submit', function() {{
+        if (counter > 0) {{
+            counter--;
+            counterElement.textContent = counter;
+        }}
+    }});
+</script>
 '''
     return HTMLResponse(content=render_page(content))
 
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
+    logger.info(f"Consultation submit for user {user_id}, time={time}")
     save_consultation(user_id, time, phone, username)
-    message = f"📞 Заявка на консультацию!\nID: {user_id}\nВремя: {time}"
+    message = f"📞 Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}"
     if phone:
         message += f"\nТелефон: {phone}"
     send_telegram_message(message)
-    content = """
-<div class="hero"><h1>✅ Заявка принята!</h1></div>
-<div class="form-card" style="text-align:center;">
-    <p>Я свяжусь с вами в MAX для подтверждения времени.</p>
-    <div style="margin-top:20px"><a href="/" class="btn">→ На главную</a></div>
+    
+    content = f"""
+<div class="hero">
+    <h1>✅ Заявка принята!</h1>
+</div>
+<div class="form-card" style="text-align: center;">
+    <p>✅ Я свяжусь с вами в MAX в ближайшее время, чтобы подтвердить время разбора.</p>
+    
+    <hr style="margin: 32px 0;">
+    
+    <div class="course-card">
+        <h2 style="font-size: 28px; margin-bottom: 16px;">📚 А пока ждёте...</h2>
+        <p style="font-size: 17px; margin-bottom: 24px;">Хотите уже сейчас начать привлекать клиентов бесплатно?</p>
+        
+        <h3 style="font-size: 22px; margin-bottom: 16px;">Мини-курс «Раскрутка блога без вложений»</h3>
+        <p>Пошаговая система для экспертов, которые хотят привлекать клиентов бесплатно</p>
+        
+        <div style="margin: 24px 0;">
+            <p><strong>Что вы получите:</strong></p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>✅ 7 видеоуроков по 10 минут</li>
+                <li>✅ Готовую структуру блога, который продаёт</li>
+                <li>✅ 10 рабочих тем для постов</li>
+                <li>✅ Чек-лист «Как привлечь первых 10 клиентов»</li>
+                <li>✅ Обратную связь от меня лично</li>
+            </ul>
+        </div>
+        
+        <div class="price-old" style="text-align: center;">14 900 ₽</div>
+        <div class="price-new" style="text-align: center;">1 490 ₽</div>
+        <p style="text-align: center; margin: 16px 0;">📌 Только сейчас — специальная цена</p>
+        
+        <div style="text-align: center;">
+            <a href="https://t.me/zapuskintelega_bot" target="_blank" class="btn">🎓 Получить мини-курс в боте</a>
+        </div>
+        
+        <p style="font-size: 13px; color: #8e8e93; margin-top: 24px; text-align: center;">После оплаты в боте вы получите доступ к урокам и обратную связь от Вероники</p>
+    </div>
+    
+    <div style="text-align:center;margin-top: 32px;">
+        <a href="/" class="btn btn-outline">→ На главную</a>
+    </div>
 </div>
 """
     return HTMLResponse(content=render_page(content))
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
+    logger.info(f"Download request for user {user_id}, type {report_type}")
     conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
+    row = cursor.fetchone()
+    
+    if row and row[0]:
+        file_path = row[0]
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            filename = f"{report_type}_{user_id}.txt"
+            conn.close()
+            return Response(
+                content=content,
+                media_type="text/plain",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+    
     cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
+    
     if not row or not row[0]:
         raise HTTPException(status_code=404, detail="Report not found")
-    return Response(content=row[0], media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
+    
+    filename = f"{report_type}_{user_id}.txt"
+    return Response(
+        content=row[0],
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
