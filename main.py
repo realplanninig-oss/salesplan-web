@@ -142,7 +142,7 @@ def save_payment_request(user_id: str, phone: str):
 def send_telegram_message(text: str):
     if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
         try:
-            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": ADMIN_CHAT_ID, "text": text})
+            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": ADMIN_CHAT_ID, "text": text}, timeout=5)
         except Exception as e:
             logger.error(f"Failed to send telegram: {e}")
 
@@ -247,7 +247,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
     if success:
         report = get_report(user_id, "premium")
-        if report and report["file_path"]:
+        if report and report.get("file_path"):
             filepath = Path(report["file_path"])
             if filepath.exists():
                 try:
@@ -257,7 +257,8 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
                             lambda: requests.post(
                                 f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument",
                                 data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 План продаж для пользователя {user_id}"},
-                                files={"document": f}
+                                files={"document": f},
+                                timeout=5
                             )
                         )
                     logger.info(f"Premium report file sent to admin for user {user_id}")
@@ -292,7 +293,6 @@ HTML_HEAD = """<!DOCTYPE html>
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        /* ИСПРАВЛЕНО: радио-кнопки в колонку на мобильных */
         .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
         .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
         .radio-group label:hover{background:#e5e5ea}
@@ -479,7 +479,6 @@ async def index():
     content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
-# ИСПРАВЛЕННАЯ ФУНКЦИЯ SURVEY - с вертикальными радиокнопками
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
@@ -554,7 +553,6 @@ async def survey():
         submitBtn.disabled = true;
         submitBtn.textContent = '⏳ Анализируем...';
         
-        // Таймаут на случай проблем с сетью
         setTimeout(function() {
             if (submitBtn.disabled) {
                 submitBtn.disabled = false;
@@ -769,6 +767,7 @@ async def payment_page(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
+# ИСПРАВЛЕННАЯ ФУНКЦИЯ PAYMENT_SUCCESS - читает текст из файла
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
     logger.info(f"Payment success page for user {user_id}")
@@ -790,7 +789,32 @@ async def payment_success(user_id: str):
     
     if existing_report and existing_report["status"] == "ready":
         logger.info(f"Premium report already ready for {user_id}")
-        report_text_full = existing_report["text"] or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
+        
+        # ИСПРАВЛЕНО: сначала пробуем взять текст из файла
+        report_text_full = None
+        
+        # Пробуем прочитать из файла
+        if existing_report.get("file_path"):
+            file_path = existing_report["file_path"]
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        report_text_full = f.read()
+                    logger.info(f"Report text loaded from file: {file_path}")
+                except Exception as e:
+                    logger.error(f"Failed to read report file: {e}")
+        
+        # Если файла нет или не прочитался, берём из БД
+        if not report_text_full:
+            report_text_full = existing_report.get("text")
+            if report_text_full:
+                logger.info("Report text loaded from database")
+        
+        # Если всё равно нет текста - показываем ошибку
+        if not report_text_full:
+            report_text_full = "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
+            logger.warning(f"No report text found for user {user_id}")
+        
         report_text_html = report_text_full.replace("\n", "<br>")
         
         content = f'''
@@ -808,7 +832,10 @@ async def payment_success(user_id: str):
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
     
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
+    <div style="margin: 20px 0;">
+        <a href="/download/{user_id}/premium" class="btn btn-outline" style="margin: 10px;">📥 Скачать план в TXT</a>
+        <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 10px;">📲 Отправить план в MAX</button>
+    </div>
     
     <hr style="margin: 32px 0;">
     
@@ -893,7 +920,10 @@ async def payment_success(user_id: str):
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
     
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 20px auto; display: inline-block;">📲 Отправить план в MAX</button>
+    <div style="margin: 20px 0;">
+        <a href="/download/{user_id}/premium" class="btn btn-outline" style="margin: 10px;">📥 Скачать план в TXT</a>
+        <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 10px;">📲 Отправить план в MAX</button>
+    </div>
     
     <hr>
     <h2>🎁 Бесплатный бонус</h2>
@@ -1065,36 +1095,40 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 async def download_report(user_id: str, report_type: str):
     logger.info(f"Download request for user {user_id}, type {report_type}")
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
-    row = cursor.fetchone()
-    
-    if row and row[0]:
-        file_path = row[0]
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            filename = f"{report_type}_{user_id}.txt"
-            conn.close()
-            return Response(
-                content=content,
-                media_type="text/plain",
-                headers={"Content-Disposition": f"attachment; filename={filename}"}
-            )
-    
-    cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
+    cursor = conn.execute("SELECT file_path, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
     
-    if not row or not row[0]:
-        raise HTTPException(status_code=404, detail="Report not found")
+    report_content = None
     
-    filename = f"{report_type}_{user_id}.txt"
-    return Response(
-        content=row[0],
-        media_type="text/plain",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
+    # Сначала пробуем файл
+    if row and row[0]:
+        file_path = row[0]
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    report_content = f.read()
+                filename = f"{report_type}_{user_id}.txt"
+                return Response(
+                    content=report_content,
+                    media_type="text/plain",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"}
+                )
+            except Exception as e:
+                logger.error(f"Failed to read file: {e}")
+    
+    # Если файла нет, пробуем текст из БД
+    if row and row[1]:
+        report_content = row[1]
+        filename = f"{report_type}_{user_id}.txt"
+        return Response(
+            content=report_content,
+            media_type="text/plain",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    
+    raise HTTPException(status_code=404, detail="Report not found")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)        
+    uvicorn.run(app, host="0.0.0.0", port=port)
