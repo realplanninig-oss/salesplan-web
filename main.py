@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ)
+# File: main.py — веб-приложение Salesplan (с Яндекс Метрикой)
 
 import logging
 import sqlite3
@@ -267,12 +267,33 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
+# HTML с Яндекс Метрикой и целями
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Salesplan</title>
+    
+    <!-- Яндекс.Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+        
+        ym(108348240, "init", {
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true,
+            webvisor:true,
+            ecommerce:"dataLayer"
+        });
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Яндекс.Метрика -->
+    
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
@@ -341,6 +362,16 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Анализируем рынок | Salesplan</title>
+    <!-- Яндекс.Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+        ym(108348240, "init", {{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true}});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -392,6 +423,16 @@ def render_premium_waiting_page(user_id: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Готовим стратегию | Salesplan</title>
+    <!-- Яндекс.Метрика -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+        ym(108348240, "init", {{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true}});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -542,7 +583,7 @@ async def survey():
             </div>
         </div>
         <div style="text-align:center">
-            <button type="submit" class="btn" id="submitBtn">Получить диагностику</button>
+            <button type="submit" class="btn" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Получить диагностику</button>
         </div>
     </form>
 </div>
@@ -677,7 +718,7 @@ async def diagnostic(user_id: str):
             <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
-        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button>
+        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
         <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
     </form>
     
@@ -711,6 +752,11 @@ async def diagnostic(user_id: str):
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
 </div>
+
+<script>
+    // Цель: просмотр диагностики
+    ym(108348240,'reachGoal','diagnostic_got');
+</script>
 '''
     return HTMLResponse(content=render_page(content))
 
@@ -747,7 +793,7 @@ async def payment_page(user_id: str):
     <div class="price-new" style="text-align:center">490 ₽</div>
     <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
     <div style="text-align:center;margin:30px 0">
-        <a href="{PAYMENT_URL}" target="_blank" class="btn">💳 Оплатить 490 ₽</a>
+        <a href="{PAYMENT_URL}" target="_blank" class="btn" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</a>
     </div>
     <hr>
     <div style="text-align:center">
@@ -767,7 +813,6 @@ async def payment_page(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# ИСПРАВЛЕННАЯ ФУНКЦИЯ PAYMENT_SUCCESS - читает текст из файла
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
     logger.info(f"Payment success page for user {user_id}")
@@ -790,10 +835,8 @@ async def payment_success(user_id: str):
     if existing_report and existing_report["status"] == "ready":
         logger.info(f"Premium report already ready for {user_id}")
         
-        # ИСПРАВЛЕНО: сначала пробуем взять текст из файла
         report_text_full = None
         
-        # Пробуем прочитать из файла
         if existing_report.get("file_path"):
             file_path = existing_report["file_path"]
             if os.path.exists(file_path):
@@ -804,13 +847,11 @@ async def payment_success(user_id: str):
                 except Exception as e:
                     logger.error(f"Failed to read report file: {e}")
         
-        # Если файла нет или не прочитался, берём из БД
         if not report_text_full:
             report_text_full = existing_report.get("text")
             if report_text_full:
                 logger.info("Report text loaded from database")
         
-        # Если всё равно нет текста - показываем ошибку
         if not report_text_full:
             report_text_full = "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
             logger.warning(f"No report text found for user {user_id}")
@@ -843,7 +884,7 @@ async def payment_success(user_id: str):
         <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
         <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
         <div style="text-align:center;margin-top:20px">
-            <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+            <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">→ Записаться на бесплатный разбор</a>
         </div>
     </div>
     
@@ -929,7 +970,7 @@ async def payment_success(user_id: str):
     <h2>🎁 Бесплатный бонус</h2>
     <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
     <div style="text-align:center;margin-top:20px">
-        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
+        <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">→ Записаться на бесплатный разбор</a>
     </div>
 </div>
 
@@ -1014,7 +1055,7 @@ async def consultation_page(user_id: str):
                 <input type="text" name="time" placeholder="например: завтра в 15:00" required>
             </div>
             <div style="text-align: center;">
-                <button type="submit" class="btn">Отправить заявку</button>
+                <button type="submit" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">Отправить заявку</button>
             </div>
         </form>
     </div>
@@ -1101,7 +1142,6 @@ async def download_report(user_id: str, report_type: str):
     
     report_content = None
     
-    # Сначала пробуем файл
     if row and row[0]:
         file_path = row[0]
         if os.path.exists(file_path):
@@ -1117,7 +1157,6 @@ async def download_report(user_id: str, report_type: str):
             except Exception as e:
                 logger.error(f"Failed to read file: {e}")
     
-    # Если файла нет, пробуем текст из БД
     if row and row[1]:
         report_content = row[1]
         filename = f"{report_type}_{user_id}.txt"
