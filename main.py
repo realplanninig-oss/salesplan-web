@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (версия с полными улучшениями + Яндекс.Метрика)
+# File: main.py — веб-приложение Salesplan (с Яндекс.Метрикой и обновленной анкетой)
 
 import logging
 import sqlite3
@@ -253,65 +253,68 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 
 app = FastAPI(title="Salesplan")
 
-HTML_HEAD = """<!DOCTYPE html>
+# Базовый HTML с Яндекс.Метрикой
+YANDEX_METRIKA = """<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+   ym(108348240, "init", {
+        clickmap:true,
+        trackLinks:true,
+        accurateTrackBounce:true,
+        webvisor:true
+   });
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->"""
+
+HTML_HEAD = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Salesplan</title>
+    {YANDEX_METRIKA}
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
-        .container{max-width:1000px;margin:0 auto;padding:40px 20px}
-        .hero{text-align:center;margin-bottom:60px}
-        .hero h1{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
-        .hero p{font-size:20px;color:#6e6e73}
-        .features{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}
-        .feature{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-        .feature-icon{font-size:36px;margin-bottom:12px}
-        .feature h3{font-size:18px;font-weight:600;margin-bottom:8px}
-        .feature p{font-size:14px;color:#6e6e73}
-        .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}
-        .btn:hover{background:#005fc5;transform:scale(1.02)}
-        .btn-outline{background:transparent;border:1px solid #007aff;color:#007aff}
-        .btn-outline:hover{background:#007aff10;transform:scale(1.02)}
-        .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
-        .form-group{margin-bottom:24px}
-        label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
-        input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        .radio-group{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal}
-        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
-        .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-        .social-links a{color:#007aff;text-decoration:none;font-size:12px}
-        hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
-        .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
-        .price-new{font-size:36px;font-weight:700;color:#007aff}
-        @media (max-width:700px){
-            .container{padding:20px 16px}
-            .hero h1{font-size:32px}
-            .hero p{font-size:16px}
-            .form-card{padding:20px}
-            .radio-group{flex-direction:column;gap:8px}
-            input,textarea,.btn{font-size:16px}
-        }
+        *{{margin:0;padding:0;box-sizing:border-box}}
+        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
+        .container{{max-width:1000px;margin:0 auto;padding:40px 20px}}
+        .hero{{text-align:center;margin-bottom:60px}}
+        .hero h1{{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}}
+        .hero p{{font-size:20px;color:#6e6e73}}
+        .features{{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}}
+        .feature{{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}}
+        .feature-icon{{font-size:36px;margin-bottom:12px}}
+        .feature h3{{font-size:18px;font-weight:600;margin-bottom:8px}}
+        .feature p{{font-size:14px;color:#6e6e73}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}}
+        .btn:hover{{background:#005fc5;transform:scale(1.02)}}
+        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
+        .btn-outline:hover{{background:#007aff10;transform:scale(1.02)}}
+        .form-card{{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}}
+        .form-group{{margin-bottom:24px}}
+        label{{font-size:15px;font-weight:500;display:block;margin-bottom:8px}}
+        input,textarea{{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}}
+        .radio-group{{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}}
+        .radio-group label{{display:flex;align-items:center;gap:6px;font-weight:normal}}
+        .footer{{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}}
+        .social-links{{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}}
+        .social-links a{{color:#007aff;text-decoration:none;font-size:12px}}
+        hr{{margin:30px 0;border:none;border-top:1px solid #e5e5e5}}
+        .price-old{{font-size:20px;color:#8e8e93;text-decoration:line-through}}
+        .price-new{{font-size:36px;font-weight:700;color:#007aff}}
+        @media (max-width:700px){{
+            .container{{padding:20px 16px}}
+            .hero h1{{font-size:32px}}
+            .hero p{{font-size:16px}}
+            .form-card{{padding:20px}}
+            .radio-group{{flex-direction:column;gap:8px}}
+            input,textarea,.btn{{font-size:16px}}
+        }}
     </style>
-    <!-- Yandex.Metrika counter -->
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        ym(108348240, "init", {
-            clickmap:true,
-            trackLinks:true,
-            accurateTrackBounce:true,
-            webvisor:true
-        });
-    </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Yandex.Metrika counter -->
 </head>
 <body>
 <div class="container">
@@ -341,6 +344,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Анализируем рынок | Salesplan</title>
+    {YANDEX_METRIKA}
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -350,22 +354,30 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
         .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
         .btn:hover{{background:#005fc5}}
     </style>
-    <!-- Yandex.Metrika counter -->
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
-        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        ym(108348240, "init", {{
-            clickmap:true,
-            trackLinks:true,
-            accurateTrackBounce:true,
-            webvisor:true
-        }});
+    <script>
+        let attempts = 0;
+        let isRedirected = false;
+        function checkStatus() {{
+            if (isRedirected) return;
+            fetch('/check_status?user_id={user_id}&report_type={report_type}')
+                .then(res => res.json())
+                .then(data => {{
+                    if (data.ready) {{
+                        isRedirected = true;
+                        window.location.href = '{redirect_url}';
+                    }} else {{
+                        attempts++;
+                        if (attempts < 120) {{
+                            setTimeout(checkStatus, 3000);
+                        }}
+                    }}
+                }})
+                .catch(() => {{
+                    setTimeout(checkStatus, 3000);
+                }});
+        }}
+        setTimeout(checkStatus, 3000);
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Yandex.Metrika counter -->
 </head>
 <body>
 <div class="container">
@@ -384,6 +396,7 @@ def render_premium_waiting_page(user_id: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Готовим стратегию | Salesplan</title>
+    {YANDEX_METRIKA}
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
@@ -396,22 +409,35 @@ def render_premium_waiting_page(user_id: str):
         .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
         .btn-outline:hover{{background:#007aff;color:#fff}}
     </style>
-    <!-- Yandex.Metrika counter -->
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
-        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        ym(108348240, "init", {{
-            clickmap:true,
-            trackLinks:true,
-            accurateTrackBounce:true,
-            webvisor:true
-        }});
+    <script>
+        let attempts = 0;
+        let isRedirected = false;
+        let step = 1;
+        function checkStatus() {{
+            if (isRedirected) return;
+            fetch('/check_premium_status?user_id={user_id}')
+                .then(res => res.json())
+                .then(data => {{
+                    if (data.ready) {{
+                        isRedirected = true;
+                        window.location.href = '/payment/success?user_id={user_id}';
+                    }} else {{
+                        attempts++;
+                        step = Math.min(3, Math.floor(attempts / 20) + 1);
+                        document.getElementById('step1').className = step >= 1 ? 'step active' : 'step';
+                        document.getElementById('step2').className = step >= 2 ? 'step active' : 'step';
+                        document.getElementById('step3').className = step >= 3 ? 'step active' : 'step';
+                        if (attempts < 180) {{
+                            setTimeout(checkStatus, 3000);
+                        }}
+                    }}
+                }})
+                .catch(() => {{
+                    setTimeout(checkStatus, 3000);
+                }});
+        }}
+        setTimeout(checkStatus, 3000);
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Yandex.Metrika counter -->
 </head>
 <body>
 <div class="container">
@@ -435,34 +461,6 @@ def render_premium_waiting_page(user_id: str):
 </div>
 
 <script>
-    let attempts = 0;
-    let isRedirected = false;
-    let step = 1;
-    function checkStatus() {{
-        if (isRedirected) return;
-        fetch('/check_premium_status?user_id={user_id}')
-            .then(res => res.json())
-            .then(data => {{
-                if (data.ready) {{
-                    isRedirected = true;
-                    window.location.href = '/payment/success?user_id={user_id}';
-                }} else {{
-                    attempts++;
-                    step = Math.min(3, Math.floor(attempts / 20) + 1);
-                    document.getElementById('step1').className = step >= 1 ? 'step active' : 'step';
-                    document.getElementById('step2').className = step >= 2 ? 'step active' : 'step';
-                    document.getElementById('step3').className = step >= 3 ? 'step active' : 'step';
-                    if (attempts < 180) {{
-                        setTimeout(checkStatus, 3000);
-                    }}
-                }}
-            }})
-            .catch(() => {{
-                setTimeout(checkStatus, 3000);
-            }});
-    }}
-    setTimeout(checkStatus, 3000);
-    
     function requestByPhone() {{
         fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
             .then(res => res.json())
@@ -492,7 +490,7 @@ async def survey():
 </div>
 
 <div class="form-card">
-    <form action="/survey/submit" method="post" id="surveyForm">
+    <form action="/survey/submit" method="post" onsubmit="ym(108348240, 'reachGoal', 'survey_submit'); return true;">
         <div class="form-group">
             <label>1. Название бизнеса</label>
             <input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required>
@@ -513,28 +511,28 @@ async def survey():
         <div class="form-group">
             <label>4. Средний чек (₽)</label>
             <div class="radio-group">
-                <label><input type="radio" name="q2" value="до 5k" required> до 5k</label>
-                <label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label>
-                <label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label>
-                <label><input type="radio" name="q2" value=">50k"> >50k</label>
+                <label><input type="radio" name="q2" value="до 5k" required> до 5 000 ₽</label>
+                <label><input type="radio" name="q2" value="5k-20k"> 5 000–20 000 ₽</label>
+                <label><input type="radio" name="q2" value="20k-50k"> 20 000–50 000 ₽</label>
+                <label><input type="radio" name="q2" value=">50k"> более 50 000 ₽</label>
             </div>
         </div>
         <div class="form-group">
             <label>5. Клиентов в месяц (примерно)</label>
             <div class="radio-group">
-                <label><input type="radio" name="q3" value="<10" required> меньше 10</label>
-                <label><input type="radio" name="q3" value="10-50"> 10-50</label>
-                <label><input type="radio" name="q3" value="50-200"> 50-200</label>
+                <label><input type="radio" name="q3" value="<10" required> до 10</label>
+                <label><input type="radio" name="q3" value="10-50"> 10–50</label>
+                <label><input type="radio" name="q3" value="50-200"> 50–200</label>
                 <label><input type="radio" name="q3" value=">200"> более 200</label>
             </div>
         </div>
         <div class="form-group">
             <label>6. Цель на 2026</label>
             <div class="radio-group">
-                <label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label>
-                <label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label>
-                <label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label>
-                <label><input type="radio" name="q4" value="Масштаб"> Масштаб</label>
+                <label><input type="radio" name="q4" value="300k/мес" required> 300 000 ₽/мес</label>
+                <label><input type="radio" name="q4" value="500k/мес"> 500 000 ₽/мес</label>
+                <label><input type="radio" name="q4" value="1M/мес"> 1 000 000 ₽/мес</label>
+                <label><input type="radio" name="q4" value="Масштаб"> Масштабирование</label>
             </div>
         </div>
         <div class="form-group">
@@ -546,7 +544,7 @@ async def survey():
             </div>
         </div>
         <div style="text-align:center">
-            <button type="submit" class="btn" onclick="ym(108348240, 'reachGoal', 'survey_submit');">Получить диагностику</button>
+            <button type="submit" class="btn">Получить диагностику →</button>
         </div>
     </form>
 </div>
@@ -601,6 +599,9 @@ async def check_status(user_id: str, report_type: str):
 
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
+    # Цель: диагностика получена
+    diagnostic_got_script = "<script>ym(108348240, 'reachGoal', 'diagnostic_got');</script>"
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = 'free' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
@@ -613,7 +614,7 @@ async def diagnostic(user_id: str):
     report_text_html = report_text_full.replace("\n", "<br>")
     
     content = f'''
-<script>ym(108348240, 'reachGoal', 'diagnostic_got');</script>
+{diagnostic_got_script}
 <div class="hero">
     <h1>✨ Ваша диагностика готова</h1>
     <p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p>
@@ -674,13 +675,13 @@ async def diagnostic(user_id: str):
         <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
     </div>
     
-    <form action="/payment/create" method="post" style="margin-top: 24px;">
+    <form action="/payment/create" method="post" onsubmit="ym(108348240, 'reachGoal', 'payment_start'); return true;">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group" style="margin-bottom: 20px;">
             <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный план:</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
-        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240, 'reachGoal', 'payment_start');">🔥 Получить доступ к плану</button>
+        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;">🔥 Получить доступ к плану</button>
         <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только план продаж и бонусы.</p>
     </form>
 </div>
@@ -740,6 +741,9 @@ async def payment_page(user_id: str):
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
+    # Цель: успешная оплата
+    pay_490_script = "<script>ym(108348240, 'reachGoal', 'pay_490');</script>"
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -758,7 +762,7 @@ async def payment_success(user_id: str):
         report_text_html = report_text_full.replace("\n", "<br>")
         
         content = f'''
-<script>ym(108348240, 'reachGoal', 'pay_490');</script>
+{pay_490_script}
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
 </div>
@@ -841,7 +845,7 @@ async def payment_success(user_id: str):
         report_text_html = premium_text.replace("\n", "<br>")
         
         content = f'''
-<script>ym(108348240, 'reachGoal', 'pay_490');</script>
+{pay_490_script}
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
 </div>
@@ -919,13 +923,13 @@ async def consultation_page(user_id: str):
     </div>
     
     <div style="margin: 30px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;" onclick="ym(108348240, 'reachGoal', 'consultation_request');">📢 Подписаться на канал в MAX</a>
     </div>
     
     <hr style="margin: 30px 0;">
     
     <div id="formBlock">
-        <form action="/consultation/submit" method="post" id="consultationForm">
+        <form action="/consultation/submit" method="post" onsubmit="ym(108348240, 'reachGoal', 'consultation_request'); return true;">
             <input type="hidden" name="user_id" value="{user_id}">
             <div class="form-group">
                 <label>Ваш телефон (проверим подписку)</label>
@@ -936,7 +940,7 @@ async def consultation_page(user_id: str):
                 <input type="text" name="time" placeholder="например: завтра в 15:00" required>
             </div>
             <div style="text-align: center;">
-                <button type="submit" class="btn" onclick="ym(108348240, 'reachGoal', 'consultation_request');">Отправить заявку</button>
+                <button type="submit" class="btn">Отправить заявку</button>
             </div>
         </form>
     </div>
@@ -946,7 +950,7 @@ async def consultation_page(user_id: str):
     let counter = 87;
     const counterElement = document.getElementById('counter');
     
-    document.getElementById('consultationForm').addEventListener('submit', function() {{
+    document.querySelector('form').addEventListener('submit', function() {{
         if (counter > 0) {{
             counter--;
             counterElement.textContent = counter;
@@ -978,7 +982,6 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
-    # Эндпоинт оставлен для совместимости, но ссылки на него убраны со всех страниц
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT file_path FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
