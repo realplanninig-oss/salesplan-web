@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (исправленная версия)
+# File: main.py — веб-приложение Salesplan (ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 
 import logging
 import sqlite3
@@ -292,8 +292,11 @@ HTML_HEAD = """<!DOCTYPE html>
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
-        .radio-group{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:6px;font-weight:normal}
+        /* ИСПРАВЛЕНО: радио-кнопки в колонку на мобильных */
+        .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
+        .radio-group label:hover{background:#e5e5ea}
+        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer}
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
         .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
@@ -306,7 +309,6 @@ HTML_HEAD = """<!DOCTYPE html>
             .hero h1{font-size:32px}
             .hero p{font-size:16px}
             .form-card{padding:20px}
-            .radio-group{flex-direction:column;gap:8px}
             input,textarea,.btn{font-size:16px}
         }
     </style>
@@ -417,9 +419,12 @@ def render_premium_waiting_page(user_id: str):
                     }} else {{
                         attempts++;
                         step = Math.min(3, Math.floor(attempts / 20) + 1);
-                        document.getElementById('step1').className = step >= 1 ? 'step active' : 'step';
-                        document.getElementById('step2').className = step >= 2 ? 'step active' : 'step';
-                        document.getElementById('step3').className = step >= 3 ? 'step active' : 'step';
+                        const step1 = document.getElementById('step1');
+                        const step2 = document.getElementById('step2');
+                        const step3 = document.getElementById('step3');
+                        if(step1) step1.className = step >= 1 ? 'step active' : 'step';
+                        if(step2) step2.className = step >= 2 ? 'step active' : 'step';
+                        if(step3) step3.className = step >= 3 ? 'step active' : 'step';
                         if (attempts < 180) {{
                             setTimeout(checkStatus, 3000);
                         }}
@@ -474,6 +479,7 @@ async def index():
     content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
+# ИСПРАВЛЕННАЯ ФУНКЦИЯ SURVEY - с вертикальными радиокнопками
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
@@ -483,7 +489,7 @@ async def survey():
 </div>
 
 <div class="form-card">
-    <form action="/survey/submit" method="post">
+    <form action="/survey/submit" method="post" id="surveyForm">
         <div class="form-group">
             <label>1. Название бизнеса</label>
             <input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required>
@@ -537,10 +543,26 @@ async def survey():
             </div>
         </div>
         <div style="text-align:center">
-            <button type="submit" class="btn">Получить диагностику</button>
+            <button type="submit" class="btn" id="submitBtn">Получить диагностику</button>
         </div>
     </form>
 </div>
+
+<script>
+    document.getElementById('surveyForm').addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Анализируем...';
+        
+        // Таймаут на случай проблем с сетью
+        setTimeout(function() {
+            if (submitBtn.disabled) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Получить диагностику';
+            }
+        }, 30000);
+    });
+</script>
 """
     return HTMLResponse(content=render_page(content))
 
@@ -597,7 +619,6 @@ async def check_status(user_id: str, report_type: str):
     logger.info(f"Check status: user={user_id}, type={report_type}, ready={ready}")
     return {"ready": ready}
 
-# ИСПРАВЛЕННАЯ ФУНКЦИЯ DIAGNOSTIC - с правильным порядком блоков
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
     logger.info(f"Diagnostic page requested for user {user_id}")
@@ -629,13 +650,11 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 1: Что дальше? (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
     <div style="margin: 32px 0; text-align: center;">
         <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
         <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
     </div>
     
-    <!-- БЛОК 2: План продаж (ПЕРЕД КНОПКОЙ ОПЛАТЫ) -->
     <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
         <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
@@ -648,7 +667,6 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 3: Цена и форма оплаты -->
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
@@ -667,7 +685,6 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- БЛОК 4: Кейсы и отзывы -->
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
         <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
@@ -768,10 +785,6 @@ async def payment_success(user_id: str):
     answers = get_form_data(user_id)
     
     logger.info(f"Payment success data: biz_exists={biz is not None}, answers_exists={answers is not None}, api_key={bool(DEEPSEEK_API_KEY)}")
-    if biz:
-        logger.info(f"Biz name: {biz.get('name')}")
-    if answers:
-        logger.info(f"Answers: {answers}")
     
     existing_report = get_report(user_id, "premium")
     
@@ -981,12 +994,15 @@ async def consultation_page(user_id: str):
     let counter = 87;
     const counterElement = document.getElementById('counter');
     
-    document.querySelector('form').addEventListener('submit', function() {{
-        if (counter > 0) {{
-            counter--;
-            counterElement.textContent = counter;
-        }}
-    }});
+    const form = document.querySelector('form');
+    if (form) {{
+        form.addEventListener('submit', function() {{
+            if (counter > 0) {{
+                counter--;
+                if(counterElement) counterElement.textContent = counter;
+            }}
+        }});
+    }}
 </script>
 '''
     return HTMLResponse(content=render_page(content))
@@ -1081,4 +1097,4 @@ async def download_report(user_id: str, report_type: str):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)        
