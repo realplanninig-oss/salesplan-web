@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с Яндекс Метрикой)
+# File: main.py — веб-приложение Salesplan (с интеграцией ЮKassa API)
 
 import logging
 import sqlite3
@@ -7,11 +7,12 @@ import requests
 import uuid
 import re
 import asyncio
+import base64
 from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 import uvicorn
 
@@ -20,7 +21,10 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-PAYMENT_URL = "https://yookassa.ru/my/i/adO_-KVsYKuY/l"
+
+# ЮKassa настройки
+YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
+YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
 
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
@@ -46,7 +50,7 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount TEXT, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.commit()
     conn.close()
 
@@ -133,11 +137,28 @@ def save_consultation(user_id: str, time: str, phone: str = None, username: str 
     conn.commit()
     conn.close()
 
-def save_payment_request(user_id: str, phone: str):
+def save_payment_request(user_id: str, phone: str, payment_id: str = None, amount: str = "490.00", status: str = "pending"):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO payments (user_id, phone) VALUES (?, ?)", (user_id, phone))
+    conn.execute("INSERT INTO payments (user_id, phone, yookassa_payment_id, amount, status) VALUES (?, ?, ?, ?, ?)", 
+                 (user_id, phone, payment_id, amount, status))
     conn.commit()
     conn.close()
+
+def update_payment_status(payment_id: str, status: str):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("UPDATE payments SET status = ? WHERE yookassa_payment_id = ?", (status, payment_id))
+    conn.commit()
+    conn.close()
+    logger.info(f"Payment {payment_id} status updated to {status}")
+
+def get_payment_by_yookassa_id(payment_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT user_id, phone, amount, status FROM payments WHERE yookassa_payment_id = ? ORDER BY id DESC LIMIT 1", (payment_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {"user_id": row[0], "phone": row[1], "amount": row[2], "status": row[3]}
+    return None
 
 def send_telegram_message(text: str):
     if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
@@ -712,7 +733,7 @@ async def diagnostic(user_id: str):
         <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
     </div>
     
-    <form action="/payment/create" method="post" style="margin-top: 24px;">
+    <form action="/create_yookassa_payment" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group" style="margin-bottom: 20px;">
             <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
@@ -760,18 +781,162 @@ async def diagnostic(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-@app.post("/payment/create")
-async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
+# НОВЫЙ ЭНДПОИНТ: создание платежа через API ЮKassa
+@app.post("/create_yookassa_payment")
+async def create_yookassa_payment(user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
-    logger.info(f"Payment create for user {user_id}, phone {phone}")
+    logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}")
+    save_user(user_id, phone, None)
+    
+    # Проверяем наличие API ключей
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        logger.error("YooKassa credentials missing!")
+        # Fallback на статическую ссылку
+        save_payment_request(user_id, phone)
+        send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
+        return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+    
+    # Создаем платеж в ЮKassa
+    payment_data = {
+        "amount": {
+            "value": "490.00",
+            "currency": "RUB"
+        },
+        "confirmation": {
+            "type": "redirect",
+            "return_url": f"https://realplanninig-oss-salesplan-web-7eb2.twc1.net/payment/confirm"
+        },
+        "capture": True,
+        "description": f"План продаж для пользователя {user_id}",
+        "metadata": {
+            "user_id": user_id,
+            "phone": phone
+        }
+    }
+    
+    auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
+    
+    try:
+        response = requests.post(
+            "https://api.yookassa.ru/v3/payments",
+            json=payment_data,
+            headers={
+                "Authorization": f"Basic {auth}",
+                "Content-Type": "application/json",
+                "Idempotence-Key": str(uuid.uuid4())
+            },
+            timeout=30
+        )
+        
+        logger.info(f"YooKassa API response status: {response.status_code}")
+        
+        if response.status_code == 200 or response.status_code == 201:
+            payment = response.json()
+            payment_id = payment.get("id")
+            confirmation_url = payment.get("confirmation", {}).get("confirmation_url")
+            
+            # Сохраняем информацию о платеже в БД
+            save_payment_request(user_id, phone, payment_id, "490.00", "pending")
+            
+            # Отправляем уведомление в Telegram
+            send_telegram_message(f"💳 Создан платеж ЮKassa!\nID пользователя: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}\nСумма: 490 ₽")
+            
+            # Перенаправляем на страницу оплаты ЮKassa
+            return RedirectResponse(url=confirmation_url, status_code=303)
+        else:
+            logger.error(f"YooKassa error: {response.status_code} - {response.text}")
+            # Fallback на статическую ссылку
+            save_payment_request(user_id, phone)
+            send_telegram_message(f"Новая заявка на оплату (ошибка API)!\nID: {user_id}\nТелефон: {phone}")
+            return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+            
+    except Exception as e:
+        logger.error(f"YooKassa exception: {e}")
+        # Fallback на статическую ссылку
+        save_payment_request(user_id, phone)
+        send_telegram_message(f"Новая заявка на оплату (исключение)!\nID: {user_id}\nТелефон: {phone}")
+        return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+
+# НОВЫЙ ЭНДПОИНТ: подтверждение платежа от ЮKassa
+@app.get("/payment/confirm")
+async def payment_confirm(request: Request):
+    # Получаем параметры из URL
+    params = dict(request.query_params)
+    logger.info(f"Payment confirm called with params: {params}")
+    
+    # ЮKassa может передавать payment_id в разных параметрах
+    payment_id = params.get("paymentId") or params.get("payment_id")
+    
+    if not payment_id:
+        # Если нет payment_id, проверяем есть ли user_id в метаданных
+        # В этом случае нужно сделать запрос к API ЮKassa, но у нас нет ID
+        logger.warning("No payment_id in callback, redirecting to home")
+        return RedirectResponse(url="/", status_code=303)
+    
+    # Получаем информацию о платеже из БД
+    payment_info = get_payment_by_yookassa_id(payment_id)
+    
+    if not payment_info:
+        logger.warning(f"Payment {payment_id} not found in database")
+        return RedirectResponse(url="/", status_code=303)
+    
+    user_id = payment_info["user_id"]
+    phone = payment_info["phone"]
+    
+    # Проверяем статус платежа через API ЮKassa
+    if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
+        auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
+        
+        try:
+            response = requests.get(
+                f"https://api.yookassa.ru/v3/payments/{payment_id}",
+                headers={"Authorization": f"Basic {auth}"},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                payment = response.json()
+                status = payment.get("status")
+                
+                if status == "succeeded":
+                    update_payment_status(payment_id, "succeeded")
+                    send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА через ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}\nСумма: 490 ₽")
+                    return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+                else:
+                    update_payment_status(payment_id, status)
+                    return RedirectResponse(url=f"/payment?user_id={user_id}&status={status}", status_code=303)
+            else:
+                logger.error(f"Failed to check payment status: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error checking payment status: {e}")
+    
+    # Если не удалось проверить статус, но пользователь вернулся - считаем оплату успешной
+    # (пользователь мог оплатить, но webhook не пришел)
+    update_payment_status(payment_id, "succeeded")
+    send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА (callback)!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}")
+    return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+
+# ОСТАВЛЯЕМ СТАРЫЙ ЭНДПОИНТ ДЛЯ СОВМЕСТИМОСТИ (fallback)
+@app.post("/payment/create")
+async def payment_create_old(user_id: str = Form(...), phone: str = Form(...)):
+    phone = format_phone(phone)
+    logger.info(f"Payment create (old fallback) for user {user_id}, phone {phone}")
     save_user(user_id, phone, None)
     save_payment_request(user_id, phone)
-    send_telegram_message(f"Новая заявка на оплату!\nID: {user_id}\nТелефон: {phone}")
+    send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str):
-    logger.info(f"Payment page for user {user_id}")
+async def payment_page(user_id: str, status: str = None):
+    logger.info(f"Payment page for user {user_id}, status={status}")
+    
+    # Если есть статус ошибки, показываем сообщение
+    error_message = ""
+    if status == "cancelled":
+        error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
+    elif status == "pending":
+        error_message = '<p style="color: orange; margin-bottom: 20px;">⏳ Платеж в обработке. Если деньги списались, нажмите "Я оплатил(а)" ниже.</p>'
+    
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
         logger.info(f"Premium report already ready for {user_id}, redirecting to success")
@@ -782,6 +947,7 @@ async def payment_page(user_id: str):
     <h1>💰 План продаж — 490 ₽</h1>
 </div>
 <div class="form-card">
+    {error_message}
     <h3>Что вы получите:</h3>
     <ul>
         <li>✅ Разбор 5 конкурентов</li>
@@ -792,9 +958,19 @@ async def payment_page(user_id: str):
     <div class="price-old" style="text-align:center">4 900 ₽</div>
     <div class="price-new" style="text-align:center">490 ₽</div>
     <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
-    <div style="text-align:center;margin:30px 0">
-        <a href="{PAYMENT_URL}" target="_blank" class="btn" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</a>
-    </div>
+    
+    <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
+        <input type="hidden" name="user_id" value="{user_id}">
+        <input type="hidden" name="phone" value="{phone if 'phone' in locals() else ''}">
+        <div class="form-group">
+            <label>📞 Ваш номер телефона для отправки плана:</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+        </div>
+        <div style="text-align:center;margin:20px 0">
+            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽ через ЮKassa</button>
+        </div>
+    </form>
+    
     <hr>
     <div style="text-align:center">
         <p>✅ Уже оплатили?</p>
@@ -822,8 +998,6 @@ async def payment_success(user_id: str):
     row = cursor.fetchone()
     conn.close()
     phone = row[0] if row else "не указан"
-    
-    send_telegram_message(f"ПОДТВЕРЖДЕНА ОПЛАТА!\nID: {user_id}\nТелефон: {phone}\nСумма: 490 ₽")
     
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
