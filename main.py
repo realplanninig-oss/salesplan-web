@@ -442,7 +442,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
                     setTimeout(checkStatus, 3000);
                 }});
         }}
-        setTimeout(checkStatus, 3000);
+        setTimeout(checkStatus, 1000);
     </script>
 </head>
 <body>
@@ -658,8 +658,13 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # Сразу перенаправляем на страницу ожидания
-    return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
+    # ПЕРЕНАПРАВЛЯЕМ НА СТРАНИЦУ ОЖИДАНИЯ
+    return RedirectResponse(url=f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}", status_code=303)
+
+@app.get("/waiting", response_class=HTMLResponse)
+async def waiting_page(user_id: str, report_type: str, redirect: str):
+    """Страница ожидания с проверкой статуса"""
+    return HTMLResponse(content=render_waiting_page(user_id, report_type, redirect))
 
 @app.get("/check_status")
 async def check_status(user_id: str, report_type: str):
@@ -726,6 +731,10 @@ async def diagnostic(user_id: str):
     
     <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
+        <div class="form-group">
+            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+        </div>
         <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
         <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
     </form>
@@ -768,9 +777,12 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
-async def payment_create(user_id: str = Form(...)):
-    """Переход на страницу оплаты"""
-    logger.info(f"Payment create for user {user_id}")
+async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
+    """Создание заявки на оплату и переход на страницу оплаты"""
+    phone = format_phone(phone)
+    logger.info(f"Payment create for user {user_id}, phone {phone}")
+    save_user(user_id, phone, None)
+    save_payment_request(user_id, phone)
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
@@ -802,10 +814,6 @@ async def payment_page(user_id: str, status: str = None):
     
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
         <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group">
-            <label>📞 Ваш номер телефона для отправки плана:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
-        </div>
         <div style="text-align:center;margin:20px 0">
             <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</button>
         </div>
@@ -918,29 +926,23 @@ async def payment_webhook(request: Request):
         status = payment.get("status")
         metadata = payment.get("metadata", {})
         user_id = metadata.get("user_id")
-        phone = metadata.get("phone")
         
         if event == "payment.succeeded" and status == "succeeded":
-            # Обновляем статус платежа
             update_payment_status(payment_id, "succeeded")
             
             if user_id:
-                # Получаем данные пользователя
                 biz = get_business_data(user_id)
                 answers = get_form_data(user_id)
                 
                 if biz and answers and DEEPSEEK_API_KEY:
-                    # Проверяем, нет ли уже готового отчёта
                     existing_report = get_report(user_id, "premium")
                     if not existing_report or existing_report["status"] != "ready":
-                        # Создаём отчёт
                         conn = sqlite3.connect(DB_PATH)
                         cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
                         report_id = cursor.lastrowid
                         conn.commit()
                         conn.close()
                         
-                        # Запускаем генерацию в фоне
                         asyncio.create_task(generate_premium_report_background(
                             user_id, biz["name"], biz["description"], answers, report_id
                         ))
