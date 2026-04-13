@@ -652,13 +652,6 @@ async def survey():
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
         submitBtn.textContent = '⏳ Анализируем...';
-        
-        setTimeout(function() {
-            if (submitBtn.disabled) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Получить диагностику';
-            }
-        }, 30000);
     });
 </script>
 """
@@ -895,7 +888,10 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     # Создаем платеж в ЮKassa с чеком
     payment_data = {
         "amount": {"value": "490.00", "currency": "RUB"},
-        "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
+        "confirmation": {
+            "type": "redirect", 
+            "return_url": f"{base_url}/payment/confirm"
+        },
         "capture": True,
         "description": f"План продаж для пользователя {user_id}",
         "metadata": {"user_id": user_id, "phone": phone},
@@ -975,41 +971,29 @@ async def payment_webhook(request: Request):
 
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
+    # Получаем параметры из URL
     params = dict(request.query_params)
     logger.info(f"Payment confirm called with params: {params}")
     
+    # ЮKassa может передавать payment_id в параметре paymentId
     payment_id = params.get("paymentId") or params.get("payment_id")
     
     if not payment_id:
+        logger.warning("No payment_id in callback, redirecting to home")
         return RedirectResponse(url="/", status_code=303)
     
+    logger.info(f"Found payment_id: {payment_id}")
+    
+    # Получаем user_id из БД по payment_id
     payment_info = get_payment_by_yookassa_id(payment_id)
+    
     if not payment_info:
+        logger.warning(f"Payment {payment_id} not found in database")
         return RedirectResponse(url="/", status_code=303)
     
     user_id = payment_info["user_id"]
+    logger.info(f"Redirecting to success for user: {user_id}")
     
-    if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
-        auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
-        try:
-            response = requests.get(
-                f"https://api.yookassa.ru/v3/payments/{payment_id}",
-                headers={"Authorization": f"Basic {auth}"},
-                timeout=30
-            )
-            if response.status_code == 200:
-                payment = response.json()
-                status = payment.get("status")
-                if status == "succeeded":
-                    update_payment_status(payment_id, "succeeded")
-                    return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
-                else:
-                    update_payment_status(payment_id, status)
-                    return RedirectResponse(url=f"/payment?user_id={user_id}&status={status}", status_code=303)
-        except Exception as e:
-            logger.error(f"Error checking payment status: {e}")
-    
-    update_payment_status(payment_id, "succeeded")
     return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
 
 @app.get("/payment/success", response_class=HTMLResponse)
