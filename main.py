@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с интеграцией ЮKassa API)
+# File: main.py — веб-приложение Salesplan (с защитой и ЮKassa API)
 
 import logging
 import sqlite3
@@ -8,16 +8,23 @@ import uuid
 import re
 import asyncio
 import base64
+import secrets
 from datetime import datetime
 from pathlib import Path
+from functools import wraps
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import FastAPI, Form, HTTPException, Request, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import uvicorn
 
 load_dotenv()
 
+# Конфигурация
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -25,6 +32,10 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 # ЮKassa настройки
 YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
+
+# Админка
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
@@ -43,6 +54,7 @@ DB_PATH = "salesplan.db"
 REPORTS_DIR = Path("./reports")
 REPORTS_DIR.mkdir(exist_ok=True)
 
+# Инициализация базы данных
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, phone TEXT, name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
@@ -51,11 +63,59 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount TEXT, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS blocked_ips (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT UNIQUE, reason TEXT, blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.commit()
     conn.close()
 
 init_db()
 
+# Настройка Rate Limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/hour"])
+app = FastAPI(title="Salesplan")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Middleware для защиты от ботов
+BLOCKED_PATHS = [
+    "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
+    "/.env", "/.git", "/robots.txt", "/favicon.ico", "/api", "/_next/server"
+]
+
+@app.middleware("http")
+async def block_malicious_requests(request: Request, call_next):
+    path = request.url.path
+    user_agent = request.headers.get("user-agent", "").lower()
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Блокировка подозрительных путей
+    for blocked in BLOCKED_PATHS:
+        if path.startswith(blocked):
+            logger.warning(f"Blocked malicious path: {path} from {client_ip}")
+            return Response(status_code=404)
+    
+    # Блокировка ботов по User-Agent
+    bad_bots = ["bot", "crawler", "scanner", "nikto", "sqlmap", "wget", "curl", "python-requests", "java"]
+    for bot in bad_bots:
+        if bot in user_agent and "yandex" not in user_agent and "google" not in user_agent:
+            logger.warning(f"Blocked bot: {user_agent} from {client_ip}")
+            return Response(status_code=403)
+    
+    response = await call_next(request)
+    return response
+
+# Аутентификация для админки
+security = HTTPBasic()
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    if not ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Admin not configured")
+    correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return True
+
+# Вспомогательные функции
 def format_phone(phone: str) -> str:
     digits = re.sub(r'\D', '', phone)
     if digits.startswith('7') or digits.startswith('8'):
@@ -83,7 +143,6 @@ def get_business_data(user_id: str):
     conn.close()
     if row:
         return {"name": row[0], "description": row[1]}
-    logger.warning(f"Business data not found for user_id: {user_id}")
     return None
 
 def get_form_data(user_id: str):
@@ -93,7 +152,6 @@ def get_form_data(user_id: str):
     conn.close()
     if row:
         return {"q1": row[0], "q2": row[1], "q3": row[2], "q4": row[3], "q5": row[4]}
-    logger.warning(f"Form data not found for user_id: {user_id}")
     return None
 
 def save_form(user_id: str, answers: dict):
@@ -102,7 +160,6 @@ def save_form(user_id: str, answers: dict):
                  (user_id, answers.get("q1"), answers.get("q2"), answers.get("q3"), answers.get("q4"), answers.get("q5"), answers.get("q6"), answers.get("q7")))
     conn.commit()
     conn.close()
-    logger.info(f"Form data saved for user_id: {user_id}")
 
 def save_report(user_id: str, report_type: str, report_text: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -110,7 +167,6 @@ def save_report(user_id: str, report_type: str, report_text: str, file_path: str
                  (user_id, report_type, report_text, file_path))
     conn.commit()
     conn.close()
-    logger.info(f"Report saved for user_id: {user_id}, type: {report_type}")
 
 def update_report_status(report_id: int, status: str, file_path: str = None):
     conn = sqlite3.connect(DB_PATH)
@@ -120,7 +176,6 @@ def update_report_status(report_id: int, status: str, file_path: str = None):
         conn.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id))
     conn.commit()
     conn.close()
-    logger.info(f"Report {report_id} status updated to {status}")
 
 def get_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
@@ -149,7 +204,6 @@ def update_payment_status(payment_id: str, status: str):
     conn.execute("UPDATE payments SET status = ? WHERE yookassa_payment_id = ?", (status, payment_id))
     conn.commit()
     conn.close()
-    logger.info(f"Payment {payment_id} status updated to {status}")
 
 def get_payment_by_yookassa_id(payment_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -167,6 +221,7 @@ def send_telegram_message(text: str):
         except Exception as e:
             logger.error(f"Failed to send telegram: {e}")
 
+# Функции для DeepSeek
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
     q2_map = {"до 5k": "до 5000 ₽", "5k-20k": "5000-20000 ₽", "20k-50k": "20000-50000 ₽", ">50k": "более 50000 ₽"}
@@ -176,9 +231,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}\n• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
     
-    logger.info(f"DEEPSEEK_API_KEY loaded: {'YES' if DEEPSEEK_API_KEY else 'NO'}")
     if not DEEPSEEK_API_KEY:
-        logger.error("DEEPSEEK_API_KEY is missing!")
         return None
     
     prompt = f"""Сделай профессиональный маркетинговый разбор онлайн-бизнеса.
@@ -200,13 +253,9 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=120)
-        logger.info(f"DeepSeek diagnostic response status: {response.status_code}")
         if response.status_code == 200:
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        else:
-            logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
-            return None
+            return response.json()["choices"][0]["message"]["content"]
+        return None
     except Exception as e:
         logger.error(f"DeepSeek failed: {e}")
         return None
@@ -243,7 +292,6 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=300)
-        logger.info(f"DeepSeek premium response status: {response.status_code}")
         if response.status_code == 200:
             report_text = response.json()["choices"][0]["message"]["content"]
             filename = f"premium_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -251,11 +299,9 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
             update_report_status(report_id, 'ready', str(filepath))
-            logger.info(f"Premium report generated for {user_id}, file: {filepath}")
             return True
         else:
             update_report_status(report_id, 'failed')
-            logger.error(f"DeepSeek error: {response.status_code} - {response.text}")
             return False
     except Exception as e:
         update_report_status(report_id, 'failed')
@@ -282,13 +328,10 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
                                 timeout=5
                             )
                         )
-                    logger.info(f"Premium report file sent to admin for user {user_id}")
                 except Exception as e:
                     logger.error(f"Failed to send file to admin: {e}")
 
-app = FastAPI(title="Salesplan")
-
-# HTML с Яндекс Метрикой и целями
+# HTML шаблоны
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -383,7 +426,6 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Анализируем рынок | Salesplan</title>
-    <!-- Яндекс.Метрика -->
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
         m[i].l=1*new Date();
@@ -444,7 +486,6 @@ def render_premium_waiting_page(user_id: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Готовим стратегию | Salesplan</title>
-    <!-- Яндекс.Метрика -->
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
         m[i].l=1*new Date();
@@ -536,8 +577,10 @@ def render_premium_waiting_page(user_id: str):
 </body>
 </html>"""
 
-@app.get("/", response_class=HTMLResponse)
-async def index():
+# Эндпоинты
+@app.get("/")
+@limiter.limit("20/minute")
+async def index(request: Request):
     content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
@@ -627,7 +670,9 @@ async def survey():
     return HTMLResponse(content=render_page(content))
 
 @app.post("/survey/submit")
+@limiter.limit("5/minute")
 async def survey_submit(
+    request: Request,
     business_name: str = Form(...),
     business_description: str = Form(...),
     q1: str = Form(...),
@@ -676,7 +721,6 @@ async def check_status(user_id: str, report_type: str):
     row = cursor.fetchone()
     conn.close()
     ready = row and row[0] == 'ready'
-    logger.info(f"Check status: user={user_id}, type={report_type}, ready={ready}")
     return {"ready": ready}
 
 @app.get("/diagnostic", response_class=HTMLResponse)
@@ -775,43 +819,33 @@ async def diagnostic(user_id: str):
 </div>
 
 <script>
-    // Цель: просмотр диагностики
     ym(108348240,'reachGoal','diagnostic_got');
 </script>
 '''
     return HTMLResponse(content=render_page(content))
 
-# НОВЫЙ ЭНДПОИНТ: создание платежа через API ЮKassa
+# Эндпоинты для оплаты
 @app.post("/create_yookassa_payment")
-async def create_yookassa_payment(user_id: str = Form(...), phone: str = Form(...)):
+@limiter.limit("10/minute")
+async def create_yookassa_payment(request: Request, user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
     logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}")
     save_user(user_id, phone, None)
     
-    # Проверяем наличие API ключей
+    base_url = str(request.base_url).rstrip('/')
+    
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
-        # Fallback на статическую ссылку
         save_payment_request(user_id, phone)
         send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
-    # Создаем платеж в ЮKassa
     payment_data = {
-        "amount": {
-            "value": "490.00",
-            "currency": "RUB"
-        },
-        "confirmation": {
-            "type": "redirect",
-            "return_url": f"https://realplanninig-oss-salesplan-web-7eb2.twc1.net/payment/confirm"
-        },
+        "amount": {"value": "490.00", "currency": "RUB"},
+        "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
         "capture": True,
         "description": f"План продаж для пользователя {user_id}",
-        "metadata": {
-            "user_id": user_id,
-            "phone": phone
-        }
+        "metadata": {"user_id": user_id, "phone": phone}
     }
     
     auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
@@ -830,97 +864,91 @@ async def create_yookassa_payment(user_id: str = Form(...), phone: str = Form(..
         
         logger.info(f"YooKassa API response status: {response.status_code}")
         
-        if response.status_code == 200 or response.status_code == 201:
+        if response.status_code in (200, 201):
             payment = response.json()
             payment_id = payment.get("id")
             confirmation_url = payment.get("confirmation", {}).get("confirmation_url")
             
-            # Сохраняем информацию о платеже в БД
+            if not confirmation_url:
+                logger.error(f"No confirmation URL in response")
+                save_payment_request(user_id, phone)
+                return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+            
             save_payment_request(user_id, phone, payment_id, "490.00", "pending")
-            
-            # Отправляем уведомление в Telegram
-            send_telegram_message(f"💳 Создан платеж ЮKassa!\nID пользователя: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}\nСумма: 490 ₽")
-            
-            # Перенаправляем на страницу оплаты ЮKassa
+            send_telegram_message(f"💳 Создан платеж ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}")
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
-            # Fallback на статическую ссылку
             save_payment_request(user_id, phone)
-            send_telegram_message(f"Новая заявка на оплату (ошибка API)!\nID: {user_id}\nТелефон: {phone}")
             return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
-            
     except Exception as e:
         logger.error(f"YooKassa exception: {e}")
-        # Fallback на статическую ссылку
         save_payment_request(user_id, phone)
-        send_telegram_message(f"Новая заявка на оплату (исключение)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
-# НОВЫЙ ЭНДПОИНТ: подтверждение платежа от ЮKassa
+@app.post("/payment/webhook")
+async def payment_webhook(request: Request):
+    try:
+        body = await request.json()
+        logger.info(f"Webhook received: {body}")
+        
+        event = body.get("event")
+        payment = body.get("object", {})
+        payment_id = payment.get("id")
+        status = payment.get("status")
+        
+        if event == "payment.succeeded" and status == "succeeded":
+            update_payment_status(payment_id, "succeeded")
+            payment_info = get_payment_by_yookassa_id(payment_id)
+            if payment_info:
+                send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА через webhook!\nID: {payment_info['user_id']}\nТелефон: {payment_info['phone']}")
+        return JSONResponse(content={"status": "ok"})
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return JSONResponse(content={"status": "error"}, status_code=500)
+
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
-    # Получаем параметры из URL
     params = dict(request.query_params)
     logger.info(f"Payment confirm called with params: {params}")
     
-    # ЮKassa может передавать payment_id в разных параметрах
     payment_id = params.get("paymentId") or params.get("payment_id")
     
     if not payment_id:
-        # Если нет payment_id, проверяем есть ли user_id в метаданных
-        # В этом случае нужно сделать запрос к API ЮKassa, но у нас нет ID
-        logger.warning("No payment_id in callback, redirecting to home")
         return RedirectResponse(url="/", status_code=303)
     
-    # Получаем информацию о платеже из БД
     payment_info = get_payment_by_yookassa_id(payment_id)
-    
     if not payment_info:
-        logger.warning(f"Payment {payment_id} not found in database")
         return RedirectResponse(url="/", status_code=303)
     
     user_id = payment_info["user_id"]
-    phone = payment_info["phone"]
     
-    # Проверяем статус платежа через API ЮKassa
     if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
         auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
-        
         try:
             response = requests.get(
                 f"https://api.yookassa.ru/v3/payments/{payment_id}",
                 headers={"Authorization": f"Basic {auth}"},
                 timeout=30
             )
-            
             if response.status_code == 200:
                 payment = response.json()
                 status = payment.get("status")
-                
                 if status == "succeeded":
                     update_payment_status(payment_id, "succeeded")
-                    send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА через ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}\nСумма: 490 ₽")
                     return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
                 else:
                     update_payment_status(payment_id, status)
                     return RedirectResponse(url=f"/payment?user_id={user_id}&status={status}", status_code=303)
-            else:
-                logger.error(f"Failed to check payment status: {response.status_code}")
         except Exception as e:
             logger.error(f"Error checking payment status: {e}")
     
-    # Если не удалось проверить статус, но пользователь вернулся - считаем оплату успешной
-    # (пользователь мог оплатить, но webhook не пришел)
     update_payment_status(payment_id, "succeeded")
-    send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА (callback)!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}")
     return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
 
-# ОСТАВЛЯЕМ СТАРЫЙ ЭНДПОИНТ ДЛЯ СОВМЕСТИМОСТИ (fallback)
 @app.post("/payment/create")
 async def payment_create_old(user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
-    logger.info(f"Payment create (old fallback) for user {user_id}, phone {phone}")
     save_user(user_id, phone, None)
     save_payment_request(user_id, phone)
     send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
@@ -928,9 +956,6 @@ async def payment_create_old(user_id: str = Form(...), phone: str = Form(...)):
 
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, status: str = None):
-    logger.info(f"Payment page for user {user_id}, status={status}")
-    
-    # Если есть статус ошибки, показываем сообщение
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
@@ -939,7 +964,6 @@ async def payment_page(user_id: str, status: str = None):
     
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
-        logger.info(f"Premium report already ready for {user_id}, redirecting to success")
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
     content = f'''
@@ -961,7 +985,6 @@ async def payment_page(user_id: str, status: str = None):
     
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
         <input type="hidden" name="user_id" value="{user_id}">
-        <input type="hidden" name="phone" value="{phone if 'phone' in locals() else ''}">
         <div class="form-group">
             <label>📞 Ваш номер телефона для отправки плана:</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
@@ -1002,13 +1025,9 @@ async def payment_success(user_id: str):
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     
-    logger.info(f"Payment success data: biz_exists={biz is not None}, answers_exists={answers is not None}, api_key={bool(DEEPSEEK_API_KEY)}")
-    
     existing_report = get_report(user_id, "premium")
     
     if existing_report and existing_report["status"] == "ready":
-        logger.info(f"Premium report already ready for {user_id}")
-        
         report_text_full = None
         
         if existing_report.get("file_path"):
@@ -1017,18 +1036,14 @@ async def payment_success(user_id: str):
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         report_text_full = f.read()
-                    logger.info(f"Report text loaded from file: {file_path}")
                 except Exception as e:
                     logger.error(f"Failed to read report file: {e}")
         
         if not report_text_full:
             report_text_full = existing_report.get("text")
-            if report_text_full:
-                logger.info("Report text loaded from database")
         
         if not report_text_full:
             report_text_full = "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
-            logger.warning(f"No report text found for user {user_id}")
         
         report_text_html = report_text_full.replace("\n", "<br>")
         
@@ -1083,13 +1098,9 @@ async def payment_success(user_id: str):
 '''
         return HTMLResponse(content=render_page(content))
     
-    logger.info(f"No existing premium report for {user_id}, starting generation")
-    
     if not biz:
-        logger.warning(f"Business data missing for {user_id}, creating placeholder")
         biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
     if not answers:
-        logger.warning(f"Form answers missing for {user_id}, creating placeholder")
         answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
     
     if DEEPSEEK_API_KEY:
@@ -1098,30 +1109,20 @@ async def payment_success(user_id: str):
         report_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        logger.info(f"Created premium report {report_id} for user {user_id}")
         
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-        
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
-        logger.warning(f"DEEPSEEK_API_KEY missing, using fallback for user {user_id}")
         premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
 
 Данные о бизнесе:
-Название: {biz['name'] if biz else 'не указано'}
-Описание: {biz['description'] if biz else 'не указано'}
+Название: {biz['name']}
+Описание: {biz['description']}
 
 Рекомендации для увеличения продаж:
-
 1. Проанализируйте целевую аудиторию
-2. Настройте автоворонку в MAX или Telegram
-3. Добавьте триггерные сообщения для лидов
-4. Используйте скрипты продаж для консультаций
-5. Настройте ретаргетинг на непрогретых клиентов
-
-Следующие шаги:
-- Запишитесь на бесплатный разбор плана
-- Получите обратную связь от Вероники
+2. Настройте автоворонку
+3. Добавьте триггерные сообщения
 """
         save_report(user_id, "premium", premium_text)
         report_text_html = premium_text.replace("\n", "<br>")
@@ -1139,24 +1140,16 @@ async def payment_success(user_id: str):
         <a href="/download/{user_id}/premium" class="btn btn-outline" style="margin: 10px;">📥 Скачать план в TXT</a>
         <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 10px;">📲 Отправить план в MAX</button>
     </div>
-    
-    <hr>
-    <h2>🎁 Бесплатный бонус</h2>
-    <p>30-минутный разбор вашего плана продаж — абсолютно бесплатно</p>
-    <div style="text-align:center;margin-top:20px">
-        <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">→ Записаться на бесплатный разбор</a>
-    </div>
 </div>
-
 <script>
     function requestByPhone() {{
         fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
             .then(res => res.json())
             .then(data => {{
                 if (data.success) {{
-                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
+                    alert('Заявка принята!');
                 }} else {{
-                    alert('Ошибка. Пожалуйста, обновите страницу.');
+                    alert('Ошибка');
                 }}
             }});
     }}
@@ -1170,27 +1163,22 @@ async def check_premium_status(user_id: str):
     cursor = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = 'premium' ORDER BY id DESC LIMIT 1", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    ready = row and row[0] == 'ready'
-    logger.info(f"Check premium status: user={user_id}, ready={ready}")
-    return {"ready": ready}
+    return {"ready": row and row[0] == 'ready'}
 
 @app.post("/request_report_by_phone")
 async def request_report_by_phone(user_id: str):
-    logger.info(f"Request report by phone for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     
     if row and row[0]:
-        send_telegram_message(f"📱 Пользователь запросил отправить план в MAX!\nID: {user_id}\nТелефон: {row[0]}")
+        send_telegram_message(f"📱 Запрос на отправку плана в MAX!\nID: {user_id}\nТелефон: {row[0]}")
         return {"success": True}
-    logger.warning(f"Phone not found for user {user_id}")
     return {"success": False, "error": "Телефон не найден"}
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
-    logger.info(f"Consultation page for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -1254,7 +1242,6 @@ async def consultation_page(user_id: str):
 
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
-    logger.info(f"Consultation submit for user {user_id}, time={time}")
     save_consultation(user_id, time, phone, username)
     message = f"📞 Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}"
     if phone:
@@ -1308,39 +1295,40 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
-    logger.info(f"Download request for user {user_id}, type {report_type}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT file_path, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
     row = cursor.fetchone()
     conn.close()
     
-    report_content = None
-    
     if row and row[0]:
         file_path = row[0]
         if os.path.exists(file_path):
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    report_content = f.read()
-                filename = f"{report_type}_{user_id}.txt"
-                return Response(
-                    content=report_content,
-                    media_type="text/plain",
-                    headers={"Content-Disposition": f"attachment; filename={filename}"}
-                )
-            except Exception as e:
-                logger.error(f"Failed to read file: {e}")
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            return Response(
+                content=content,
+                media_type="text/plain",
+                headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"}
+            )
     
     if row and row[1]:
-        report_content = row[1]
-        filename = f"{report_type}_{user_id}.txt"
         return Response(
-            content=report_content,
+            content=row[1],
             media_type="text/plain",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"}
         )
     
     raise HTTPException(status_code=404, detail="Report not found")
+
+# Админка - защищенный эндпоинт для просмотра логов
+@app.get("/admin/logs")
+async def admin_logs(auth: bool = Depends(verify_admin)):
+    try:
+        with open(LOGS_DIR / "salesplan.log", "r", encoding="utf-8") as f:
+            lines = f.readlines()[-500:]
+            return Response(content="".join(lines), media_type="text/plain")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
