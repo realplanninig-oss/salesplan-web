@@ -12,8 +12,4 @@ services:
       - YOOKASSA_SECRET_KEY=live_A3Cax7aS-F_AC0IYEQPNQPk7xPeAUz8lKrk3kVGbLC4
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=SalesPlan$490!
-    volumes:
-      - ./logs:/app/logs
-      - ./reports:/app/reports
-      - ./salesplan.db:/app/salesplan.db
     restart: unless-stopped
