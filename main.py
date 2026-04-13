@@ -20,7 +20,7 @@ import uvicorn
 
 load_dotenv()
 
-# Конфигурация
+# Конфигурация (без вывода секретов в логи)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -70,7 +70,7 @@ app = FastAPI(title="Salesplan")
 # Middleware для защиты от ботов
 BLOCKED_PATHS = [
     "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
-    "/.env", "/.git", "/robots.txt", "/favicon.ico", "/api", "/_next/server"
+    "/.env", "/.git", "/robots.txt", "/api", "/_next/server"
 ]
 
 @app.middleware("http")
@@ -813,7 +813,7 @@ async def diagnostic(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# Эндпоинты для оплаты
+# Эндпоинт для создания платежа через API ЮKassa
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(request: Request, user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
@@ -822,12 +822,15 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     
     base_url = str(request.base_url).rstrip('/')
     
+    # Проверяем наличие API ключей
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
+        # Fallback на статическую ссылку
         save_payment_request(user_id, phone)
         send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
+    # Создаем платеж в ЮKassa
     payment_data = {
         "amount": {"value": "490.00", "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
@@ -934,21 +937,12 @@ async def payment_confirm(request: Request):
     update_payment_status(payment_id, "succeeded")
     return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
 
-@app.post("/payment/create")
-async def payment_create_old(user_id: str = Form(...), phone: str = Form(...)):
-    phone = format_phone(phone)
-    save_user(user_id, phone, None)
-    save_payment_request(user_id, phone)
-    send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
-    return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
-
+# Исправленная страница оплаты (без поля телефона и кнопки "Я оплатил(а)")
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, status: str = None):
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
-    elif status == "pending":
-        error_message = '<p style="color: orange; margin-bottom: 20px;">⏳ Платеж в обработке. Если деньги списались, нажмите "Я оплатил(а)" ниже.</p>'
     
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
@@ -973,20 +967,10 @@ async def payment_page(user_id: str, status: str = None):
     
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
         <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group">
-            <label>📞 Ваш номер телефона для отправки плана:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
-        </div>
         <div style="text-align:center;margin:20px 0">
             <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽ через ЮKassa</button>
         </div>
     </form>
-    
-    <hr>
-    <div style="text-align:center">
-        <p>✅ Уже оплатили?</p>
-        <a href="/payment/success?user_id={user_id}" class="btn" style="margin-top:16px">→ Я оплатил(а) — получить план</a>
-    </div>
 </div>
 
 <script>
