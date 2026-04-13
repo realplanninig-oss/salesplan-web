@@ -658,13 +658,8 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # ПЕРЕНАПРАВЛЯЕМ НА СТРАНИЦУ ОЖИДАНИЯ
-    return RedirectResponse(url=f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}", status_code=303)
-
-@app.get("/waiting", response_class=HTMLResponse)
-async def waiting_page(user_id: str, report_type: str, redirect: str):
-    """Страница ожидания с проверкой статуса"""
-    return HTMLResponse(content=render_waiting_page(user_id, report_type, redirect))
+    # ВОЗВРАЩАЕМ СТРАНИЦУ ОЖИДАНИЯ (НЕ РЕДИРЕКТ)
+    return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
 async def check_status(user_id: str, report_type: str):
@@ -1107,38 +1102,47 @@ async def consultation_page(user_id: str):
     phone = row[0] if row else ""
     
     content = f'''
-<div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">🔥 Бесплатная консультация</h1>
+<div class="hero">
+    <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
     <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
 </div>
 
-<div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
-    <div style="background: #007aff10; border-radius: 20px; padding: 24px; margin-bottom: 24px;">
-        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">97</span></div>
-        <p style="color: #6e6e73;">Только для первых 100 подписчиков</p>
+<div class="form-card" style="text-align: center;">
+    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
+    
+    <div style="margin-bottom: 30px;">
+        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
+        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
     </div>
     
-    <form action="/consultation/submit" method="post">
-        <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group">
-            <label>📞 Ваш телефон</label>
-            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px; border-radius: 16px;">
-        </div>
-        <div class="form-group">
-            <label>🕐 Удобное время для звонка (по Москве)</label>
-            <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
-        </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Отправить заявку</button>
-    </form>
+    <div style="margin: 30px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
+    </div>
     
-    <hr style="margin: 32px 0;">
+    <hr style="margin: 30px 0;">
     
-    <p style="font-size: 14px; color: #8e8e93;">✅ После отправки заявки я свяжусь с вами для согласования времени</p>
+    <div id="formBlock">
+        <form action="/consultation/submit" method="post">
+            <input type="hidden" name="user_id" value="{user_id}">
+            <div class="form-group">
+                <label>Ваш телефон (проверим подписку)</label>
+                <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
+            </div>
+            <div class="form-group">
+                <label>🕐 Удобное время для созвона (по Москве)</label>
+                <input type="text" name="time" placeholder="например: завтра в 15:00" required>
+            </div>
+            <div style="text-align: center;">
+                <button type="submit" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">Отправить заявку</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
-    let counter = 97;
+    let counter = 87;
     const counterElement = document.getElementById('counter');
+    
     const form = document.querySelector('form');
     if (form) {{
         form.addEventListener('submit', function() {{
@@ -1162,22 +1166,22 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 async def subscribe_page(user_id: str):
     """Страница подписки на канал в MAX после заявки на консультацию"""
     content = f'''
-<div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">📢 Остался последний шаг!</h1>
+<div class="hero">
+    <h1>📢 Остался последний шаг!</h1>
     <p style="font-size: 18px;">Подпишитесь на канал в MAX, чтобы получить консультацию</p>
 </div>
 
-<div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
-    <div style="margin: 20px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;">📢 Подписаться на канал в MAX</a>
+<div class="form-card" style="text-align: center;">
+    <div style="margin: 30px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 100%; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
     </div>
     
-    <hr style="margin: 32px 0;">
+    <hr style="margin: 30px 0;">
     
-    <p style="font-size: 14px; color: #6e6e73;">✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
+    <p>✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
     
-    <div style="margin: 24px 0;">
-        <a href="/" class="btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
+    <div style="margin: 30px 0;">
+        <a href="/" class="btn btn-outline">→ На главную</a>
     </div>
 </div>
 '''
