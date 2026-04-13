@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с уведомлениями в MAX)
+# File: main.py — веб-приложение Salesplan (с уведомлениями в MAX - отключено)
 
 import logging
 import sqlite3
@@ -107,38 +107,16 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# Функция отправки сообщения в MAX
+# Функция отправки сообщения в MAX (временно отключена)
 def send_max_message(chat_id: str, text: str):
-    """Отправка сообщения в MAX через Bot API"""
-    if not MAX_BOT_TOKEN:
-        logger.error("MAX_BOT_TOKEN is missing!")
-        return
-    
-    url = "https://platform-api.max.ru/messages"
-    headers = {
-        "Authorization": MAX_BOT_TOKEN,
-        "Content-Type": "application/json"
-    }
-    
-    # Для личных сообщений используем user_id
-    payload = {
-        "user_id": chat_id,
-        "text": text
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
-        if response.status_code == 200:
-            logger.info(f"MAX message sent to {chat_id}")
-        else:
-            logger.error(f"MAX API error: {response.status_code} - {response.text}")
-    except Exception as e:
-        logger.error(f"Failed to send MAX message: {e}")
+    """Отправка сообщения в MAX (временно отключена из-за ошибок API)"""
+    logger.info(f"[MAX] Would send to {chat_id}: {text[:100]}...")
+    # Временно отключаем реальную отправку
+    return
 
 def send_admin_notification(text: str):
-    """Отправка уведомления администратору в MAX"""
-    if ADMIN_CHAT_ID:
-        send_max_message(ADMIN_CHAT_ID, text)
+    """Отправка уведомления администратору (временно отключена)"""
+    logger.info(f"[ADMIN NOTIFICATION] {text}")
 
 # Вспомогательные функции
 def format_phone(phone: str) -> str:
@@ -342,7 +320,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     loop = asyncio.get_event_loop()
     success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
     if success:
-        send_admin_notification(f"✅ Сгенерирован план продаж для пользователя {user_id}")
+        logger.info(f"Premium report generated for user {user_id}")
 
 # HTML шаблоны
 HTML_HEAD = """<!DOCTYPE html>
@@ -715,7 +693,6 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # Перенаправляем на страницу ожидания сразу после отправки формы
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
@@ -781,7 +758,6 @@ async def diagnostic(user_id: str):
         <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
     </div>
     
-    <!-- НА СТРАНИЦЕ ДИАГНОСТИКИ ТОЛЬКО КНОПКА, ТЕЛЕФОНА НЕТ -->
     <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
         <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
@@ -1113,11 +1089,6 @@ async def payment_success(user_id: str):
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
     
-    <!-- Кнопка "Скачать план в TXT" УДАЛЕНА, оставлена только кнопка "Отправить план в MAX" -->
-    <div style="margin: 20px 0;">
-        <button onclick="requestByPhone()" class="btn" style="margin: 10px;">📲 Отправить план в MAX</button>
-    </div>
-    
     <hr style="margin: 32px 0;">
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
@@ -1132,20 +1103,6 @@ async def payment_success(user_id: str):
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
 </div>
-
-<script>
-    function requestByPhone() {{
-        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
-            .then(res => res.json())
-            .then(data => {{
-                if (data.success) {{
-                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
-                }} else {{
-                    alert('Ошибка. Пожалуйста, обновите страницу.');
-                }}
-            }});
-    }}
-</script>
 '''
         return HTMLResponse(content=render_page(content))
     
@@ -1186,25 +1143,7 @@ async def payment_success(user_id: str):
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
-    
-    <div style="margin: 20px 0;">
-        <button onclick="requestByPhone()" class="btn" style="margin: 10px;">📲 Отправить план в MAX</button>
-    </div>
 </div>
-
-<script>
-    function requestByPhone() {{
-        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
-            .then(res => res.json())
-            .then(data => {{
-                if (data.success) {{
-                    alert('Заявка принята!');
-                }} else {{
-                    alert('Ошибка');
-                }}
-            }});
-    }}
-</script>
 '''
         return HTMLResponse(content=render_page(content))
 
