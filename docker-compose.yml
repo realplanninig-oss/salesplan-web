@@ -11,4 +11,6 @@ services:
       - DEEPSEEK_API_KEY=sk-dd8b8fec6a52478ebcb2c22d38d93af3
       - YKASSA_SHOP_ID=1325473
       - YKASSA_SECRET_KEY=live_A3Cax7aS-F_AC0IYEQPNQPk7xPeAUz8lKrk3kVGbLC4
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=SalesPlan$490!
     restart: always
