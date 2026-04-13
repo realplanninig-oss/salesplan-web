@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с защитой и ЮKassa API)
+# File: main.py — веб-приложение Salesplan (с API ЮKassa)
 
 import logging
 import sqlite3
@@ -20,7 +20,7 @@ import uvicorn
 
 load_dotenv()
 
-# Конфигурация (без вывода секретов в логи)
+# Конфигурация
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -59,7 +59,6 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount TEXT, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    conn.execute("CREATE TABLE IF NOT EXISTS blocked_ips (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT UNIQUE, reason TEXT, blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.commit()
     conn.close()
 
@@ -70,7 +69,7 @@ app = FastAPI(title="Salesplan")
 # Middleware для защиты от ботов
 BLOCKED_PATHS = [
     "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
-    "/.env", "/.git", "/robots.txt", "/api", "/_next/server"
+    "/.env", "/.git", "/robots.txt", "/api", "/_next/server", "/favicon.ico"
 ]
 
 @app.middleware("http")
@@ -78,6 +77,10 @@ async def block_malicious_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
+    
+    # Пропускаем favicon.ico (не блокируем)
+    if path == "/favicon.ico":
+        return await call_next(request)
     
     # Блокировка подозрительных путей
     for blocked in BLOCKED_PATHS:
@@ -825,7 +828,6 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     # Проверяем наличие API ключей
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
-        # Fallback на статическую ссылку
         save_payment_request(user_id, phone)
         send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
