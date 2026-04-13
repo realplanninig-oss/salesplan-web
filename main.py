@@ -22,7 +22,7 @@ load_dotenv()
 
 # Конфигурация
 MAX_BOT_TOKEN = os.getenv("MAX_BOT_TOKEN")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")  # В MAX это user_id администратора
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # ЮKassa настройки
@@ -107,15 +107,9 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# Функция отправки сообщения в MAX [citation:5][citation:7]
+# Функция отправки сообщения в MAX
 def send_max_message(chat_id: str, text: str):
-    """
-    Отправка сообщения в MAX через Bot API
-    
-    Аргументы:
-        chat_id: ID чата или пользователя (для личного сообщения используйте user_id)
-        text: Текст сообщения
-    """
+    """Отправка сообщения в MAX через Bot API"""
     if not MAX_BOT_TOKEN:
         logger.error("MAX_BOT_TOKEN is missing!")
         return
@@ -126,21 +120,11 @@ def send_max_message(chat_id: str, text: str):
         "Content-Type": "application/json"
     }
     
-    # Определяем, отправляем в чат или пользователю
-    # Если chat_id содержит дефис или является отрицательным числом - это чат/канал
     # Для личных сообщений используем user_id
-    if str(chat_id).startswith('-') or str(chat_id).startswith('100'):
-        # Канал или группа
-        payload = {
-            "chat_id": chat_id,
-            "text": text
-        }
-    else:
-        # Личное сообщение пользователю
-        payload = {
-            "user_id": chat_id,
-            "text": text
-        }
+    payload = {
+        "user_id": chat_id,
+        "text": text
+    }
     
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=10)
@@ -151,89 +135,10 @@ def send_max_message(chat_id: str, text: str):
     except Exception as e:
         logger.error(f"Failed to send MAX message: {e}")
 
-# Отправка уведомления администратору
 def send_admin_notification(text: str):
     """Отправка уведомления администратору в MAX"""
     if ADMIN_CHAT_ID:
         send_max_message(ADMIN_CHAT_ID, text)
-
-# Отправка документа в MAX
-def send_max_document(chat_id: str, file_path: str, caption: str = ""):
-    """
-    Отправка файла (документа) в MAX
-    """
-    if not MAX_BOT_TOKEN:
-        logger.error("MAX_BOT_TOKEN is missing!")
-        return
-    
-    # MAX требует двухшаговую загрузку файлов [citation:6]
-    # Сначала получаем URL для загрузки
-    upload_url_response = requests.post(
-        "https://platform-api.max.ru/uploads?type=file",
-        headers={"Authorization": MAX_BOT_TOKEN},
-        timeout=10
-    )
-    
-    if upload_url_response.status_code != 200:
-        logger.error(f"Failed to get upload URL: {upload_url_response.text}")
-        return
-    
-    upload_data = upload_url_response.json()
-    upload_url = upload_data.get("url")
-    token = upload_data.get("token")
-    
-    if not upload_url or not token:
-        logger.error("No upload URL or token received")
-        return
-    
-    # Загружаем файл
-    with open(file_path, 'rb') as f:
-        files = {'file': f}
-        upload_response = requests.post(upload_url, files=files, timeout=30)
-    
-    if upload_response.status_code != 200:
-        logger.error(f"Failed to upload file: {upload_response.text}")
-        return
-    
-    # Отправляем сообщение с файлом
-    url = "https://platform-api.max.ru/messages"
-    headers = {
-        "Authorization": MAX_BOT_TOKEN,
-        "Content-Type": "application/json"
-    }
-    
-    # Определяем получателя
-    if str(chat_id).startswith('-') or str(chat_id).startswith('100'):
-        payload = {
-            "chat_id": chat_id,
-            "text": caption,
-            "attachments": [
-                {
-                    "type": "file",
-                    "payload": {"token": token}
-                }
-            ]
-        }
-    else:
-        payload = {
-            "user_id": chat_id,
-            "text": caption,
-            "attachments": [
-                {
-                    "type": "file",
-                    "payload": {"token": token}
-                }
-            ]
-        }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
-        if response.status_code == 200:
-            logger.info(f"MAX document sent to {chat_id}")
-        else:
-            logger.error(f"Failed to send document: {response.text}")
-    except Exception as e:
-        logger.error(f"Failed to send MAX document: {e}")
 
 # Вспомогательные функции
 def format_phone(phone: str) -> str:
@@ -437,15 +342,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     loop = asyncio.get_event_loop()
     success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
     if success:
-        report = get_report(user_id, "premium")
-        if report and report.get("file_path"):
-            filepath = Path(report["file_path"])
-            if filepath.exists():
-                try:
-                    # Отправляем файл администратору в MAX
-                    send_max_document(ADMIN_CHAT_ID, str(filepath), f"📄 План продаж для пользователя {user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to send file to admin: {e}")
+        send_admin_notification(f"✅ Сгенерирован план продаж для пользователя {user_id}")
 
 # HTML шаблоны
 HTML_HEAD = """<!DOCTYPE html>
@@ -818,6 +715,7 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
+    # Перенаправляем на страницу ожидания сразу после отправки формы
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
@@ -1215,9 +1113,9 @@ async def payment_success(user_id: str):
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
     
+    <!-- Кнопка "Скачать план в TXT" УДАЛЕНА, оставлена только кнопка "Отправить план в MAX" -->
     <div style="margin: 20px 0;">
-        <a href="/download/{user_id}/premium" class="btn btn-outline" style="margin: 10px;">📥 Скачать план в TXT</a>
-        <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 10px;">📲 Отправить план в MAX</button>
+        <button onclick="requestByPhone()" class="btn" style="margin: 10px;">📲 Отправить план в MAX</button>
     </div>
     
     <hr style="margin: 32px 0;">
@@ -1290,8 +1188,7 @@ async def payment_success(user_id: str):
     </div>
     
     <div style="margin: 20px 0;">
-        <a href="/download/{user_id}/premium" class="btn btn-outline" style="margin: 10px;">📥 Скачать план в TXT</a>
-        <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 10px;">📲 Отправить план в MAX</button>
+        <button onclick="requestByPhone()" class="btn" style="margin: 10px;">📲 Отправить план в MAX</button>
     </div>
 </div>
 
@@ -1402,49 +1299,32 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
         message += f"\nТелефон: {phone}"
     send_admin_notification(message)
     
-    content = f"""
+    # Перенаправляем на страницу подписки на канал
+    return RedirectResponse(url=f"/subscribe?user_id={user_id}", status_code=303)
+
+@app.get("/subscribe", response_class=HTMLResponse)
+async def subscribe_page(user_id: str):
+    """Страница подписки на канал в MAX после заявки на консультацию"""
+    content = f'''
 <div class="hero">
-    <h1>✅ Заявка принята!</h1>
+    <h1>📢 Остался последний шаг!</h1>
+    <p style="font-size: 18px;">Подпишитесь на канал в MAX, чтобы получить консультацию</p>
 </div>
+
 <div class="form-card" style="text-align: center;">
-    <p>✅ Я свяжусь с вами в MAX в ближайшее время, чтобы подтвердить время разбора.</p>
-    
-    <hr style="margin: 32px 0;">
-    
-    <div class="course-card">
-        <h2 style="font-size: 28px; margin-bottom: 16px;">📚 А пока ждёте...</h2>
-        <p style="font-size: 17px; margin-bottom: 24px;">Хотите уже сейчас начать привлекать клиентов бесплатно?</p>
-        
-        <h3 style="font-size: 22px; margin-bottom: 16px;">Мини-курс «Раскрутка блога без вложений»</h3>
-        <p>Пошаговая система для экспертов, которые хотят привлекать клиентов бесплатно</p>
-        
-        <div style="margin: 24px 0;">
-            <p><strong>Что вы получите:</strong></p>
-            <ul style="text-align: left; display: inline-block;">
-                <li>✅ 7 видеоуроков по 10 минут</li>
-                <li>✅ Готовую структуру блога, который продаёт</li>
-                <li>✅ 10 рабочих тем для постов</li>
-                <li>✅ Чек-лист «Как привлечь первых 10 клиентов»</li>
-                <li>✅ Обратную связь от меня лично</li>
-            </ul>
-        </div>
-        
-        <div class="price-old" style="text-align: center;">14 900 ₽</div>
-        <div class="price-new" style="text-align: center;">1 490 ₽</div>
-        <p style="text-align: center; margin: 16px 0;">📌 Только сейчас — специальная цена</p>
-        
-        <div style="text-align: center;">
-            <a href="https://t.me/zapuskintelega_bot" target="_blank" class="btn">🎓 Получить мини-курс в боте</a>
-        </div>
-        
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 24px; text-align: center;">После оплаты в боте вы получите доступ к урокам и обратную связь от Вероники</p>
+    <div style="margin: 30px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 100%; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
     </div>
     
-    <div style="text-align:center;margin-top: 32px;">
+    <hr style="margin: 30px 0;">
+    
+    <p>✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
+    
+    <div style="margin: 30px 0;">
         <a href="/" class="btn btn-outline">→ На главную</a>
     </div>
 </div>
-"""
+'''
     return HTMLResponse(content=render_page(content))
 
 @app.get("/download/{user_id}/{report_type}")
