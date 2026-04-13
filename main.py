@@ -811,13 +811,20 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
-async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
-    """Временный эндпоинт - перенаправляет на страницу оплаты с телефоном"""
-    phone = format_phone(phone)
-    logger.info(f"Payment create for user {user_id}, phone {phone}")
-    save_user(user_id, phone, None)
-    save_payment_request(user_id, phone)
-    send_telegram_message(f"Новая заявка на оплату!\nID: {user_id}\nТелефон: {phone}")
+async def payment_create(user_id: str = Form(...)):
+    """Переход на страницу оплаты (телефон не требуется, он будет запрошен на странице оплаты)"""
+    logger.info(f"Payment create for user {user_id}")
+    
+    # Проверяем, есть ли уже телефон у пользователя
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    # Если телефона нет, создаем запись без телефона
+    if not row or not row[0]:
+        save_user(user_id, None, None)
+    
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
@@ -861,7 +868,7 @@ async def payment_page(user_id: str, status: str = None):
             <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
         <div style="text-align:center;margin:20px 0">
-            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽ через ЮKassa</button>
+            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</button>
         </div>
     </form>
 </div>
