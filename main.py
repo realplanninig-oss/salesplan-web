@@ -109,11 +109,15 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
 
 # Вспомогательные функции
 def format_phone(phone: str) -> str:
+    if not phone:
+        return None
     digits = re.sub(r'\D', '', phone)
     if digits.startswith('7') or digits.startswith('8'):
         digits = '7' + digits[1:]
     if len(digits) == 11 and digits.startswith('7'):
         return '+' + digits
+    if len(digits) == 10:
+        return '+7' + digits
     return phone
 
 def save_user(user_id: str, phone: str, name: str = None):
@@ -812,19 +816,8 @@ async def diagnostic(user_id: str):
 
 @app.post("/payment/create")
 async def payment_create(user_id: str = Form(...)):
-    """Переход на страницу оплаты (телефон не требуется, он будет запрошен на странице оплаты)"""
+    """Переход на страницу оплаты"""
     logger.info(f"Payment create for user {user_id}")
-    
-    # Проверяем, есть ли уже телефон у пользователя
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    # Если телефона нет, создаем запись без телефона
-    if not row or not row[0]:
-        save_user(user_id, None, None)
-    
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
@@ -836,13 +829,6 @@ async def payment_page(user_id: str, status: str = None):
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
-    
-    # Получаем телефон пользователя из БД
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    phone = row[0] if row else ""
     
     content = f'''
 <div class="hero">
@@ -865,7 +851,7 @@ async def payment_page(user_id: str, status: str = None):
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group">
             <label>📞 Ваш номер телефона для отправки плана:</label>
-            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
         <div style="text-align:center;margin:20px 0">
             <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</button>
@@ -899,6 +885,12 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
         save_payment_request(user_id, phone)
         send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+    
+    # Проверяем, что телефон есть и валидный
+    if not phone:
+        logger.error("Phone is required for receipt")
+        save_payment_request(user_id, phone)
+        return RedirectResponse(url=f"/payment?user_id={user_id}&error=phone_required", status_code=303)
     
     # Создаем платеж в ЮKassa с чеком
     payment_data = {
