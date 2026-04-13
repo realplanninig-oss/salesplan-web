@@ -1,0 +1,3 @@
+@app.get("/favicon.ico")
+async def favicon():
+    return RedirectResponse(url="/static/favicon.ico")
