@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с API ЮKassa)
+# File: main.py — веб-приложение Salesplan (с уведомлениями в MAX)
 
 import logging
 import sqlite3
@@ -21,8 +21,8 @@ import uvicorn
 load_dotenv()
 
 # Конфигурация
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+MAX_BOT_TOKEN = os.getenv("MAX_BOT_TOKEN")
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")  # В MAX это user_id администратора
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # ЮKassa настройки
@@ -106,6 +106,134 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
     if not (correct_username and correct_password):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
+
+# Функция отправки сообщения в MAX [citation:5][citation:7]
+def send_max_message(chat_id: str, text: str):
+    """
+    Отправка сообщения в MAX через Bot API
+    
+    Аргументы:
+        chat_id: ID чата или пользователя (для личного сообщения используйте user_id)
+        text: Текст сообщения
+    """
+    if not MAX_BOT_TOKEN:
+        logger.error("MAX_BOT_TOKEN is missing!")
+        return
+    
+    url = "https://platform-api.max.ru/messages"
+    headers = {
+        "Authorization": MAX_BOT_TOKEN,
+        "Content-Type": "application/json"
+    }
+    
+    # Определяем, отправляем в чат или пользователю
+    # Если chat_id содержит дефис или является отрицательным числом - это чат/канал
+    # Для личных сообщений используем user_id
+    if str(chat_id).startswith('-') or str(chat_id).startswith('100'):
+        # Канал или группа
+        payload = {
+            "chat_id": chat_id,
+            "text": text
+        }
+    else:
+        # Личное сообщение пользователю
+        payload = {
+            "user_id": chat_id,
+            "text": text
+        }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        if response.status_code == 200:
+            logger.info(f"MAX message sent to {chat_id}")
+        else:
+            logger.error(f"MAX API error: {response.status_code} - {response.text}")
+    except Exception as e:
+        logger.error(f"Failed to send MAX message: {e}")
+
+# Отправка уведомления администратору
+def send_admin_notification(text: str):
+    """Отправка уведомления администратору в MAX"""
+    if ADMIN_CHAT_ID:
+        send_max_message(ADMIN_CHAT_ID, text)
+
+# Отправка документа в MAX
+def send_max_document(chat_id: str, file_path: str, caption: str = ""):
+    """
+    Отправка файла (документа) в MAX
+    """
+    if not MAX_BOT_TOKEN:
+        logger.error("MAX_BOT_TOKEN is missing!")
+        return
+    
+    # MAX требует двухшаговую загрузку файлов [citation:6]
+    # Сначала получаем URL для загрузки
+    upload_url_response = requests.post(
+        "https://platform-api.max.ru/uploads?type=file",
+        headers={"Authorization": MAX_BOT_TOKEN},
+        timeout=10
+    )
+    
+    if upload_url_response.status_code != 200:
+        logger.error(f"Failed to get upload URL: {upload_url_response.text}")
+        return
+    
+    upload_data = upload_url_response.json()
+    upload_url = upload_data.get("url")
+    token = upload_data.get("token")
+    
+    if not upload_url or not token:
+        logger.error("No upload URL or token received")
+        return
+    
+    # Загружаем файл
+    with open(file_path, 'rb') as f:
+        files = {'file': f}
+        upload_response = requests.post(upload_url, files=files, timeout=30)
+    
+    if upload_response.status_code != 200:
+        logger.error(f"Failed to upload file: {upload_response.text}")
+        return
+    
+    # Отправляем сообщение с файлом
+    url = "https://platform-api.max.ru/messages"
+    headers = {
+        "Authorization": MAX_BOT_TOKEN,
+        "Content-Type": "application/json"
+    }
+    
+    # Определяем получателя
+    if str(chat_id).startswith('-') or str(chat_id).startswith('100'):
+        payload = {
+            "chat_id": chat_id,
+            "text": caption,
+            "attachments": [
+                {
+                    "type": "file",
+                    "payload": {"token": token}
+                }
+            ]
+        }
+    else:
+        payload = {
+            "user_id": chat_id,
+            "text": caption,
+            "attachments": [
+                {
+                    "type": "file",
+                    "payload": {"token": token}
+                }
+            ]
+        }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        if response.status_code == 200:
+            logger.info(f"MAX document sent to {chat_id}")
+        else:
+            logger.error(f"Failed to send document: {response.text}")
+    except Exception as e:
+        logger.error(f"Failed to send MAX document: {e}")
 
 # Вспомогательные функции
 def format_phone(phone: str) -> str:
@@ -217,13 +345,6 @@ def get_last_succeeded_payment():
     conn.close()
     return row[0] if row else None
 
-def send_telegram_message(text: str):
-    if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
-        try:
-            requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": ADMIN_CHAT_ID, "text": text}, timeout=5)
-        except Exception as e:
-            logger.error(f"Failed to send telegram: {e}")
-
 # Функции для DeepSeek
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
@@ -321,16 +442,8 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
             filepath = Path(report["file_path"])
             if filepath.exists():
                 try:
-                    with open(filepath, "rb") as f:
-                        await asyncio.get_event_loop().run_in_executor(
-                            None,
-                            lambda: requests.post(
-                                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument",
-                                data={"chat_id": ADMIN_CHAT_ID, "caption": f"📄 План продаж для пользователя {user_id}"},
-                                files={"document": f},
-                                timeout=5
-                            )
-                        )
+                    # Отправляем файл администратору в MAX
+                    send_max_document(ADMIN_CHAT_ID, str(filepath), f"📄 План продаж для пользователя {user_id}")
                 except Exception as e:
                     logger.error(f"Failed to send file to admin: {e}")
 
@@ -883,7 +996,7 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
         save_payment_request(user_id, phone)
-        send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
+        send_admin_notification(f"⚠️ Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
     # Проверяем, что телефон есть и валидный
@@ -944,7 +1057,7 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
                 return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
             
             save_payment_request(user_id, phone, payment_id, "490.00", "pending")
-            send_telegram_message(f"💳 Создан платеж ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}")
+            send_admin_notification(f"💳 Создан платеж ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}")
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
@@ -994,13 +1107,13 @@ async def payment_webhook(request: Request):
                             user_id, biz["name"], biz["description"], answers, report_id
                         ))
                         
-                        send_telegram_message(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! Начинаем генерацию плана для {user_id}")
+                        send_admin_notification(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! Начинаем генерацию плана для {user_id}")
                     else:
-                        send_telegram_message(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! План уже готов для {user_id}")
+                        send_admin_notification(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! План уже готов для {user_id}")
                 else:
-                    send_telegram_message(f"⚠️ Оплата подтверждена, но нет данных для генерации плана: user_id={user_id}")
+                    send_admin_notification(f"⚠️ Оплата подтверждена, но нет данных для генерации плана: user_id={user_id}")
             else:
-                send_telegram_message(f"⚠️ Оплата подтверждена, но user_id не найден в metadata")
+                send_admin_notification(f"⚠️ Оплата подтверждена, но user_id не найден в metadata")
         
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
@@ -1214,7 +1327,7 @@ async def request_report_by_phone(user_id: str):
     conn.close()
     
     if row and row[0]:
-        send_telegram_message(f"📱 Запрос на отправку плана в MAX!\nID: {user_id}\nТелефон: {row[0]}")
+        send_admin_notification(f"📱 Запрос на отправку плана в MAX!\nID: {user_id}\nТелефон: {row[0]}")
         return {"success": True}
     return {"success": False, "error": "Телефон не найден"}
 
@@ -1287,7 +1400,7 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
     message = f"📞 Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}"
     if phone:
         message += f"\nТелефон: {phone}"
-    send_telegram_message(message)
+    send_admin_notification(message)
     
     content = f"""
 <div class="hero">
