@@ -11,15 +11,11 @@ import base64
 import secrets
 from datetime import datetime
 from pathlib import Path
-from functools import wraps
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 import uvicorn
 
 load_dotenv()
@@ -69,11 +65,7 @@ def init_db():
 
 init_db()
 
-# Настройка Rate Limiting
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/hour"])
 app = FastAPI(title="Salesplan")
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Middleware для защиты от ботов
 BLOCKED_PATHS = [
@@ -579,8 +571,7 @@ def render_premium_waiting_page(user_id: str):
 
 # Эндпоинты
 @app.get("/")
-@limiter.limit("20/minute")
-async def index(request: Request):
+async def index():
     content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
@@ -670,9 +661,7 @@ async def survey():
     return HTMLResponse(content=render_page(content))
 
 @app.post("/survey/submit")
-@limiter.limit("5/minute")
 async def survey_submit(
-    request: Request,
     business_name: str = Form(...),
     business_description: str = Form(...),
     q1: str = Form(...),
@@ -826,7 +815,6 @@ async def diagnostic(user_id: str):
 
 # Эндпоинты для оплаты
 @app.post("/create_yookassa_payment")
-@limiter.limit("10/minute")
 async def create_yookassa_payment(request: Request, user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
     logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}")
@@ -1141,6 +1129,7 @@ async def payment_success(user_id: str):
         <button onclick="requestByPhone()" class="btn btn-outline" style="margin: 10px;">📲 Отправить план в MAX</button>
     </div>
 </div>
+
 <script>
     function requestByPhone() {{
         fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
