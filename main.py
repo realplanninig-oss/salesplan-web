@@ -69,7 +69,7 @@ app = FastAPI(title="Salesplan")
 # Middleware для защиты от ботов
 BLOCKED_PATHS = [
     "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
-    "/.env", "/.git", "/robots.txt", "/api", "/_next/server", "/favicon.ico"
+    "/.env", "/.git", "/robots.txt", "/api", "/_next/server"
 ]
 
 @app.middleware("http")
@@ -78,17 +78,14 @@ async def block_malicious_requests(request: Request, call_next):
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
     
-    # Пропускаем favicon.ico (не блокируем)
     if path == "/favicon.ico":
         return await call_next(request)
     
-    # Блокировка подозрительных путей
     for blocked in BLOCKED_PATHS:
         if path.startswith(blocked):
             logger.warning(f"Blocked malicious path: {path} from {client_ip}")
             return Response(status_code=404)
     
-    # Блокировка ботов по User-Agent
     bad_bots = ["bot", "crawler", "scanner", "nikto", "sqlmap", "wget", "curl", "python-requests", "java"]
     for bot in bad_bots:
         if bot in user_agent and "yandex" not in user_agent and "google" not in user_agent:
@@ -769,12 +766,9 @@ async def diagnostic(user_id: str):
         <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
     </div>
     
-    <form action="/create_yookassa_payment" method="post" style="margin-top: 24px;">
+    <!-- НА СТРАНИЦЕ ДИАГНОСТИКИ ТОЛЬКО КНОПКА, ТЕЛЕФОНА НЕТ -->
+    <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group" style="margin-bottom: 20px;">
-            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
-        </div>
         <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
         <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
     </form>
@@ -816,7 +810,74 @@ async def diagnostic(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# Эндпоинт для создания платежа через API ЮKassa
+@app.post("/payment/create")
+async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
+    """Временный эндпоинт - перенаправляет на страницу оплаты с телефоном"""
+    phone = format_phone(phone)
+    logger.info(f"Payment create for user {user_id}, phone {phone}")
+    save_user(user_id, phone, None)
+    save_payment_request(user_id, phone)
+    send_telegram_message(f"Новая заявка на оплату!\nID: {user_id}\nТелефон: {phone}")
+    return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+
+@app.get("/payment", response_class=HTMLResponse)
+async def payment_page(user_id: str, status: str = None):
+    error_message = ""
+    if status == "cancelled":
+        error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
+    
+    existing_report = get_report(user_id, "premium")
+    if existing_report and existing_report["status"] == "ready":
+        return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+    
+    # Получаем телефон пользователя из БД
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    phone = row[0] if row else ""
+    
+    content = f'''
+<div class="hero">
+    <h1>💰 План продаж — 490 ₽</h1>
+</div>
+<div class="form-card">
+    {error_message}
+    <h3>Что вы получите:</h3>
+    <ul>
+        <li>✅ Разбор 5 конкурентов</li>
+        <li>✅ Готовую воронку продаж</li>
+        <li>✅ Пошаговый план запуска продаж на месяц</li>
+        <li>✅ Скрипты для продаж</li>
+    </ul>
+    <div class="price-old" style="text-align:center">4 900 ₽</div>
+    <div class="price-new" style="text-align:center">490 ₽</div>
+    <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
+    
+    <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
+        <input type="hidden" name="user_id" value="{user_id}">
+        <div class="form-group">
+            <label>📞 Ваш номер телефона для отправки плана:</label>
+            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+        </div>
+        <div style="text-align:center;margin:20px 0">
+            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽ через ЮKassa</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    window.addEventListener('beforeunload', function(e) {{
+        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.";
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+    }});
+</script>
+'''
+    return HTMLResponse(content=render_page(content))
+
+# ГЛАВНЫЙ ЭНДПОИНТ - API ЮKassa
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(request: Request, user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
@@ -832,13 +893,26 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
         send_telegram_message(f"Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
-    # Создаем платеж в ЮKassa
+    # Создаем платеж в ЮKassa с чеком
     payment_data = {
         "amount": {"value": "490.00", "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
         "capture": True,
         "description": f"План продаж для пользователя {user_id}",
-        "metadata": {"user_id": user_id, "phone": phone}
+        "metadata": {"user_id": user_id, "phone": phone},
+        "receipt": {
+            "customer": {"phone": phone},
+            "items": [
+                {
+                    "description": "Профессиональный маркетинговый план продаж",
+                    "quantity": "1.00",
+                    "amount": {"value": "490.00", "currency": "RUB"},
+                    "vat_code": "1",
+                    "payment_mode": "full_payment",
+                    "payment_subject": "service"
+                }
+            ]
+        }
     }
     
     auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
@@ -938,53 +1012,6 @@ async def payment_confirm(request: Request):
     
     update_payment_status(payment_id, "succeeded")
     return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
-
-# Исправленная страница оплаты (без поля телефона и кнопки "Я оплатил(а)")
-@app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str, status: str = None):
-    error_message = ""
-    if status == "cancelled":
-        error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
-    
-    existing_report = get_report(user_id, "premium")
-    if existing_report and existing_report["status"] == "ready":
-        return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
-    
-    content = f'''
-<div class="hero">
-    <h1>💰 План продаж — 490 ₽</h1>
-</div>
-<div class="form-card">
-    {error_message}
-    <h3>Что вы получите:</h3>
-    <ul>
-        <li>✅ Разбор 5 конкурентов</li>
-        <li>✅ Готовую воронку продаж</li>
-        <li>✅ Пошаговый план запуска продаж на месяц</li>
-        <li>✅ Скрипты для продаж</li>
-    </ul>
-    <div class="price-old" style="text-align:center">4 900 ₽</div>
-    <div class="price-new" style="text-align:center">490 ₽</div>
-    <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
-    
-    <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
-        <input type="hidden" name="user_id" value="{user_id}">
-        <div style="text-align:center;margin:20px 0">
-            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽ через ЮKassa</button>
-        </div>
-    </form>
-</div>
-
-<script>
-    window.addEventListener('beforeunload', function(e) {{
-        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.";
-        e.preventDefault();
-        e.returnValue = message;
-        return message;
-    }});
-</script>
-'''
-    return HTMLResponse(content=render_page(content))
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
