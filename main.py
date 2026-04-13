@@ -210,6 +210,13 @@ def get_payment_by_yookassa_id(payment_id: str):
         return {"user_id": row[0], "phone": row[1], "amount": row[2], "status": row[3]}
     return None
 
+def get_last_succeeded_payment():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT user_id FROM payments WHERE status = 'succeeded' ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row else None
+
 def send_telegram_message(text: str):
     if TELEGRAM_TOKEN and ADMIN_CHAT_ID:
         try:
@@ -958,12 +965,43 @@ async def payment_webhook(request: Request):
         payment = body.get("object", {})
         payment_id = payment.get("id")
         status = payment.get("status")
+        metadata = payment.get("metadata", {})
+        user_id = metadata.get("user_id")
+        phone = metadata.get("phone")
         
         if event == "payment.succeeded" and status == "succeeded":
+            # Обновляем статус платежа
             update_payment_status(payment_id, "succeeded")
-            payment_info = get_payment_by_yookassa_id(payment_id)
-            if payment_info:
-                send_telegram_message(f"✅ ПОДТВЕРЖДЕНА ОПЛАТА через webhook!\nID: {payment_info['user_id']}\nТелефон: {payment_info['phone']}")
+            
+            if user_id:
+                # Получаем данные пользователя
+                biz = get_business_data(user_id)
+                answers = get_form_data(user_id)
+                
+                if biz and answers and DEEPSEEK_API_KEY:
+                    # Проверяем, нет ли уже готового отчёта
+                    existing_report = get_report(user_id, "premium")
+                    if not existing_report or existing_report["status"] != "ready":
+                        # Создаём отчёт
+                        conn = sqlite3.connect(DB_PATH)
+                        cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
+                        report_id = cursor.lastrowid
+                        conn.commit()
+                        conn.close()
+                        
+                        # Запускаем генерацию в фоне
+                        asyncio.create_task(generate_premium_report_background(
+                            user_id, biz["name"], biz["description"], answers, report_id
+                        ))
+                        
+                        send_telegram_message(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! Начинаем генерацию плана для {user_id}")
+                    else:
+                        send_telegram_message(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! План уже готов для {user_id}")
+                else:
+                    send_telegram_message(f"⚠️ Оплата подтверждена, но нет данных для генерации плана: user_id={user_id}")
+            else:
+                send_telegram_message(f"⚠️ Оплата подтверждена, но user_id не найден в metadata")
+        
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
         logger.error(f"Webhook error: {e}")
@@ -978,23 +1016,41 @@ async def payment_confirm(request: Request):
     # ЮKassa может передавать payment_id в параметре paymentId
     payment_id = params.get("paymentId") or params.get("payment_id")
     
-    if not payment_id:
-        logger.warning("No payment_id in callback, redirecting to home")
-        return RedirectResponse(url="/", status_code=303)
+    if payment_id:
+        # Если есть payment_id, ищем в БД
+        payment_info = get_payment_by_yookassa_id(payment_id)
+        if payment_info:
+            user_id = payment_info["user_id"]
+            return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
-    logger.info(f"Found payment_id: {payment_id}")
+    # Если параметров нет, ищем последний успешный платёж в БД
+    user_id = get_last_succeeded_payment()
+    if user_id:
+        return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
-    # Получаем user_id из БД по payment_id
-    payment_info = get_payment_by_yookassa_id(payment_id)
-    
-    if not payment_info:
-        logger.warning(f"Payment {payment_id} not found in database")
-        return RedirectResponse(url="/", status_code=303)
-    
-    user_id = payment_info["user_id"]
-    logger.info(f"Redirecting to success for user: {user_id}")
-    
-    return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+    # Если ничего не нашли, показываем страницу с просьбой ввести ID
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Подтверждение оплаты</title>
+        <meta charset="UTF-8">
+        <style>
+            body{{font-family:sans-serif;text-align:center;padding:50px}}
+            input{{padding:10px;font-size:16px;width:300px}}
+            button{{padding:10px 20px;font-size:16px;background:#007aff;color:white;border:none;border-radius:8px;cursor:pointer}}
+        </style>
+    </head>
+    <body>
+        <h1>✅ Оплата прошла успешно!</h1>
+        <p>Введите ваш ID, чтобы получить план:</p>
+        <input type="text" id="userId" placeholder="user_id">
+        <br><br>
+        <button onclick="window.location.href='/payment/success?user_id='+document.getElementById('userId').value">Получить план</button>
+        <p style="font-size:12px;color:#888;margin-top:20px">Ваш ID можно найти в письме или обратитесь в поддержку.</p>
+    </body>
+    </html>
+    """, status_code=200)
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
