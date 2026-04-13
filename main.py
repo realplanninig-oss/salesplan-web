@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (с уведомлениями в MAX - отключено)
+# File: main.py — веб-приложение Salesplan (исправленная версия)
 
 import logging
 import sqlite3
@@ -21,8 +21,6 @@ import uvicorn
 load_dotenv()
 
 # Конфигурация
-MAX_BOT_TOKEN = os.getenv("MAX_BOT_TOKEN")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 # ЮKassa настройки
@@ -106,17 +104,6 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
     if not (correct_username and correct_password):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
-
-# Функция отправки сообщения в MAX (временно отключена)
-def send_max_message(chat_id: str, text: str):
-    """Отправка сообщения в MAX (временно отключена из-за ошибок API)"""
-    logger.info(f"[MAX] Would send to {chat_id}: {text[:100]}...")
-    # Временно отключаем реальную отправку
-    return
-
-def send_admin_notification(text: str):
-    """Отправка уведомления администратору (временно отключена)"""
-    logger.info(f"[ADMIN NOTIFICATION] {text}")
 
 # Вспомогательные функции
 def format_phone(phone: str) -> str:
@@ -396,9 +383,7 @@ HTML_FOOT = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер экспертов</p>
         <div class="social-links">
-            <a href="https://t.me/YourProducerOnline">Telegram-канал</a>
             <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
-            <a href="https://t.me/zapuskintelega_bot">Мини-курс "Раскрутка блога без вложений" — 1490 ₽</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <p>© 2026 Все права защищены</p>
@@ -544,27 +529,7 @@ def render_premium_waiting_page(user_id: str):
     </div>
     
     <p style="font-size:14px;color:#8e8e93;margin:20px 0">Страница обновится автоматически, когда план будет готов</p>
-    
-    <hr style="margin: 30px 0;">
-    
-    <p style="font-size: 15px;">⚡️ Не хотите ждать?</p>
-    <p style="font-size: 14px; color: #6e6e73;">Мы пришлём готовый план в MAX по вашему номеру телефона</p>
-    <button onclick="requestByPhone()" class="btn btn-outline" style="margin-top: 15px;">📲 Отправить в MAX по номеру телефона</button>
 </div>
-
-<script>
-    function requestByPhone() {{
-        fetch('/request_report_by_phone?user_id={user_id}', {{ method: 'POST' }})
-            .then(res => res.json())
-            .then(data => {{
-                if (data.success) {{
-                    alert('Заявка принята! План придёт в MAX, как только будет готов.');
-                }} else {{
-                    alert('Ошибка. Пожалуйста, обновите страницу.');
-                }}
-            }});
-    }}
-</script>
 </body>
 </html>"""
 
@@ -693,6 +658,7 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
+    # Сразу перенаправляем на страницу ожидания
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
@@ -870,7 +836,6 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
         save_payment_request(user_id, phone)
-        send_admin_notification(f"⚠️ Новая заявка на оплату (fallback)!\nID: {user_id}\nТелефон: {phone}")
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
     # Проверяем, что телефон есть и валидный
@@ -931,7 +896,6 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
                 return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
             
             save_payment_request(user_id, phone, payment_id, "490.00", "pending")
-            send_admin_notification(f"💳 Создан платеж ЮKassa!\nID: {user_id}\nТелефон: {phone}\nPayment ID: {payment_id}")
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
@@ -980,14 +944,6 @@ async def payment_webhook(request: Request):
                         asyncio.create_task(generate_premium_report_background(
                             user_id, biz["name"], biz["description"], answers, report_id
                         ))
-                        
-                        send_admin_notification(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! Начинаем генерацию плана для {user_id}")
-                    else:
-                        send_admin_notification(f"✅ ОПЛАТА ПОДТВЕРЖДЕНА! План уже готов для {user_id}")
-                else:
-                    send_admin_notification(f"⚠️ Оплата подтверждена, но нет данных для генерации плана: user_id={user_id}")
-            else:
-                send_admin_notification(f"⚠️ Оплата подтверждена, но user_id не найден в metadata")
         
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
@@ -996,45 +952,36 @@ async def payment_webhook(request: Request):
 
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
-    # Получаем параметры из URL
     params = dict(request.query_params)
     logger.info(f"Payment confirm called with params: {params}")
     
-    # ЮKassa может передавать payment_id в параметре paymentId
     payment_id = params.get("paymentId") or params.get("payment_id")
     
     if payment_id:
-        # Если есть payment_id, ищем в БД
         payment_info = get_payment_by_yookassa_id(payment_id)
         if payment_info:
             user_id = payment_info["user_id"]
             return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
-    # Если параметров нет, ищем последний успешный платёж в БД
     user_id = get_last_succeeded_payment()
     if user_id:
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
-    # Если ничего не нашли, показываем страницу с просьбой ввести ID
-    return HTMLResponse(content=f"""
+    return HTMLResponse(content="""
     <!DOCTYPE html>
     <html>
     <head>
         <title>Подтверждение оплаты</title>
         <meta charset="UTF-8">
         <style>
-            body{{font-family:sans-serif;text-align:center;padding:50px}}
-            input{{padding:10px;font-size:16px;width:300px}}
-            button{{padding:10px 20px;font-size:16px;background:#007aff;color:white;border:none;border-radius:8px;cursor:pointer}}
+            body{font-family:sans-serif;text-align:center;padding:50px}
+            .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}
         </style>
     </head>
     <body>
         <h1>✅ Оплата прошла успешно!</h1>
-        <p>Введите ваш ID, чтобы получить план:</p>
-        <input type="text" id="userId" placeholder="user_id">
-        <br><br>
-        <button onclick="window.location.href='/payment/success?user_id='+document.getElementById('userId').value">Получить план</button>
-        <p style="font-size:12px;color:#888;margin-top:20px">Ваш ID можно найти в письме или обратитесь в поддержку.</p>
+        <p>Вернитесь на сайт, чтобы получить план</p>
+        <a href="/" class="btn">На главную</a>
     </body>
     </html>
     """, status_code=200)
@@ -1042,12 +989,6 @@ async def payment_confirm(request: Request):
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
     logger.info(f"Payment success page for user {user_id}")
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    phone = row[0] if row else "не указан"
     
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
@@ -1155,68 +1096,47 @@ async def check_premium_status(user_id: str):
     conn.close()
     return {"ready": row and row[0] == 'ready'}
 
-@app.post("/request_report_by_phone")
-async def request_report_by_phone(user_id: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if row and row[0]:
-        send_admin_notification(f"📱 Запрос на отправку плана в MAX!\nID: {user_id}\nТелефон: {row[0]}")
-        return {"success": True}
-    return {"success": False, "error": "Телефон не найден"}
-
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-    phone = row[0] if row else "не указан"
+    phone = row[0] if row else ""
     
     content = f'''
-<div class="hero">
-    <h1>🔥 Первым 100 подписчикам — консультация бесплатно!</h1>
+<div class="hero" style="margin-bottom: 30px;">
+    <h1 style="font-size: 36px;">🔥 Бесплатная консультация</h1>
     <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
 </div>
 
-<div class="form-card" style="text-align: center;">
-    <p style="font-size: 16px; color: #007aff; margin-bottom: 20px;">✅ После проверки подписки я свяжусь с вами в MAX для согласования времени</p>
-    
-    <div style="margin-bottom: 30px;">
-        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">87</span></div>
-        <p style="color: #6e6e73; margin-top: 10px;">Только для первых 100 подписчиков</p>
+<div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
+    <div style="background: #007aff10; border-radius: 20px; padding: 24px; margin-bottom: 24px;">
+        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">97</span></div>
+        <p style="color: #6e6e73;">Только для первых 100 подписчиков</p>
     </div>
     
-    <div style="margin: 30px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: auto; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
-    </div>
+    <form action="/consultation/submit" method="post">
+        <input type="hidden" name="user_id" value="{user_id}">
+        <div class="form-group">
+            <label>📞 Ваш телефон</label>
+            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px; border-radius: 16px;">
+        </div>
+        <div class="form-group">
+            <label>🕐 Удобное время для звонка (по Москве)</label>
+            <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
+        </div>
+        <button type="submit" class="btn" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Отправить заявку</button>
+    </form>
     
-    <hr style="margin: 30px 0;">
+    <hr style="margin: 32px 0;">
     
-    <div id="formBlock">
-        <form action="/consultation/submit" method="post">
-            <input type="hidden" name="user_id" value="{user_id}">
-            <div class="form-group">
-                <label>Ваш телефон (проверим подписку)</label>
-                <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
-            </div>
-            <div class="form-group">
-                <label>🕐 Удобное время для созвона (по Москве)</label>
-                <input type="text" name="time" placeholder="например: завтра в 15:00" required>
-            </div>
-            <div style="text-align: center;">
-                <button type="submit" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">Отправить заявку</button>
-            </div>
-        </form>
-    </div>
+    <p style="font-size: 14px; color: #8e8e93;">✅ После отправки заявки я свяжусь с вами для согласования времени</p>
 </div>
 
 <script>
-    let counter = 87;
+    let counter = 97;
     const counterElement = document.getElementById('counter');
-    
     const form = document.querySelector('form');
     if (form) {{
         form.addEventListener('submit', function() {{
@@ -1233,34 +1153,29 @@ async def consultation_page(user_id: str):
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
     save_consultation(user_id, time, phone, username)
-    message = f"📞 Новая заявка на консультацию!\nID: {user_id}\nВремя: {time}"
-    if phone:
-        message += f"\nТелефон: {phone}"
-    send_admin_notification(message)
-    
-    # Перенаправляем на страницу подписки на канал
+    logger.info(f"Consultation request: user_id={user_id}, time={time}, phone={phone}")
     return RedirectResponse(url=f"/subscribe?user_id={user_id}", status_code=303)
 
 @app.get("/subscribe", response_class=HTMLResponse)
 async def subscribe_page(user_id: str):
     """Страница подписки на канал в MAX после заявки на консультацию"""
     content = f'''
-<div class="hero">
-    <h1>📢 Остался последний шаг!</h1>
+<div class="hero" style="margin-bottom: 30px;">
+    <h1 style="font-size: 36px;">📢 Остался последний шаг!</h1>
     <p style="font-size: 18px;">Подпишитесь на канал в MAX, чтобы получить консультацию</p>
 </div>
 
-<div class="form-card" style="text-align: center;">
-    <div style="margin: 30px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 100%; padding: 16px 32px;">📢 Подписаться на канал в MAX</a>
+<div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
+    <div style="margin: 20px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;">📢 Подписаться на канал в MAX</a>
     </div>
     
-    <hr style="margin: 30px 0;">
+    <hr style="margin: 32px 0;">
     
-    <p>✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
+    <p style="font-size: 14px; color: #6e6e73;">✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
     
-    <div style="margin: 30px 0;">
-        <a href="/" class="btn btn-outline">→ На главную</a>
+    <div style="margin: 24px 0;">
+        <a href="/" class="btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
     </div>
 </div>
 '''
