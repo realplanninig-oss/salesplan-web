@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия)
+ # File: main.py — веб-приложение Salesplan (финальная версия)
 
 import logging
 import sqlite3
@@ -693,8 +693,6 @@ async def survey_submit(
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
     
-    answers = {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5}
-    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'free', 'generating')", (user_id,))
     report_id = cursor.lastrowid
@@ -702,6 +700,17 @@ async def survey_submit(
     conn.close()
     logger.info(f"Free report {report_id} created for user {user_id}")
     
+    # Сразу перенаправляем на страницу ожидания
+    return RedirectResponse(url=f"/waiting?user_id={user_id}&report_id={report_id}&business_name={business_name}&business_description={business_description}", status_code=303)
+
+@app.get("/waiting", response_class=HTMLResponse)
+async def waiting_page(user_id: str, report_id: str, business_name: str, business_description: str):
+    """Страница ожидания - здесь запускается генерация отчёта"""
+    logger.info(f"Waiting page loaded for user {user_id}, starting generation")
+    
+    answers = get_form_data(user_id)
+    
+    # Запускаем генерацию в фоне ПОСЛЕ загрузки страницы
     async def generate_and_save():
         logger.info(f"Starting free report generation for user {user_id}")
         diagnostic_text = call_deepseek_diagnostic(business_name, business_description, answers)
@@ -718,12 +727,8 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    return RedirectResponse(url=f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}", status_code=303)
-
-@app.get("/waiting", response_class=HTMLResponse)
-async def waiting_page(user_id: str, report_type: str, redirect: str):
-    """Страница ожидания с проверкой статуса"""
-    return HTMLResponse(content=render_waiting_page(user_id, report_type, redirect))
+    redirect_url = f"/diagnostic?user_id={user_id}"
+    return HTMLResponse(content=render_waiting_page(user_id, "free", redirect_url))
 
 @app.get("/check_status")
 async def check_status(user_id: str, report_type: str):
@@ -1278,4 +1283,4 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)    
