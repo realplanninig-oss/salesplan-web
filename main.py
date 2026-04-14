@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (оптимизированная версия)
+# File: main.py — веб-приложение Salesplan (с улучшенной страницей ожидания)
 
 import logging
 import sqlite3
@@ -408,22 +408,73 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
+        .progress-bar{{width:100%;height:8px;background:#e5e5e5;border-radius:4px;margin:30px 0;overflow:hidden}}
+        .progress-fill{{width:0%;height:100%;background:#007aff;border-radius:4px;transition:width 0.5s ease}}
+        .status{{font-size:14px;color:#6e6e73;margin:10px 0}}
+        .status-item{{display:flex;align-items:center;justify-content:center;gap:10px;margin:15px 0;padding:10px;border-radius:12px;background:#f5f5f7}}
+        .status-item.active{{background:#007aff10;border-left:3px solid #007aff}}
+        .status-item.done{{opacity:0.6}}
+        .status-icon{{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
+        .status-icon.pending{{border:2px solid #ccc;background:white}}
+        .status-icon.active{{border:2px solid #007aff;background:#007aff;color:white}}
+        .status-icon.done{{background:#34c759;color:white}}
         .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
         .btn:hover{{background:#005fc5}}
+        .timer{{font-size:24px;font-weight:600;color:#007aff;margin:20px 0}}
     </style>
     <script>
         let attempts = 0;
         let isRedirected = false;
+        let startTime = Date.now();
+        
+        function updateProgress() {{
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const timerEl = document.getElementById('timer');
+            if (timerEl) timerEl.textContent = elapsed;
+            
+            const progress = Math.min(90, Math.floor(elapsed / 35 * 100));
+            const fillEl = document.getElementById('progressFill');
+            if (fillEl) fillEl.style.width = progress + '%';
+            
+            const statusItems = [
+                {{id: 'status1', time: 0, text: 'Анализируем вашу нишу'}},
+                {{id: 'status2', time: 10, text: 'Изучаем целевую аудиторию'}},
+                {{id: 'status3', time: 20, text: 'Ищем точки роста'}},
+                {{id: 'status4', time: 30, text: 'Формируем рекомендации'}}
+            ];
+            
+            statusItems.forEach(item => {{
+                const el = document.getElementById(item.id);
+                if (el) {{
+                    if (elapsed >= item.time + 5) {{
+                        el.className = 'status-item done';
+                        const icon = el.querySelector('.status-icon');
+                        if (icon) icon.innerHTML = '✓';
+                    }} else if (elapsed >= item.time) {{
+                        el.className = 'status-item active';
+                        const icon = el.querySelector('.status-icon');
+                        if (icon) icon.innerHTML = '●';
+                    }}
+                }}
+            }});
+        }}
+        
         function checkStatus() {{
             if (isRedirected) return;
+            
             fetch('/check_status?user_id={user_id}&report_type={report_type}')
                 .then(res => res.json())
                 .then(data => {{
                     if (data.ready) {{
+                        const fillEl = document.getElementById('progressFill');
+                        if (fillEl) fillEl.style.width = '100%';
                         isRedirected = true;
-                        window.location.href = '{redirect_url}';
+                        setTimeout(() => {{
+                            window.location.href = '{redirect_url}';
+                        }}, 500);
                     }} else {{
                         attempts++;
+                        updateProgress();
                         if (attempts < 120) {{
                             setTimeout(checkStatus, 3000);
                         }}
@@ -433,7 +484,9 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
                     setTimeout(checkStatus, 3000);
                 }});
         }}
+        
         setTimeout(checkStatus, 1000);
+        setInterval(updateProgress, 1000);
     </script>
 </head>
 <body>
@@ -441,6 +494,31 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <div class="spinner"></div>
     <h1>🔍 Анализируем конкурентов и рынок</h1>
     <p>Лопатим вашу нишу, ищем точки роста и слабые места. Это займет 1-2 минуты.</p>
+    
+    <div class="timer" id="timer">0</div>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+    
+    <div class="status">
+        <div class="status-item" id="status1">
+            <span class="status-icon pending">○</span>
+            <span>Анализируем вашу нишу</span>
+        </div>
+        <div class="status-item" id="status2">
+            <span class="status-icon pending">○</span>
+            <span>Изучаем целевую аудиторию</span>
+        </div>
+        <div class="status-item" id="status3">
+            <span class="status-icon pending">○</span>
+            <span>Ищем точки роста</span>
+        </div>
+        <div class="status-item" id="status4">
+            <span class="status-icon pending">○</span>
+            <span>Формируем рекомендации</span>
+        </div>
+    </div>
+    
     <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
 </div>
 </body>
@@ -665,7 +743,6 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # Возвращаем JSON с URL для редиректа
     redirect_url = f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}"
     return JSONResponse(content={"redirect": redirect_url})
 
