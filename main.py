@@ -605,17 +605,14 @@ async def survey():
                 body: formData
             });
             
-            if (response.redirected) {
-                window.location.href = response.url;
+            const data = await response.json();
+            
+            if (data.redirect) {
+                window.location.href = data.redirect;
             } else {
-                const data = await response.json();
-                if (data.redirect) {
-                    window.location.href = data.redirect;
-                } else {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Получить диагностику';
-                    alert('Ошибка при отправке. Попробуйте снова.');
-                }
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Получить диагностику';
+                alert('Ошибка при отправке. Попробуйте снова.');
             }
         } catch (error) {
             submitBtn.disabled = false;
@@ -668,8 +665,9 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
+    # Возвращаем JSON с URL для редиректа
     redirect_url = f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}"
-    return RedirectResponse(url=redirect_url, status_code=303)
+    return JSONResponse(content={"redirect": redirect_url})
 
 @app.get("/waiting", response_class=HTMLResponse)
 async def waiting_page(user_id: str, report_type: str, redirect: str):
