@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (исправленная версия)
+# File: main.py — веб-приложение Salesplan (оптимизированная версия)
 
 import logging
 import sqlite3
@@ -433,7 +433,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
                     setTimeout(checkStatus, 3000);
                 }});
         }}
-        setTimeout(checkStatus, 3000);
+        setTimeout(checkStatus, 1000);
     </script>
 </head>
 <body>
@@ -530,7 +530,7 @@ async def survey():
 </div>
 
 <div class="form-card">
-    <form action="/survey/submit" method="post" id="surveyForm">
+    <form id="surveyForm">
         <div class="form-group">
             <label>1. Название бизнеса</label>
             <input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required>
@@ -590,10 +590,38 @@ async def survey():
 </div>
 
 <script>
-    document.getElementById('surveyForm').addEventListener('submit', function(e) {
+    document.getElementById('surveyForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
-        submitBtn.textContent = '⏳ Анализируем...';
+        submitBtn.textContent = '⏳ Отправка...';
+        
+        const formData = new FormData(this);
+        
+        try {
+            const response = await fetch('/survey/submit', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                const data = await response.json();
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Получить диагностику';
+                    alert('Ошибка при отправке. Попробуйте снова.');
+                }
+            }
+        } catch (error) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Получить диагностику';
+            alert('Ошибка сети. Попробуйте снова.');
+        }
     });
 </script>
 """
@@ -640,8 +668,8 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # Перенаправляем на страницу ожидания
-    return RedirectResponse(url=f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}", status_code=303)
+    redirect_url = f"/waiting?user_id={user_id}&report_type=free&redirect=/diagnostic?user_id={user_id}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 @app.get("/waiting", response_class=HTMLResponse)
 async def waiting_page(user_id: str, report_type: str, redirect: str):
