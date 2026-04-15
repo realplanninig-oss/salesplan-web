@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (минимальная рабочая версия)
+# File: main.py — веб-приложение Salesplan (МИНИМАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ)
 
 import logging
 import sqlite3
@@ -22,12 +22,8 @@ load_dotenv()
 
 # Конфигурация
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-
-# ЮKassa настройки
 YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
-
-# Админка
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -48,7 +44,6 @@ DB_PATH = "salesplan.db"
 REPORTS_DIR = Path("./reports")
 REPORTS_DIR.mkdir(exist_ok=True)
 
-# Инициализация базы данных
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, phone TEXT, name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
@@ -93,7 +88,6 @@ async def block_malicious_requests(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# Аутентификация для админки
 security = HTTPBasic()
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
@@ -105,7 +99,6 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
-# Вспомогательные функции
 def format_phone(phone: str) -> str:
     if not phone:
         return None
@@ -215,7 +208,6 @@ def get_last_succeeded_payment():
     conn.close()
     return row[0] if row else None
 
-# Функции для DeepSeek
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
     q2_map = {"до 5k": "до 5000 ₽", "5k-20k": "5000-20000 ₽", "20k-50k": "20000-50000 ₽", ">50k": "более 50000 ₽"}
@@ -638,7 +630,6 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # ВОЗВРАЩАЕМ СТРАНИЦУ ОЖИДАНИЯ НАПРЯМУЮ (мгновенно)
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
@@ -748,9 +739,11 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
-async def payment_create(user_id: str = Form(...)):
-    """Переход на страницу оплаты"""
-    logger.info(f"Payment create for user {user_id}")
+async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
+    phone = format_phone(phone)
+    logger.info(f"Payment create for user {user_id}, phone {phone}")
+    save_user(user_id, phone, None)
+    save_payment_request(user_id, phone)
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
@@ -803,7 +796,6 @@ async def payment_page(user_id: str, status: str = None):
 '''
     return HTMLResponse(content=render_page(content))
 
-# ГЛАВНЫЙ ЭНДПОИНТ - API ЮKassa
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(request: Request, user_id: str = Form(...), phone: str = Form(...)):
     phone = format_phone(phone)
@@ -812,25 +804,19 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     
     base_url = str(request.base_url).rstrip('/')
     
-    # Проверяем наличие API ключей
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
         save_payment_request(user_id, phone)
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
-    # Проверяем, что телефон есть и валидный
     if not phone:
         logger.error("Phone is required for receipt")
         save_payment_request(user_id, phone)
         return RedirectResponse(url=f"/payment?user_id={user_id}&error=phone_required", status_code=303)
     
-    # Создаем платеж в ЮKassa с чеком
     payment_data = {
         "amount": {"value": "490.00", "currency": "RUB"},
-        "confirmation": {
-            "type": "redirect", 
-            "return_url": f"{base_url}/payment/confirm"
-        },
+        "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
         "capture": True,
         "description": f"План продаж для пользователя {user_id}",
         "metadata": {"user_id": user_id, "phone": phone},
@@ -1182,7 +1168,6 @@ async def download_report(user_id: str, report_type: str):
     
     raise HTTPException(status_code=404, detail="Report not found")
 
-# Админка - защищенный эндпоинт для просмотра логов
 @app.get("/admin/logs")
 async def admin_logs(auth: bool = Depends(verify_admin)):
     try:
