@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (исправленная версия)
+# File: main.py — веб-приложение Salesplan (минимальная рабочая версия)
 
 import logging
 import sqlite3
@@ -402,23 +402,12 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Анализируем рынок | Salesplan</title>
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
-        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        ym(108348240, "init", {{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true}});
-    </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
-        .btn:hover{{background:#005fc5}}
     </style>
     <script>
         let attempts = 0;
@@ -462,15 +451,6 @@ def render_premium_waiting_page(user_id: str):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Готовим стратегию | Salesplan</title>
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
-        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        ym(108348240, "init", {{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true}});
-    </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         *{{margin:0;padding:0;box-sizing:border-box}}
         body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
