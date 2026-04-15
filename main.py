@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (МИНИМАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ)
+# File: main.py — веб-приложение Salesplan (РАБОЧАЯ ВЕРСИЯ)
 
 import logging
 import sqlite3
@@ -22,8 +22,12 @@ load_dotenv()
 
 # Конфигурация
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+
+# ЮKassa настройки
 YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
+
+# Админка
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -400,6 +404,8 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
+        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
+        .btn:hover{{background:#005fc5}}
     </style>
     <script>
         let attempts = 0;
@@ -423,7 +429,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
                     setTimeout(checkStatus, 3000);
                 }});
         }}
-        setTimeout(checkStatus, 1000);
+        setTimeout(checkStatus, 3000);
     </script>
 </head>
 <body>
@@ -583,7 +589,7 @@ async def survey():
     document.getElementById('surveyForm').addEventListener('submit', function(e) {
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Отправка...';
+        submitBtn.textContent = '⏳ Анализируем...';
     });
 </script>
 """
@@ -630,6 +636,7 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
+    # ВОЗВРАЩАЕМ СТРАНИЦУ ОЖИДАНИЯ (НЕ РЕДИРЕКТ)
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
@@ -697,6 +704,10 @@ async def diagnostic(user_id: str):
     
     <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
+        <div class="form-group">
+            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+        </div>
         <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
         <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
     </form>
@@ -1118,7 +1129,6 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 
 @app.get("/subscribe", response_class=HTMLResponse)
 async def subscribe_page(user_id: str):
-    """Страница подписки на канал в MAX после заявки на консультацию"""
     content = f'''
 <div class="hero" style="margin-bottom: 30px;">
     <h1 style="font-size: 36px;">📢 Остался последний шаг!</h1>
