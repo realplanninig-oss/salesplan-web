@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (РАБОЧАЯ ВЕРСИЯ)
+# File: main.py — веб-приложение Salesplan (МИНИМАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ)
 
 import logging
 import sqlite3
@@ -22,12 +22,8 @@ load_dotenv()
 
 # Конфигурация
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-
-# ЮKassa настройки
 YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
-
-# Админка
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -305,68 +301,35 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     if success:
         logger.info(f"Premium report generated for user {user_id}")
 
-# HTML шаблоны
+# HTML шаблоны - МАКСИМАЛЬНО ПРОСТЫЕ
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Salesplan</title>
-    
-    <!-- Яндекс.Метрика -->
-    <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        
-        ym(108348240, "init", {
-            clickmap:true,
-            trackLinks:true,
-            accurateTrackBounce:true,
-            webvisor:true,
-            ecommerce:"dataLayer"
-        });
-    </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Яндекс.Метрика -->
-    
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
         .container{max-width:1000px;margin:0 auto;padding:40px 20px}
         .hero{text-align:center;margin-bottom:60px}
-        .hero h1{font-size:44px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
+        .hero h1{font-size:44px;font-weight:700;margin-bottom:20px}
         .hero p{font-size:20px;color:#6e6e73}
-        .features{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:60px}
-        .feature{flex:1;min-width:200px;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-        .feature-icon{font-size:36px;margin-bottom:12px}
-        .feature h3{font-size:18px;font-weight:600;margin-bottom:8px}
-        .feature p{font-size:14px;color:#6e6e73}
-        .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}
-        .btn:hover{background:#005fc5;transform:scale(1.02)}
-        .btn-outline{background:transparent;border:1px solid #007aff;color:#007aff}
-        .btn-outline:hover{background:#007aff10;transform:scale(1.02)}
+        .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}
+        .btn:hover{background:#005fc5}
         .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
         .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
-        .radio-group label:hover{background:#e5e5ea}
-        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px}
         .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
-        .social-links{margin-top:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-        .social-links a{color:#007aff;text-decoration:none;font-size:12px}
         hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
         .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
         .price-new{font-size:36px;font-weight:700;color:#007aff}
-        .course-card{background:linear-gradient(135deg,#667eea10 0%,#764ba210 100%);border-radius:28px;padding:32px;margin:32px 0;text-align:left}
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:32px}
-            .hero p{font-size:16px}
             .form-card{padding:20px}
             input,textarea,.btn{font-size:16px}
         }
@@ -378,10 +341,6 @@ HTML_HEAD = """<!DOCTYPE html>
 HTML_FOOT = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер экспертов</p>
-        <div class="social-links">
-            <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
-            <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
-        </div>
         <p>© 2026 Все права защищены</p>
     </div>
 </div>
@@ -396,49 +355,35 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Анализируем рынок | Salesplan</title>
     <style>
-        *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
-        .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
+        body{{font-family:sans-serif;text-align:center;padding:50px}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
-        .btn:hover{{background:#005fc5}}
     </style>
     <script>
         let attempts = 0;
-        let isRedirected = false;
         function checkStatus() {{
-            if (isRedirected) return;
             fetch('/check_status?user_id={user_id}&report_type={report_type}')
                 .then(res => res.json())
                 .then(data => {{
                     if (data.ready) {{
-                        isRedirected = true;
                         window.location.href = '{redirect_url}';
                     }} else {{
                         attempts++;
-                        if (attempts < 120) {{
-                            setTimeout(checkStatus, 3000);
-                        }}
+                        if (attempts < 120) setTimeout(checkStatus, 3000);
                     }}
                 }})
-                .catch(() => {{
-                    setTimeout(checkStatus, 3000);
-                }});
+                .catch(() => setTimeout(checkStatus, 3000));
         }}
-        setTimeout(checkStatus, 3000);
+        setTimeout(checkStatus, 1000);
     </script>
 </head>
 <body>
-<div class="container">
     <div class="spinner"></div>
-    <h1>🔍 Анализируем конкурентов и рынок</h1>
-    <p>Лопатим вашу нишу, ищем точки роста и слабые места. Это займет 1-2 минуты.</p>
-    <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
-</div>
+    <h2>🔍 Анализируем конкурентов и рынок</h2>
+    <p>Это займет 1-2 минуты</p>
 </body>
 </html>"""
 
@@ -447,74 +392,54 @@ def render_premium_waiting_page(user_id: str):
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Готовим стратегию | Salesplan</title>
     <style>
-        *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
-        .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
+        body{{font-family:sans-serif;text-align:center;padding:50px}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
         .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
         .step.active{{background:#007aff;color:#fff}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
-        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
-        .btn-outline:hover{{background:#007aff;color:#fff}}
     </style>
     <script>
         let attempts = 0;
-        let isRedirected = false;
         let step = 1;
         function checkStatus() {{
-            if (isRedirected) return;
             fetch('/check_premium_status?user_id={user_id}')
                 .then(res => res.json())
                 .then(data => {{
                     if (data.ready) {{
-                        isRedirected = true;
                         window.location.href = '/payment/success?user_id={user_id}';
                     }} else {{
                         attempts++;
                         step = Math.min(3, Math.floor(attempts / 20) + 1);
-                        const step1 = document.getElementById('step1');
-                        const step2 = document.getElementById('step2');
-                        const step3 = document.getElementById('step3');
-                        if(step1) step1.className = step >= 1 ? 'step active' : 'step';
-                        if(step2) step2.className = step >= 2 ? 'step active' : 'step';
-                        if(step3) step3.className = step >= 3 ? 'step active' : 'step';
-                        if (attempts < 180) {{
-                            setTimeout(checkStatus, 3000);
-                        }}
+                        document.getElementById('step1').className = step >= 1 ? 'step active' : 'step';
+                        document.getElementById('step2').className = step >= 2 ? 'step active' : 'step';
+                        document.getElementById('step3').className = step >= 3 ? 'step active' : 'step';
+                        if (attempts < 180) setTimeout(checkStatus, 3000);
                     }}
                 }})
-                .catch(() => {{
-                    setTimeout(checkStatus, 3000);
-                }});
+                .catch(() => setTimeout(checkStatus, 3000));
         }}
         setTimeout(checkStatus, 3000);
     </script>
 </head>
 <body>
-<div class="container">
     <div class="spinner"></div>
     <h1>📊 Анализируем рынок и конкурентов</h1>
     <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>1–5 минут</strong>.</p>
-    
-    <div style="margin: 30px 0;">
+    <div>
         <span id="step1" class="step active">1. Анализ конкурентов</span>
         <span id="step2" class="step">2. Сбор стратегии</span>
         <span id="step3" class="step">3. Формирование плана</span>
     </div>
-    
-    <p style="font-size:14px;color:#8e8e93;margin:20px 0">Страница обновится автоматически, когда план будет готов</p>
-</div>
 </body>
 </html>"""
 
 # Эндпоинты
 @app.get("/")
 async def index():
-    content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
+    content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
     return HTMLResponse(content=render_page(content))
 
 @app.get("/survey", response_class=HTMLResponse)
@@ -580,16 +505,15 @@ async def survey():
             </div>
         </div>
         <div style="text-align:center">
-            <button type="submit" class="btn" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Получить диагностику</button>
+            <button type="submit" class="btn" id="submitBtn">Получить диагностику</button>
         </div>
     </form>
 </div>
 
 <script>
     document.getElementById('surveyForm').addEventListener('submit', function(e) {
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
-        submitBtn.textContent = '⏳ Анализируем...';
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('submitBtn').textContent = '⏳ Анализируем...';
     });
 </script>
 """
@@ -636,7 +560,6 @@ async def survey_submit(
     
     asyncio.create_task(generate_and_save())
     
-    # ВОЗВРАЩАЕМ СТРАНИЦУ ОЖИДАНИЯ (НЕ РЕДИРЕКТ)
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
@@ -657,7 +580,6 @@ async def diagnostic(user_id: str):
     conn.close()
     
     if not row or not row[0]:
-        logger.warning(f"Diagnostic not ready for user {user_id}, showing waiting page")
         return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
     
     report_text_full = row[0]
@@ -666,86 +588,29 @@ async def diagnostic(user_id: str):
     content = f'''
 <div class="hero">
     <h1>✨ Ваша диагностика готова</h1>
-    <p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p>
 </div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Полный текст диагностики ниже</p>
-    </div>
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
+<div class="form-card">
+    <div style="background:#f5f5f7;border-radius:20px;padding:20px;margin:20px 0;max-height:500px;overflow-y:auto">
+        <div style="white-space:pre-wrap;font-size:14px;line-height:1.5">{report_text_html}</div>
     </div>
     
-    <hr style="margin: 32px 0;">
+    <hr>
     
-    <div style="margin: 32px 0; text-align: center;">
-        <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
-        <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
-    </div>
-    
-    <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
-        </div>
-    </div>
-    
-    <hr style="margin: 32px 0;">
-    
-    <div style="margin: 32px 0;">
+    <div style="margin:20px 0">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
-        <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
+        <p style="margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
     </div>
     
-    <form action="/payment/create" method="post" style="margin-top: 24px;">
+    <form action="/payment/create" method="post">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group">
-            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+            <label>📞 Ваш номер телефона:</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align:center;font-size:18px">
         </div>
-        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
+        <button type="submit" class="btn" style="width:100%;padding:16px;font-size:18px">🔥 Получить доступ к плану</button>
     </form>
-    
-    <hr style="margin: 32px 0;">
-    
-    <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
-        <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
-    </div>
-    
-    <div style="display: flex; flex-wrap: wrap; gap: 16px; margin: 32px 0; text-align: left;">
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div>
-            <p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p>
-        </div>
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
-            <p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p>
-        </div>
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🌊</div>
-            <p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p>
-        </div>
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🏫</div>
-            <p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p>
-        </div>
-    </div>
-    
-    <div style="margin: 32px 0;">
-        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
-    </div>
 </div>
-
-<script>
-    ym(108348240,'reachGoal','diagnostic_got');
-</script>
 '''
     return HTMLResponse(content=render_page(content))
 
@@ -758,11 +623,7 @@ async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str, status: str = None):
-    error_message = ""
-    if status == "cancelled":
-        error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
-    
+async def payment_page(user_id: str):
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
@@ -772,7 +633,6 @@ async def payment_page(user_id: str, status: str = None):
     <h1>💰 План продаж — 490 ₽</h1>
 </div>
 <div class="form-card">
-    {error_message}
     <h3>Что вы получите:</h3>
     <ul>
         <li>✅ Разбор 5 конкурентов</li>
@@ -784,26 +644,15 @@ async def payment_page(user_id: str, status: str = None):
     <div class="price-new" style="text-align:center">490 ₽</div>
     <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
     
-    <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
+    <form action="/create_yookassa_payment" method="post">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group">
-            <label>📞 Ваш номер телефона для отправки плана:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+            <label>📞 Ваш номер телефона:</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align:center;font-size:18px">
         </div>
-        <div style="text-align:center;margin:20px 0">
-            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</button>
-        </div>
+        <button type="submit" class="btn" style="width:100%;margin-top:20px">💳 Оплатить 490 ₽</button>
     </form>
 </div>
-
-<script>
-    window.addEventListener('beforeunload', function(e) {{
-        const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.";
-        e.preventDefault();
-        e.returnValue = message;
-        return message;
-    }});
-</script>
 '''
     return HTMLResponse(content=render_page(content))
 
@@ -816,14 +665,12 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
     base_url = str(request.base_url).rstrip('/')
     
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
-        logger.error("YooKassa credentials missing!")
         save_payment_request(user_id, phone)
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
     if not phone:
-        logger.error("Phone is required for receipt")
         save_payment_request(user_id, phone)
-        return RedirectResponse(url=f"/payment?user_id={user_id}&error=phone_required", status_code=303)
+        return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
     payment_data = {
         "amount": {"value": "490.00", "currency": "RUB"},
@@ -833,16 +680,14 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
         "metadata": {"user_id": user_id, "phone": phone},
         "receipt": {
             "customer": {"phone": phone},
-            "items": [
-                {
-                    "description": "Профессиональный маркетинговый план продаж",
-                    "quantity": "1.00",
-                    "amount": {"value": "490.00", "currency": "RUB"},
-                    "vat_code": "1",
-                    "payment_mode": "full_payment",
-                    "payment_subject": "service"
-                }
-            ]
+            "items": [{
+                "description": "Профессиональный маркетинговый план продаж",
+                "quantity": "1.00",
+                "amount": {"value": "490.00", "currency": "RUB"},
+                "vat_code": "1",
+                "payment_mode": "full_payment",
+                "payment_subject": "service"
+            }]
         }
     }
     
@@ -860,24 +705,16 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
             timeout=30
         )
         
-        logger.info(f"YooKassa API response status: {response.status_code}")
-        
         if response.status_code in (200, 201):
             payment = response.json()
-            payment_id = payment.get("id")
             confirmation_url = payment.get("confirmation", {}).get("confirmation_url")
-            
-            if not confirmation_url:
-                logger.error(f"No confirmation URL in response")
-                save_payment_request(user_id, phone)
-                return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
-            
-            save_payment_request(user_id, phone, payment_id, "490.00", "pending")
-            return RedirectResponse(url=confirmation_url, status_code=303)
-        else:
-            logger.error(f"YooKassa error: {response.status_code} - {response.text}")
-            save_payment_request(user_id, phone)
-            return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+            if confirmation_url:
+                payment_id = payment.get("id")
+                save_payment_request(user_id, phone, payment_id, "490.00", "pending")
+                return RedirectResponse(url=confirmation_url, status_code=303)
+        
+        save_payment_request(user_id, phone)
+        return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     except Exception as e:
         logger.error(f"YooKassa exception: {e}")
         save_payment_request(user_id, phone)
@@ -887,7 +724,7 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
 async def payment_webhook(request: Request):
     try:
         body = await request.json()
-        logger.info(f"Webhook received: {body}")
+        logger.info(f"Webhook received")
         
         event = body.get("event")
         payment = body.get("object", {})
@@ -898,11 +735,9 @@ async def payment_webhook(request: Request):
         
         if event == "payment.succeeded" and status == "succeeded":
             update_payment_status(payment_id, "succeeded")
-            
             if user_id:
                 biz = get_business_data(user_id)
                 answers = get_form_data(user_id)
-                
                 if biz and answers and DEEPSEEK_API_KEY:
                     existing_report = get_report(user_id, "premium")
                     if not existing_report or existing_report["status"] != "ready":
@@ -911,11 +746,9 @@ async def payment_webhook(request: Request):
                         report_id = cursor.lastrowid
                         conn.commit()
                         conn.close()
-                        
                         asyncio.create_task(generate_premium_report_background(
                             user_id, biz["name"], biz["description"], answers, report_id
                         ))
-        
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
         logger.error(f"Webhook error: {e}")
@@ -924,38 +757,18 @@ async def payment_webhook(request: Request):
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
     params = dict(request.query_params)
-    logger.info(f"Payment confirm called with params: {params}")
-    
     payment_id = params.get("paymentId") or params.get("payment_id")
     
     if payment_id:
         payment_info = get_payment_by_yookassa_id(payment_id)
         if payment_info:
-            user_id = payment_info["user_id"]
-            return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+            return RedirectResponse(url=f"/payment/success?user_id={payment_info['user_id']}", status_code=303)
     
     user_id = get_last_succeeded_payment()
     if user_id:
         return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
     
-    return HTMLResponse(content="""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Подтверждение оплаты</title>
-        <meta charset="UTF-8">
-        <style>
-            body{font-family:sans-serif;text-align:center;padding:50px}
-            .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}
-        </style>
-    </head>
-    <body>
-        <h1>✅ Оплата прошла успешно!</h1>
-        <p>Вернитесь на сайт, чтобы получить план</p>
-        <a href="/" class="btn">На главную</a>
-    </body>
-    </html>
-    """, status_code=200)
+    return RedirectResponse(url="/", status_code=303)
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
@@ -963,12 +776,10 @@ async def payment_success(user_id: str):
     
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
-    
     existing_report = get_report(user_id, "premium")
     
     if existing_report and existing_report["status"] == "ready":
         report_text_full = None
-        
         if existing_report.get("file_path"):
             file_path = existing_report["file_path"]
             if os.path.exists(file_path):
@@ -980,48 +791,24 @@ async def payment_success(user_id: str):
         
         if not report_text_full:
             report_text_full = existing_report.get("text")
-        
         if not report_text_full:
-            report_text_full = "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
-        
-        report_text_html = report_text_full.replace("\n", "<br>")
+            report_text_full = "Текст плана продаж временно недоступен."
         
         content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
-    <p>Ваш профессиональный маркетинговый план — полная версия ниже</p>
 </div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш профессиональный маркетинговый план — полная версия ниже</p>
+<div class="form-card">
+    <div style="background:#f5f5f7;border-radius:20px;padding:20px;max-height:500px;overflow-y:auto">
+        <div style="white-space:pre-wrap;font-size:14px;line-height:1.5">{report_text_full.replace(chr(10), "<br>")}</div>
     </div>
-    
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
-    
-    <hr style="margin: 32px 0;">
-    
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
-        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
-        <div style="text-align:center;margin-top:20px">
-            <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">→ Записаться на бесплатный разбор</a>
-        </div>
-    </div>
-    
-    <div style="margin: 32px 0;">
-        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
+    <hr>
+    <div style="text-align:center">
+        <a href="/consultation?user_id={user_id}" class="btn">→ Записаться на бесплатный разбор</a>
     </div>
 </div>
 '''
         return HTMLResponse(content=render_page(content))
-    
-    if not biz:
-        biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
-    if not answers:
-        answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
     
     if DEEPSEEK_API_KEY:
         conn = sqlite3.connect(DB_PATH)
@@ -1029,35 +816,10 @@ async def payment_success(user_id: str):
         report_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
         return HTMLResponse(content=render_premium_waiting_page(user_id))
     else:
-        premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
-
-Данные о бизнесе:
-Название: {biz['name']}
-Описание: {biz['description']}
-
-Рекомендации для увеличения продаж:
-1. Проанализируйте целевую аудиторию
-2. Настройте автоворонку
-3. Добавьте триггерные сообщения
-"""
-        save_report(user_id, "premium", premium_text)
-        report_text_html = premium_text.replace("\n", "<br>")
-        
-        content = f'''
-<div class="hero">
-    <h1>🎉 Спасибо за покупку!</h1>
-</div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
-</div>
-'''
-        return HTMLResponse(content=render_page(content))
+        return HTMLResponse(content=render_premium_waiting_page(user_id))
 
 @app.get("/check_premium_status")
 async def check_premium_status(user_id: str):
@@ -1076,107 +838,34 @@ async def consultation_page(user_id: str):
     phone = row[0] if row else ""
     
     content = f'''
-<div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">🔥 Бесплатная консультация</h1>
-    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
+<div class="hero">
+    <h1>🔥 Бесплатная консультация</h1>
 </div>
-
-<div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
-    <div style="background: #007aff10; border-radius: 20px; padding: 24px; margin-bottom: 24px;">
-        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">97</span></div>
-        <p style="color: #6e6e73;">Только для первых 100 подписчиков</p>
+<div class="form-card">
+    <div style="background:#007aff10;border-radius:20px;padding:24px;margin-bottom:24px">
+        <div style="font-size:48px;font-weight:700;color:#007aff">Осталось мест: 97</div>
     </div>
     
     <form action="/consultation/submit" method="post">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group">
             <label>📞 Ваш телефон</label>
-            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px; border-radius: 16px;">
+            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required>
         </div>
         <div class="form-group">
-            <label>🕐 Удобное время для звонка (по Москве)</label>
-            <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
+            <label>🕐 Удобное время для звонка</label>
+            <input type="text" name="time" placeholder="например: завтра в 15:00" required>
         </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Отправить заявку</button>
+        <button type="submit" class="btn" style="width:100%">📅 Отправить заявку</button>
     </form>
-    
-    <hr style="margin: 32px 0;">
-    
-    <p style="font-size: 14px; color: #8e8e93;">✅ После отправки заявки я свяжусь с вами для согласования времени</p>
 </div>
-
-<script>
-    let counter = 97;
-    const counterElement = document.getElementById('counter');
-    const form = document.querySelector('form');
-    if (form) {{
-        form.addEventListener('submit', function() {{
-            if (counter > 0) {{
-                counter--;
-                if(counterElement) counterElement.textContent = counter;
-            }}
-        }});
-    }}
-</script>
 '''
     return HTMLResponse(content=render_page(content))
 
 @app.post("/consultation/submit")
 async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
     save_consultation(user_id, time, phone, username)
-    logger.info(f"Consultation request: user_id={user_id}, time={time}, phone={phone}")
-    return RedirectResponse(url=f"/subscribe?user_id={user_id}", status_code=303)
-
-@app.get("/subscribe", response_class=HTMLResponse)
-async def subscribe_page(user_id: str):
-    content = f'''
-<div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">📢 Остался последний шаг!</h1>
-    <p style="font-size: 18px;">Подпишитесь на канал в MAX, чтобы получить консультацию</p>
-</div>
-
-<div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
-    <div style="margin: 20px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;">📢 Подписаться на канал в MAX</a>
-    </div>
-    
-    <hr style="margin: 32px 0;">
-    
-    <p style="font-size: 14px; color: #6e6e73;">✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
-    
-    <div style="margin: 24px 0;">
-        <a href="/" class="btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
-    </div>
-</div>
-'''
-    return HTMLResponse(content=render_page(content))
-
-@app.get("/download/{user_id}/{report_type}")
-async def download_report(user_id: str, report_type: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT file_path, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if row and row[0]:
-        file_path = row[0]
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            return Response(
-                content=content,
-                media_type="text/plain",
-                headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"}
-            )
-    
-    if row and row[1]:
-        return Response(
-            content=row[1],
-            media_type="text/plain",
-            headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"}
-        )
-    
-    raise HTTPException(status_code=404, detail="Report not found")
+    return RedirectResponse(url=f"/", status_code=303)
 
 @app.get("/admin/logs")
 async def admin_logs(auth: bool = Depends(verify_admin)):
