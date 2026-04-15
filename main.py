@@ -1,4 +1,4 @@
- # File: main.py — веб-приложение Salesplan (финальная версия)
+# File: main.py — веб-приложение Salesplan (финальная версия)
 
 import logging
 import sqlite3
@@ -1283,4 +1283,4 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)    
+    uvicorn.run(app, host="0.0.0.0", port=port)
