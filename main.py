@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (РАБОЧАЯ ВЕРСИЯ)
+# File: main.py — веб-приложение Salesplan (тексты в стиле Хакамады)
 
 import logging
 import sqlite3
@@ -301,7 +301,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     if success:
         logger.info(f"Premium report generated for user {user_id}")
 
-# HTML шаблоны
+# HTML шаблоны с обновлённым футером
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -373,7 +373,7 @@ HTML_HEAD = """<!DOCTYPE html>
 """
 HTML_FOOT = """
     <div class="footer">
-        <p>Вероника Макаревич | Продюсер экспертов</p>
+        <p>Вероника Макаревич | Продюсер в кармане</p>
         <div class="social-links">
             <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
@@ -400,22 +400,68 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
         .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
         .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
-        .btn:hover{{background:#005fc5}}
+        .progress-bar{{width:100%;height:8px;background:#e5e5e5;border-radius:4px;margin:30px 0;overflow:hidden}}
+        .progress-fill{{width:0%;height:100%;background:#007aff;border-radius:4px;transition:width 0.5s ease}}
+        .status-item{{display:flex;align-items:center;justify-content:center;gap:10px;margin:15px 0;padding:10px;border-radius:12px;background:#f5f5f7}}
+        .status-item.active{{background:#007aff10;border-left:3px solid #007aff}}
+        .status-icon{{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
+        .status-icon.pending{{border:2px solid #ccc;background:white}}
+        .status-icon.active{{border:2px solid #007aff;background:#007aff;color:white}}
+        .timer{{font-size:24px;font-weight:600;color:#007aff;margin:20px 0}}
+        .subtext{{font-size:14px;color:#8e8e93;margin-top:20px}}
     </style>
     <script>
         let attempts = 0;
         let isRedirected = false;
+        let startTime = Date.now();
+        
+        function updateProgress() {{
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const timerEl = document.getElementById('timer');
+            if (timerEl) timerEl.textContent = elapsed;
+            
+            const progress = Math.min(90, Math.floor(elapsed / 35 * 100));
+            const fillEl = document.getElementById('progressFill');
+            if (fillEl) fillEl.style.width = progress + '%';
+            
+            const statusItems = [
+                {{id: 'status1', time: 0}},
+                {{id: 'status2', time: 10}},
+                {{id: 'status3', time: 20}},
+                {{id: 'status4', time: 30}}
+            ];
+            
+            statusItems.forEach(item => {{
+                const el = document.getElementById(item.id);
+                if (el) {{
+                    if (elapsed >= item.time + 5) {{
+                        el.className = 'status-item';
+                        const icon = el.querySelector('.status-icon');
+                        if (icon) icon.innerHTML = '✓';
+                    }} else if (elapsed >= item.time) {{
+                        el.className = 'status-item active';
+                        const icon = el.querySelector('.status-icon');
+                        if (icon) icon.innerHTML = '●';
+                    }}
+                }}
+            }});
+        }}
+        
         function checkStatus() {{
             if (isRedirected) return;
             fetch('/check_status?user_id={user_id}&report_type={report_type}')
                 .then(res => res.json())
                 .then(data => {{
                     if (data.ready) {{
+                        const fillEl = document.getElementById('progressFill');
+                        if (fillEl) fillEl.style.width = '100%';
                         isRedirected = true;
-                        window.location.href = '{redirect_url}';
+                        setTimeout(() => {{
+                            window.location.href = '{redirect_url}';
+                        }}, 500);
                     }} else {{
                         attempts++;
+                        updateProgress();
                         if (attempts < 120) {{
                             setTimeout(checkStatus, 3000);
                         }}
@@ -425,15 +471,39 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
                     setTimeout(checkStatus, 3000);
                 }});
         }}
-        setTimeout(checkStatus, 3000);
+        
+        setTimeout(checkStatus, 1000);
+        setInterval(updateProgress, 1000);
     </script>
 </head>
 <body>
 <div class="container">
     <div class="spinner"></div>
     <h1>🔍 Анализируем конкурентов и рынок</h1>
-    <p>Лопатим вашу нишу, ищем точки роста и слабые места. Это займет 1-2 минуты.</p>
-    <p style="font-size:14px;color:#8e8e93;margin-top:20px">Страница обновится автоматически</p>
+    
+    <div class="timer" id="timer">0</div>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+    
+    <div class="status-item" id="status1">
+        <span class="status-icon pending">○</span>
+        <span>🔍 Анализируем вашу нишу — кто ваши клиенты и где они тусуются</span>
+    </div>
+    <div class="status-item" id="status2">
+        <span class="status-icon pending">○</span>
+        <span>📊 Изучаем целевую аудиторию — что они хотят на самом деле</span>
+    </div>
+    <div class="status-item" id="status3">
+        <span class="status-icon pending">○</span>
+        <span>🎯 Ищем точки роста — где вы теряете деньги</span>
+    </div>
+    <div class="status-item" id="status4">
+        <span class="status-icon pending">○</span>
+        <span>📝 Формируем рекомендации — что делать прямо сейчас</span>
+    </div>
+    
+    <p class="subtext">Пока нейросеть копается в вашей нише — я налью себе чай. Вы тоже можете. Это займёт 1-2 минуты. Страница обновится сама. Не обновляйте вручную — нейросеть обидится.</p>
 </div>
 </body>
 </html>"""
@@ -453,9 +523,7 @@ def render_premium_waiting_page(user_id: str):
         @keyframes spin{{to{{transform:rotate(360deg)}}}}
         .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
         .step.active{{background:#007aff;color:#fff}}
-        .btn{{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none}}
-        .btn-outline{{background:transparent;border:1px solid #007aff;color:#007aff}}
-        .btn-outline:hover{{background:#007aff;color:#fff}}
+        .subtext{{font-size:14px;color:#8e8e93;margin-top:20px}}
     </style>
     <script>
         let attempts = 0;
@@ -494,15 +562,15 @@ def render_premium_waiting_page(user_id: str):
 <div class="container">
     <div class="spinner"></div>
     <h1>📊 Анализируем рынок и конкурентов</h1>
-    <p>Готовим для вас персональную стратегию продаж.<br>Это занимает <strong>1–5 минут</strong>.</p>
+    <p>Нейросеть уже пишет ваш план. Я пока схожу за печеньками. Вы тоже можете отвлечься — это займёт 3-5 минут.</p>
     
     <div style="margin: 30px 0;">
-        <span id="step1" class="step active">1. Анализ конкурентов</span>
-        <span id="step2" class="step">2. Сбор стратегии</span>
-        <span id="step3" class="step">3. Формирование плана</span>
+        <span id="step1" class="step active">1. Анализ конкурентов — кто платит и почему</span>
+        <span id="step2" class="step">2. Сбор стратегии — собираем пазл</span>
+        <span id="step3" class="step">3. Формирование плана — почти готово</span>
     </div>
     
-    <p style="font-size:14px;color:#8e8e93;margin:20px 0">Страница обновится автоматически, когда план будет готов</p>
+    <p class="subtext">Страница обновится сама. Не нужно сидеть и сверлить экран взглядом.</p>
 </div>
 </body>
 </html>"""
@@ -510,15 +578,46 @@ def render_premium_waiting_page(user_id: str):
 # Эндпоинты
 @app.get("/")
 async def index():
-    content = '<div class="hero"><h1>Готовый план запуска продаж для онлайн-бизнеса</h1><p>Узнайте, почему ваш бизнес не продаёт, и получите пошаговую стратегию</p></div><div class="features"><div class="feature"><div class="feature-icon">⭐️</div><h3>Бесплатный аудит — 2 минуты</h3><p>Узнайте слабые места вашего онлайн-бизнеса</p></div><div class="feature"><div class="feature-icon">🔥</div><h3>Готовая стратегия — 5 минут</h3><p>План продаж с анализом конкурентов</p></div><div class="feature"><div class="feature-icon">⚡️</div><h3>Первое действие — 15 минут</h3><p>Внедрите работающее решение</p></div></div><div style="text-align:center"><a href="/survey" class="btn">Начать диагностику</a></div>'
+    content = '''
+<div class="hero">
+    <h1>Вероника Макаревич | Продюсер в кармане</h1>
+    <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
+</div>
+
+<div class="features">
+    <div class="feature">
+        <div class="feature-icon">⭐️</div>
+        <h3>Бесплатный аудит — 2 минуты</h3>
+        <p>Узнайте 3 конкретных шага, которые можно внедрить прямо сейчас</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">🔥</div>
+        <h3>Готовая стратегия — 5 минут</h3>
+        <p>План продаж с анализом конкурентов и разбором ЦА</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">⚡️</div>
+        <h3>Первое действие — 15 минут</h3>
+        <p>Внедрите работающее решение, которое запустит продажи</p>
+    </div>
+</div>
+
+<div style="text-align:center">
+    <a href="/survey" class="btn">Начать диагностику</a>
+</div>
+
+<div style="margin-top: 40px; padding: 20px; background: #f5f5f7; border-radius: 20px; text-align: center;">
+    <p style="font-size: 14px; color: #6e6e73;">Помогла 33 экспертам запустить продажи услуг и онлайн-курсов</p>
+</div>
+'''
     return HTMLResponse(content=render_page(content))
 
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
 <div class="hero">
-    <h1>Расскажите о вашем бизнесе — 2 минуты</h1>
-    <p>Анализируем данные — диагностика будет готова через 60 секунд</p>
+    <h1>Шаг 1 из 2. Давайте знакомиться</h1>
+    <p style="font-size: 18px;">«Чем честнее ответите — тем точнее будет разбор. Обещаю: никакой магии. Только маркетинг, который работает.»</p>
 </div>
 
 <div class="form-card">
@@ -576,6 +675,7 @@ async def survey():
             </div>
         </div>
         <div style="text-align:center">
+            <p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ответьте на 7 коротких вопросов → получите персональный разбор вашего бизнеса с конкретными шагами для роста продаж</p>
             <button type="submit" class="btn" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Получить диагностику</button>
         </div>
     </form>
@@ -585,13 +685,12 @@ async def survey():
     document.getElementById('surveyForm').addEventListener('submit', function(e) {
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
-        submitBtn.textContent = '⏳ Анализируем...';
+        submitBtn.textContent = '⏳ Отправляю...';
     });
 </script>
 """
     return HTMLResponse(content=render_page(content))
 
-# ИСПРАВЛЕННАЯ ФУНКЦИЯ SURVEY_SUBMIT - с фоновой генерацией
 @app.post("/survey/submit")
 async def survey_submit(
     business_name: str = Form(...),
@@ -605,14 +704,12 @@ async def survey_submit(
     user_id = str(uuid.uuid4())
     logger.info(f"New survey submission: user_id={user_id}, business={business_name}")
     
-    # 1. Быстро сохраняем данные
     save_user(user_id, None, None)
     save_business_data(user_id, business_name, business_description)
     save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
     
     answers = {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5}
     
-    # 2. Создаём запись об отчёте
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'free', 'generating')", (user_id,))
     report_id = cursor.lastrowid
@@ -620,10 +717,8 @@ async def survey_submit(
     conn.close()
     logger.info(f"Free report {report_id} created for user {user_id}")
     
-    # 3. Запускаем генерацию в фоне (НЕ ДОЖИДАЕМСЯ!)
     async def generate_and_save():
         logger.info(f"Starting free report generation for user {user_id}")
-        # DeepSeek запрос - синхронный, но запускаем в отдельном потоке
         loop = asyncio.get_event_loop()
         diagnostic_text = await loop.run_in_executor(
             None, 
@@ -643,13 +738,9 @@ async def survey_submit(
         conn.commit()
         conn.close()
     
-    # ЗАПУСКАЕМ ФОНОВУЮ ЗАДАЧУ
     asyncio.create_task(generate_and_save())
     
-    # 4. НЕМЕДЛЕННО ВОЗВРАЩАЕМ СТРАНИЦУ ОЖИДАНИЯ
-    logger.info(f"Returning waiting page for user {user_id}")
-    waiting_page_html = render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}")
-    return HTMLResponse(content=waiting_page_html)
+    return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 @app.get("/check_status")
 async def check_status(user_id: str, report_type: str):
@@ -677,14 +768,11 @@ async def diagnostic(user_id: str):
     
     content = f'''
 <div class="hero">
-    <h1>✨ Ваша диагностика готова</h1>
-    <p style="font-size: 18px;">Держите — это ваш первый шаг к стабильным продажам</p>
+    <h1>✨ Ваша персональная диагностика готова</h1>
+    <p style="font-size: 18px;">«Держите. Это не просто текст — это карта вашего ближайшего пути к деньгам. Я подсветила слабые места и точки роста. Теперь выбор за вами.»</p>
 </div>
+
 <div class="form-card" style="text-align: center;">
-    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Полный текст диагностики ниже</p>
-    </div>
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
@@ -693,16 +781,16 @@ async def diagnostic(user_id: str):
     
     <div style="margin: 32px 0; text-align: center;">
         <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
-        <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">Вы получили бесплатный разбор — это только первый шаг. Чтобы реально увеличить продажи, нужен детальный маркетинговый план.</p>
+        <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">«Диагностика — это как сходить к терапевту. А теперь нужен спортивный тренер, который доведёт до результата.»</p>
     </div>
     
     <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
         <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка под ваш бизнес</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Пошаговый план запуска на месяц</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">💬 Скрипты для продаж</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🎯 Разбор ЦА — кто платит и почему</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов — чем они лучше и как это обойти</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка продаж — от подписки до чека</span>
+            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Контент план на месяц + 1 действие, которое запустит продажи</span>
         </div>
     </div>
     
@@ -711,17 +799,14 @@ async def diagnostic(user_id: str):
     <div style="margin: 32px 0;">
         <div class="price-old">4 900 ₽</div>
         <div class="price-new">490 ₽</div>
-        <p style="margin-top: 8px;">⚡ Только сейчас — специальная цена для участников MAX-канала<br>Предложение действует 24 часа</p>
+        <p style="margin-top: 8px;">«Да, я могла бы взять 4900. Но я хочу, чтобы вы сделали первый шаг. Следующие будут дороже.»</p>
+        <p style="margin-top: 8px; color: #ff3b30; font-weight: 600;">🔥 Предложение действует, пока вы находитесь на этой странице. Закроете страницу — цена вернётся к 4 900 ₽.</p>
     </div>
     
     <form action="/payment/create" method="post" style="margin-top: 24px;">
         <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group">
-            <label>📞 Оставьте номер телефона, оплатите, и я покажу вам полный профессиональный маркетинговый план:</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
-        </div>
-        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Получить доступ к плану</button>
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Никакого спама. Только профессиональный маркетинговый план и бонусы.</p>
+        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Забрать план за 490 ₽</button>
+        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Без телефона, без смс, только польза</p>
     </form>
     
     <hr style="margin: 32px 0;">
@@ -762,11 +847,8 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
-async def payment_create(user_id: str = Form(...), phone: str = Form(...)):
-    phone = format_phone(phone)
-    logger.info(f"Payment create for user {user_id}, phone {phone}")
-    save_user(user_id, phone, None)
-    save_payment_request(user_id, phone)
+async def payment_create(user_id: str = Form(...)):
+    logger.info(f"Payment create for user {user_id}")
     return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
@@ -782,30 +864,41 @@ async def payment_page(user_id: str, status: str = None):
     content = f'''
 <div class="hero">
     <h1>💰 План продаж — 490 ₽</h1>
+    <p style="font-size: 18px;">«Спойлер: вы получите не просто документ, а готовую дорожную карту. Бери и делай.»</p>
 </div>
+
 <div class="form-card">
     {error_message}
-    <h3>Что вы получите:</h3>
-    <ul>
-        <li>✅ Разбор 5 конкурентов</li>
-        <li>✅ Готовую воронку продаж</li>
-        <li>✅ Пошаговый план запуска продаж на месяц</li>
-        <li>✅ Скрипты для продаж</li>
+    
+    <h3>Что внутри:</h3>
+    <ul style="margin-bottom: 20px;">
+        <li>🎯 Разбор ЦА — кто платит и почему</li>
+        <li>🔍 Разбор 5 конкурентов — чем они лучше и как это обойти</li>
+        <li>⚡ Готовая воронка продаж — от подписки до чека</li>
+        <li>📅 Контент план на месяц + 1 действие, которое запустит продажи</li>
     </ul>
+    
     <div class="price-old" style="text-align:center">4 900 ₽</div>
     <div class="price-new" style="text-align:center">490 ₽</div>
-    <p style="text-align:center; margin-top:8px">⚡ Только сейчас — специальная цена для участников MAX-канала</p>
+    <p style="text-align:center; margin-top:8px">«Я снизила цену, чтобы вы перестали думать и начали действовать.»</p>
     
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group">
-            <label>📞 Ваш номер телефона для отправки плана:</label>
+            <label>📞 Куда прислать план?</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
         </div>
         <div style="text-align:center;margin:20px 0">
             <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</button>
         </div>
     </form>
+    
+    <hr style="margin: 20px 0;">
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <p style="font-size: 14px; color: #6e6e73;">✅ Безопасная оплата через ЮKassa — ваши деньги под защитой</p>
+        <p style="font-size: 14px; color: #6e6e73; margin-top: 10px;">❓ Не подойдёт? Вернём деньги в течение 2 дней — без вопросов и танцев с бубном</p>
+    </div>
 </div>
 
 <script>
@@ -899,7 +992,7 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
 async def payment_webhook(request: Request):
     try:
         body = await request.json()
-        logger.info(f"Webhook received: {body}")
+        logger.info(f"Webhook received")
         
         event = body.get("event")
         payment = body.get("object", {})
@@ -1000,15 +1093,11 @@ async def payment_success(user_id: str):
         
         content = f'''
 <div class="hero">
-    <h1>🎉 Спасибо за покупку!</h1>
-    <p>Ваш профессиональный маркетинговый план — полная версия ниже</p>
+    <h1>🎉 План готов!</h1>
+    <p style="font-size: 18px;">«Вот он — ваш персональный маршрут к стабильным продажам. Берите и делайте. Если что-то непонятно — я здесь.»</p>
 </div>
+
 <div class="form-card" style="text-align: center;">
-    <div style="background: linear-gradient(135deg, #f5f5f7 0%, #ffffff 100%); border-radius: 28px; padding: 32px; margin-bottom: 32px;">
-        <div style="font-size: 56px; margin-bottom: 16px;">📄</div>
-        <p style="font-size: 14px; color: #8e8e93; margin-top: 16px;">Ваш профессиональный маркетинговый план — полная версия ниже</p>
-    </div>
-    
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
@@ -1016,8 +1105,7 @@ async def payment_success(user_id: str):
     <hr style="margin: 32px 0;">
     
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">Хотите, чтобы я лично, как продюсер экспертов, разобрала ваш план запуска продаж и дала честный фидбек?</p>
-        <p>Знаете, в чём главное отличие меня от других? Я не просто консультирую. Я беру эксперта за руку и веду к продажам по чёткой системе. Пока вы спите — воронка работает.</p>
+        <p style="font-size: 18px; font-weight: 600;">«Хотите, чтобы я лично разобрала ваш план и сказала: "здесь ты всё правильно написал, а здесь — провалишься"?»</p>
         <div style="text-align:center;margin-top:20px">
             <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">→ Записаться на бесплатный разбор</a>
         </div>
@@ -1090,7 +1178,7 @@ async def consultation_page(user_id: str):
     content = f'''
 <div class="hero" style="margin-bottom: 30px;">
     <h1 style="font-size: 36px;">🔥 Бесплатная консультация</h1>
-    <p style="font-size: 18px;">Диагностика бизнеса эксперта: 3 точки утечки клиентов и точный первый шаг для их устранения</p>
+    <p style="font-size: 18px;">«Да, я серьёзно. Бесплатно. Но только для первых 100 подписчиков. Осталось 97 мест.»</p>
 </div>
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
@@ -1098,6 +1186,26 @@ async def consultation_page(user_id: str):
         <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">97</span></div>
         <p style="color: #6e6e73;">Только для первых 100 подписчиков</p>
     </div>
+    
+    <div style="text-align: left; margin-bottom: 24px;">
+        <p style="font-weight: 600;">Что вы получите:</p>
+        <ul style="margin-top: 10px;">
+            <li>3 точки утечки клиентов, о которых вы не знали</li>
+            <li>1 точный первый шаг к продажам</li>
+            <li>Честный фидбек по вашему бизнесу</li>
+        </ul>
+    </div>
+    
+    <hr style="margin: 24px 0;">
+    
+    <div style="text-align: left; margin-bottom: 24px;">
+        <p style="font-weight: 600;">После отправки заявки:</p>
+        <p style="margin-top: 10px;">1. ✅ Я проверю подписку в MAX (1 минута)</p>
+        <p>2. 📝 Напишу вам для согласования времени (15 минут)</p>
+        <p>3. 🎯 Отвечу на ваши вопросы по плану запуска продаж (30 минут)</p>
+    </div>
+    
+    <hr style="margin: 24px 0;">
     
     <form action="/consultation/submit" method="post">
         <input type="hidden" name="user_id" value="{user_id}">
@@ -1109,12 +1217,12 @@ async def consultation_page(user_id: str):
             <label>🕐 Удобное время для звонка (по Москве)</label>
             <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
         </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Отправить заявку</button>
+        <button type="submit" class="btn" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Записаться</button>
     </form>
     
     <hr style="margin: 32px 0;">
     
-    <p style="font-size: 14px; color: #8e8e93;">✅ После отправки заявки я свяжусь с вами для согласования времени</p>
+    <p style="font-size: 14px; color: #8e8e93;">«Никакой воды. Только польза. Только конкретика. Только честно.»</p>
 </div>
 
 <script>
@@ -1143,8 +1251,8 @@ async def consultation_submit(user_id: str = Form(...), time: str = Form(...), p
 async def subscribe_page(user_id: str):
     content = f'''
 <div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">📢 Остался последний шаг!</h1>
-    <p style="font-size: 18px;">Подпишитесь на канал в MAX, чтобы получить консультацию</p>
+    <h1 style="font-size: 36px;">🤝 Остался последний шаг</h1>
+    <p style="font-size: 18px;">Вы почти у цели. Честное слово, это самый сложный этап — нажать на кнопку.</p>
 </div>
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
@@ -1154,7 +1262,20 @@ async def subscribe_page(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <p style="font-size: 14px; color: #6e6e73;">✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
+    <div style="text-align: left;">
+        <p style="font-size: 16px; font-weight: 600;">✅ А дальше:</p>
+        <p style="font-size: 14px; color: #6e6e73; margin-top: 10px;">
+            1. Я проверю подписку (1 минута, честно)<br>
+            2. Напишу вам в MAX — договоримся о времени (15 минут)<br>
+            3. Проведу консультацию — отвечу на все вопросы (30 минут)
+        </p>
+    </div>
+    
+    <hr style="margin: 32px 0;">
+    
+    <div style="background: #007aff10; border-radius: 16px; padding: 16px; margin: 20px 0;">
+        <p style="font-size: 14px; color: #6e6e73;">✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
+    </div>
     
     <div style="margin: 24px 0;">
         <a href="/" class="btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
