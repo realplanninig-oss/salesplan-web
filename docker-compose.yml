@@ -17,6 +17,4 @@ services:
       - MAX_BOT_TOKEN=${MAX_BOT_TOKEN}
       - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
       - PORT=8000
-    env_file:
-      - .env
     restart: unless-stopped
