@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
+
+# Логи
+logs/
+*.log
+salesplan.log
+
+# Отчеты
+reports/
+*.txt
+!requirements.txt
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Файлы данных
+data/
+*.db-journal
+
+# Временные файлы
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Тесты
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Экспорты
+exports/
+*.xlsx
+*.csv
+!requirements.txt
