@@ -4,12 +4,19 @@ services:
     container_name: salesplan-web
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./reports:/app/reports
     environment:
-      - MAX_BOT_TOKEN=f9LHodD0cOIgRoB98OIQNqwfz_Tyjfn0rYl9REwshxQ4Q7-6jwmd_feZ4h98RVjFnUmlKyRYs3Da96qcJgWV
-      - ADMIN_CHAT_ID=12018296
-      - DEEPSEEK_API_KEY=sk-dd8b8fec6a52478ebcb2c22d38d93af3
-      - YOOKASSA_SHOP_ID=1325473
-      - YOOKASSA_SECRET_KEY=live_A3Cax7aS-F_AC0IYEQPNQPk7xPeAUz8lKrk3kVGbLC4
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=SalesPlan$490!
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - MAX_BOT_TOKEN=${MAX_BOT_TOKEN}
+      - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
+      - PORT=8000
+    env_file:
+      - .env
     restart: unless-stopped
