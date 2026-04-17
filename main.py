@@ -502,14 +502,16 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 
 def check_admin_session(session_token: str = Cookie(None)):
     if not session_token or session_token not in admin_sessions:
-        raise HTTPException(status_code=303, headers={"Location": "/admin/login"})
-    session = admin_sessions[session_token]
+        return False
+    session = admin_sessions.get(session_token)
+    if not session:
+        return False
     if datetime.now() > session["expires_at"]:
         del admin_sessions[session_token]
-        raise HTTPException(status_code=303, headers={"Location": "/admin/login"})
+        return False
     return True
 
-@app.get("/admin/login")
+@app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page():
     content = """
     <div class="hero"><h1>🔐 Вход в админ-панель</h1></div>
@@ -523,7 +525,7 @@ async def admin_login_page():
     """
     return HTMLResponse(content=render_page(content))
 
-@app.post("/admin/login")
+@app.post("/admin/login", response_class=HTMLResponse)
 async def admin_login(request: Request, username: str = Form(...), password: str = Form(...)):
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
         session_token = secrets.token_urlsafe(32)
@@ -534,8 +536,12 @@ async def admin_login(request: Request, username: str = Form(...), password: str
     content = '<div class="hero"><h1>❌ Неверный логин или пароль</h1></div><div style="text-align:center"><a href="/admin/login" class="btn">Попробовать снова</a></div>'
     return HTMLResponse(content=render_page(content))
 
-@app.get("/admin/dashboard")
-async def admin_dashboard(auth: bool = Depends(check_admin_session)):
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    session_token = request.cookies.get("admin_session")
+    if not check_admin_session(session_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
     stats = get_admin_stats()
     content = f"""
     <style>
@@ -574,8 +580,31 @@ async def admin_dashboard(auth: bool = Depends(check_admin_session)):
     """
     return HTMLResponse(content=render_page(content))
 
+@app.get("/admin/logout")
+async def admin_logout():
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie("admin_session")
+    return response
+
+@app.get("/admin/logs", response_class=HTMLResponse)
+async def admin_logs(request: Request):
+    session_token = request.cookies.get("admin_session")
+    if not check_admin_session(session_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    try:
+        with open(LOGS_DIR / "salesplan.log", "r", encoding="utf-8") as f:
+            lines = f.readlines()[-500:]
+            content = "".join(lines)
+            html = f'<div class="admin-header"><h1>📋 Логи</h1><div><a href="/admin/dashboard" class="btn btn-small">← Назад</a><a href="/admin/logout" class="btn btn-small btn-outline">Выйти</a></div></div><pre style="background:#1e1e1e;color:#d4d4d4;padding:20px;border-radius:8px;overflow-x:auto;max-height:600px">{content}</pre>'
+            return HTMLResponse(content=render_page(html))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/admin/export/excel")
-async def export_excel(auth: bool = Depends(check_admin_session)):
+async def export_excel(request: Request):
+    session_token = request.cookies.get("admin_session")
+    if not check_admin_session(session_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
     data = get_all_data_for_export()
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -589,7 +618,10 @@ async def export_excel(auth: bool = Depends(check_admin_session)):
     return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename=salesplan_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"})
 
 @app.get("/admin/export/csv")
-async def export_csv(auth: bool = Depends(check_admin_session)):
+async def export_csv(request: Request):
+    session_token = request.cookies.get("admin_session")
+    if not check_admin_session(session_token):
+        return RedirectResponse(url="/admin/login", status_code=303)
     data = get_all_data_for_export()
     output = io.StringIO()
     writer = csv.writer(output, delimiter=';')
@@ -602,23 +634,6 @@ async def export_csv(auth: bool = Depends(check_admin_session)):
     writer.writerows([[p[0], p[1], p[2], p[4], p[5], p[6]] for p in data['payments']])
     output.seek(0)
     return StreamingResponse(iter([output.getvalue().encode('utf-8-sig')]), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=salesplan_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"})
-
-@app.get("/admin/logs")
-async def admin_logs(auth: bool = Depends(check_admin_session)):
-    try:
-        with open(LOGS_DIR / "salesplan.log", "r", encoding="utf-8") as f:
-            lines = f.readlines()[-500:]
-            content = "".join(lines)
-            html = f'<div class="admin-header"><h1>📋 Логи</h1><div><a href="/admin/dashboard" class="btn btn-small">← Назад</a><a href="/admin/logout" class="btn btn-small btn-outline">Выйти</a></div></div><pre style="background:#1e1e1e;color:#d4d4d4;padding:20px;border-radius:8px;overflow-x:auto;max-height:600px">{content}</pre>'
-            return HTMLResponse(content=render_page(html))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/admin/logout")
-async def admin_logout():
-    response = RedirectResponse(url="/admin/login", status_code=303)
-    response.delete_cookie("admin_session")
-    return response
 
 # ==================== ОСНОВНЫЕ ЭНДПОИНТЫ ====================
 
@@ -748,7 +763,6 @@ async def create_yookassa_payment(request: Request, user_id: str = Form(...), ph
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str):
     biz = get_business_data(user_id)
-    answers = get_form_data(user_id)
     premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
 
 Данные о бизнесе:
