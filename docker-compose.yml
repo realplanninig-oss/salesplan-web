@@ -6,6 +6,6 @@ services:
       - "8000:8000"
     environment:
       - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=admin123
+      - ADMIN_PASSWORD=SalesPlan$490!
       - PORT=8000
     restart: unless-stopped
