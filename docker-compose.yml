@@ -5,7 +5,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-- MAX_BOT_TOKEN=f9LHodD0cOIgRoB98OIQNqwfz_Tyjfn0rYl9REwshxQ4Q7-6jwmd_feZ4h98RVjFnUmlKyRYs3Da96qcJgWV
+      - MAX_BOT_TOKEN=f9LHodD0cOIgRoB98OIQNqwfz_Tyjfn0rYl9REwshxQ4Q7-6jwmd_feZ4h98RVjFnUmlKyRYs3Da96qcJgWV
       - ADMIN_CHAT_ID=12018296
       - DEEPSEEK_API_KEY=sk-dd8b8fec6a52478ebcb2c22d38d93af3
       - YOOKASSA_SHOP_ID=1325473
