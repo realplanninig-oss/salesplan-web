@@ -1,0 +1,31 @@
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Reports
+reports/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Local
+.env.local
+.env.production
