@@ -18,14 +18,40 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResp
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import uvicorn
 
+# Загружаем переменные окружения
 load_dotenv()
 
-# Конфигурация
+# === ДИАГНОСТИКА ПРИ ЗАПУСКЕ ===
+print("=" * 60)
+print("ENVIRONMENT VARIABLES CHECK - Salesplan Web")
+print("=" * 60)
+print(f"DEEPSEEK_API_KEY: {'✓ SET' if os.getenv('DEEPSEEK_API_KEY') else '✗ MISSING'}")
+print(f"YOOKASSA_SHOP_ID: {os.getenv('YOOKASSA_SHOP_ID', '✗ MISSING')}")
+print(f"YOOKASSA_SECRET_KEY: {'✓ SET' if os.getenv('YOOKASSA_SECRET_KEY') else '✗ MISSING'}")
+print(f"ADMIN_USERNAME: {os.getenv('ADMIN_USERNAME', 'admin')}")
+print(f"ADMIN_PASSWORD: {'✓ SET' if os.getenv('ADMIN_PASSWORD') else '✗ MISSING'}")
+print(f"PORT: {os.getenv('PORT', '8000')}")
+print("=" * 60)
+
+# === КОНФИГУРАЦИЯ ===
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+# Проверка обязательных переменных (логируем, но не останавливаем приложение)
+missing_vars = []
+if not DEEPSEEK_API_KEY:
+    missing_vars.append("DEEPSEEK_API_KEY")
+if not YOOKASSA_SHOP_ID:
+    missing_vars.append("YOOKASSA_SHOP_ID")
+if not YOOKASSA_SECRET_KEY:
+    missing_vars.append("YOOKASSA_SECRET_KEY")
+
+if missing_vars:
+    print(f"⚠️ WARNING: Missing environment variables: {missing_vars}")
+    print("   Some features may not work correctly!")
 
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
@@ -39,6 +65,14 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Логируем статус переменных
+logger.info("=" * 50)
+logger.info("APPLICATION STARTING WITH CONFIGURATION:")
+logger.info(f"DEEPSEEK_API_KEY: {'✓ SET' if DEEPSEEK_API_KEY else '✗ MISSING'}")
+logger.info(f"YOOKASSA_SHOP_ID: {YOOKASSA_SHOP_ID if YOOKASSA_SHOP_ID else '✗ MISSING'}")
+logger.info(f"YOOKASSA_SECRET_KEY: {'✓ SET' if YOOKASSA_SECRET_KEY else '✗ MISSING'}")
+logger.info("=" * 50)
 
 DB_PATH = "salesplan.db"
 REPORTS_DIR = Path("./reports")
@@ -57,7 +91,7 @@ def init_db():
 
 init_db()
 
-app = FastAPI(title="Salesplan")
+app = FastAPI(title="Salesplan Web")
 
 # Middleware для защиты от ботов
 BLOCKED_PATHS = [
@@ -209,6 +243,10 @@ def get_last_succeeded_payment():
     return row[0] if row else None
 
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
+    if not DEEPSEEK_API_KEY:
+        logger.error("DEEPSEEK_API_KEY not configured")
+        return None
+    
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
     q2_map = {"до 5k": "до 5000 ₽", "5k-20k": "5000-20000 ₽", "20k-50k": "20000-50000 ₽", ">50k": "более 50000 ₽"}
     q3_map = {"<10": "менее 10", "10-50": "10-50", "50-200": "50-200", ">200": "более 200"}
@@ -216,9 +254,6 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     q5_map = {"Да": "да", "Нет": "нет", "В разработке": "в разработке"}
     
     survey_info = f"ДАННЫЕ О БИЗНЕСЕ:\n• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}\n• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}\n• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}\n• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}\n• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}"
-    
-    if not DEEPSEEK_API_KEY:
-        return None
     
     prompt = f"""Сделай профессиональный маркетинговый разбор онлайн-бизнеса.
 
@@ -241,6 +276,7 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
         response = requests.post(url, headers=headers, json=data, timeout=120)
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
+        logger.error(f"DeepSeek API error: {response.status_code}")
         return None
     except Exception as e:
         logger.error(f"DeepSeek failed: {e}")
@@ -248,6 +284,11 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
 
 def generate_premium_report_sync(user_id: str, name: str, description: str, answers: dict, report_id: int):
     logger.info(f"Starting premium report generation for user {user_id}")
+    if not DEEPSEEK_API_KEY:
+        update_report_status(report_id, 'failed')
+        logger.error("Cannot generate premium report: DEEPSEEK_API_KEY missing")
+        return False
+    
     q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
     q2_map = {"до 5k": "до 5k", "5k-20k": "5k-20k", "20k-50k": "20k-50k", ">50k": ">50k"}
     q3_map = {"<10": "<10", "10-50": "10-50", "50-200": "50-200", ">200": ">200"}
@@ -285,9 +326,11 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report_text)
             update_report_status(report_id, 'ready', str(filepath))
+            logger.info(f"Premium report generated for user {user_id}")
             return True
         else:
             update_report_status(report_id, 'failed')
+            logger.error(f"Premium report API error: {response.status_code}")
             return False
     except Exception as e:
         update_report_status(report_id, 'failed')
@@ -299,7 +342,59 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     loop = asyncio.get_event_loop()
     success = await loop.run_in_executor(None, generate_premium_report_sync, user_id, name, description, answers, report_id)
     if success:
-        logger.info(f"Premium report generated for user {user_id}")
+        logger.info(f"Premium report generation completed for user {user_id}")
+
+# ========== HEALTH CHECK ENDPOINT ==========
+@app.get("/health")
+async def health():
+    """Проверка состояния приложения и переменных окружения"""
+    return {
+        "status": "alive",
+        "timestamp": datetime.now().isoformat(),
+        "configuration": {
+            "DEEPSEEK_API_KEY": "configured" if DEEPSEEK_API_KEY else "missing",
+            "YOOKASSA_SHOP_ID": "configured" if YOOKASSA_SHOP_ID else "missing",
+            "YOOKASSA_SECRET_KEY": "configured" if YOOKASSA_SECRET_KEY else "missing",
+            "ADMIN_USERNAME": "configured",
+            "ADMIN_PASSWORD": "configured" if ADMIN_PASSWORD else "missing",
+        }
+    }
+
+@app.get("/")
+async def index():
+    content = '''
+<div class="hero">
+    <h1>Вероника Макаревич | Продюсер в кармане</h1>
+    <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
+</div>
+
+<div class="features">
+    <div class="feature">
+        <div class="feature-icon">⭐️</div>
+        <h3>Бесплатный аудит — 2 минуты</h3>
+        <p>Узнайте 3 конкретных шага, которые можно внедрить прямо сейчас</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">🔥</div>
+        <h3>Готовая стратегия — 5 минут</h3>
+        <p>План продаж с анализом конкурентов и разбором ЦА</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">⚡️</div>
+        <h3>Первое действие — 15 минут</h3>
+        <p>Внедрите работающее решение, которое запустит продажи</p>
+    </div>
+</div>
+
+<div style="text-align:center">
+    <a href="/survey" class="btn">Начать диагностику</a>
+</div>
+
+<div style="margin-top: 40px; padding: 20px; background: #f5f5f7; border-radius: 20px; text-align: center;">
+    <p style="font-size: 14px; color: #6e6e73;">Помогла 33 экспертам запустить продажи услуг и онлайн-курсов</p>
+</div>
+'''
+    return HTMLResponse(content=render_page(content))
 
 # HTML шаблоны с обновлённым футером
 HTML_HEAD = """<!DOCTYPE html>
@@ -576,42 +671,6 @@ def render_premium_waiting_page(user_id: str):
 </html>"""
 
 # Эндпоинты
-@app.get("/")
-async def index():
-    content = '''
-<div class="hero">
-    <h1>Вероника Макаревич | Продюсер в кармане</h1>
-    <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
-</div>
-
-<div class="features">
-    <div class="feature">
-        <div class="feature-icon">⭐️</div>
-        <h3>Бесплатный аудит — 2 минуты</h3>
-        <p>Узнайте 3 конкретных шага, которые можно внедрить прямо сейчас</p>
-    </div>
-    <div class="feature">
-        <div class="feature-icon">🔥</div>
-        <h3>Готовая стратегия — 5 минут</h3>
-        <p>План продаж с анализом конкурентов и разбором ЦА</p>
-    </div>
-    <div class="feature">
-        <div class="feature-icon">⚡️</div>
-        <h3>Первое действие — 15 минут</h3>
-        <p>Внедрите работающее решение, которое запустит продажи</p>
-    </div>
-</div>
-
-<div style="text-align:center">
-    <a href="/survey" class="btn">Начать диагностику</a>
-</div>
-
-<div style="margin-top: 40px; padding: 20px; background: #f5f5f7; border-radius: 20px; text-align: center;">
-    <p style="font-size: 14px; color: #6e6e73;">Помогла 33 экспертам запустить продажи услуг и онлайн-курсов</p>
-</div>
-'''
-    return HTMLResponse(content=render_page(content))
-
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
