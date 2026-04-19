@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (тексты в стиле Хакамады)
+# File: main.py — веб-приложение Salesplan с админ-дашбордом
 
 import logging
 import sqlite3
@@ -9,7 +9,7 @@ import re
 import asyncio
 import base64
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -40,7 +40,7 @@ YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
-# Проверка обязательных переменных (логируем, но не останавливаем приложение)
+# Проверка обязательных переменных
 missing_vars = []
 if not DEEPSEEK_API_KEY:
     missing_vars.append("DEEPSEEK_API_KEY")
@@ -66,7 +66,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Логируем статус переменных
 logger.info("=" * 50)
 logger.info("APPLICATION STARTING WITH CONFIGURATION:")
 logger.info(f"DEEPSEEK_API_KEY: {'✓ SET' if DEEPSEEK_API_KEY else '✗ MISSING'}")
@@ -78,14 +77,29 @@ DB_PATH = "salesplan.db"
 REPORTS_DIR = Path("./reports")
 REPORTS_DIR.mkdir(exist_ok=True)
 
+# === БАЗА ДАННЫХ ===
 def init_db():
     conn = sqlite3.connect(DB_PATH)
+    # Существующие таблицы
     conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, phone TEXT, name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS business_data (user_id TEXT PRIMARY KEY, business_name TEXT, business_description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount TEXT, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    
+    # Новая таблица для отслеживания посещений
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS visits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_date TEXT NOT NULL,
+            user_id TEXT,
+            ip TEXT,
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     conn.commit()
     conn.close()
 
@@ -93,18 +107,23 @@ init_db()
 
 app = FastAPI(title="Salesplan Web")
 
-# Middleware для защиты от ботов
+# === MIDDLEWARE ДЛЯ ЗАЩИТЫ И ОТСЛЕЖИВАНИЯ ===
 BLOCKED_PATHS = [
     "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
     "/.env", "/.git", "/robots.txt", "/api", "/_next/server"
 ]
 
 @app.middleware("http")
-async def block_malicious_requests(request: Request, call_next):
+async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
     
+    # Отслеживаем посещения основных страниц
+    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success"]:
+        track_visit(ip=client_ip, user_agent=user_agent)
+    
+    # Блокировка вредоносных путей
     if path == "/favicon.ico":
         return await call_next(request)
     
@@ -113,6 +132,7 @@ async def block_malicious_requests(request: Request, call_next):
             logger.warning(f"Blocked malicious path: {path} from {client_ip}")
             return Response(status_code=404)
     
+    # Блокировка ботов
     bad_bots = ["bot", "crawler", "scanner", "nikto", "sqlmap", "wget", "curl", "python-requests", "java"]
     for bot in bad_bots:
         if bot in user_agent and "yandex" not in user_agent and "google" not in user_agent:
@@ -121,6 +141,197 @@ async def block_malicious_requests(request: Request, call_next):
     
     response = await call_next(request)
     return response
+
+# === ФУНКЦИИ ДЛЯ ОТСЛЕЖИВАНИЯ ПОСЕЩЕНИЙ ===
+def track_visit(user_id=None, ip=None, user_agent=None):
+    """Отслеживание уникальных посетителей"""
+    conn = sqlite3.connect(DB_PATH)
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if ip:
+        cursor = conn.execute("""
+            SELECT id FROM visits 
+            WHERE ip = ? AND visit_date = ? 
+            LIMIT 1
+        """, (ip, today))
+        
+        if not cursor.fetchone():
+            conn.execute("""
+                INSERT INTO visits (visit_date, ip, user_agent)
+                VALUES (?, ?, ?)
+            """, (today, ip, user_agent[:500] if user_agent else None))
+    
+    conn.commit()
+    conn.close()
+
+def get_unique_visitors(days=7):
+    """Уникальные посетители по дням"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            visit_date,
+            COUNT(DISTINCT ip) as unique_visitors,
+            COUNT(*) as total_visits
+        FROM visits
+        WHERE visit_date >= date('now', ?)
+        GROUP BY visit_date
+        ORDER BY visit_date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "visitors": r[1], "total_visits": r[2]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_sales_funnel_stats(days=7):
+    """Получить данные по оплатам за N дней"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            date(created_at) as date,
+            COUNT(DISTINCT CASE WHEN status = 'succeeded' THEN user_id END) as payments,
+            SUM(CASE WHEN status = 'succeeded' THEN 490 ELSE 0 END) as revenue
+        FROM payments
+        WHERE created_at >= date('now', ?)
+        GROUP BY date(created_at)
+        ORDER BY date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "payments": r[1], "revenue": r[2]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_free_diagnostics_stats(days=7):
+    """Статистика по бесплатной диагностике"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            date(completed_at) as date,
+            COUNT(*) as total
+        FROM forms
+        WHERE completed_at >= date('now', ?)
+        GROUP BY date(completed_at)
+        ORDER BY date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "diagnostics": r[1]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_report_downloads_stats(days=7):
+    """Статистика скачиваний отчетов"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            date(ready_at) as date,
+            COUNT(*) as downloads
+        FROM reports
+        WHERE report_type = 'premium' 
+            AND status = 'ready'
+            AND ready_at >= date('now', ?)
+        GROUP BY date(ready_at)
+        ORDER BY date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "downloads": r[1]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_full_funnel(days=7):
+    """Полная воронка по дням"""
+    visitors = {v['date']: v['visitors'] for v in get_unique_visitors(days)}
+    diagnostics = {d['date']: d['diagnostics'] for d in get_free_diagnostics_stats(days)}
+    payments = {p['date']: p['payments'] for p in get_sales_funnel_stats(days)}
+    downloads = {d['date']: d['downloads'] for d in get_report_downloads_stats(days)}
+    
+    all_dates = set(visitors.keys()) | set(diagnostics.keys()) | set(payments.keys()) | set(downloads.keys())
+    all_dates = sorted(list(all_dates), reverse=True)[:days]
+    
+    funnel = []
+    for date in all_dates:
+        funnel.append({
+            "date": date,
+            "visitors": visitors.get(date, 0),
+            "diagnostics": diagnostics.get(date, 0),
+            "payments": payments.get(date, 0),
+            "downloads": downloads.get(date, 0)
+        })
+    
+    return funnel
+
+def get_all_premium_clients():
+    """Получить всех оплативших клиентов с анкетами и отчетами"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            p.user_id,
+            p.phone,
+            p.created_at as payment_date,
+            b.business_name,
+            b.business_description,
+            f.q1, f.q2, f.q3, f.q4, f.q5,
+            r.file_path,
+            r.status as report_status,
+            r.ready_at
+        FROM payments p
+        LEFT JOIN business_data b ON p.user_id = b.user_id
+        LEFT JOIN forms f ON p.user_id = f.user_id
+        LEFT JOIN reports r ON p.user_id = r.user_id AND r.report_type = 'premium'
+        WHERE p.status = 'succeeded'
+        ORDER BY p.created_at DESC
+    """)
+    
+    columns = ['user_id', 'phone', 'payment_date', 'business_name', 
+               'business_description', 'q1', 'q2', 'q3', 'q4', 'q5',
+               'report_path', 'report_status', 'report_ready_at']
+    
+    results = []
+    for row in cursor.fetchall():
+        results.append(dict(zip(columns, row)))
+    
+    conn.close()
+    return results
+
+def get_all_free_diagnostics():
+    """Получить все бесплатные диагностики"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            f.user_id,
+            f.completed_at,
+            b.business_name,
+            b.business_description,
+            f.q1, f.q2, f.q3, f.q4, f.q5,
+            r.status as report_status,
+            r.report_text
+        FROM forms f
+        LEFT JOIN business_data b ON f.user_id = b.user_id
+        LEFT JOIN reports r ON f.user_id = r.user_id AND r.report_type = 'free'
+        ORDER BY f.completed_at DESC
+        LIMIT 100
+    """)
+    
+    columns = ['user_id', 'date', 'business_name', 'business_description', 
+               'q1', 'q2', 'q3', 'q4', 'q5', 'report_status', 'report_text']
+    
+    results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_new_consultations():
+    """Новые заявки на консультации"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT c.*, u.phone, u.name
+        FROM consultations c
+        LEFT JOIN users u ON c.user_id = u.user_id
+        ORDER BY c.created_at DESC
+        LIMIT 50
+    """)
+    
+    columns = ['id', 'user_id', 'time', 'created_at', 'phone', 'name']
+    results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    conn.close()
+    return results
 
 security = HTTPBasic()
 
@@ -344,7 +555,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
     if success:
         logger.info(f"Premium report generation completed for user {user_id}")
 
-# ========== HEALTH CHECK ENDPOINT ==========
+# === HEALTH CHECK ENDPOINT ===
 @app.get("/health")
 async def health():
     """Проверка состояния приложения и переменных окружения"""
@@ -360,43 +571,7 @@ async def health():
         }
     }
 
-@app.get("/")
-async def index():
-    content = '''
-<div class="hero">
-    <h1>Вероника Макаревич | Продюсер в кармане</h1>
-    <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
-</div>
-
-<div class="features">
-    <div class="feature">
-        <div class="feature-icon">⭐️</div>
-        <h3>Бесплатный аудит — 2 минуты</h3>
-        <p>Узнайте 3 конкретных шага, которые можно внедрить прямо сейчас</p>
-    </div>
-    <div class="feature">
-        <div class="feature-icon">🔥</div>
-        <h3>Готовая стратегия — 5 минут</h3>
-        <p>План продаж с анализом конкурентов и разбором ЦА</p>
-    </div>
-    <div class="feature">
-        <div class="feature-icon">⚡️</div>
-        <h3>Первое действие — 15 минут</h3>
-        <p>Внедрите работающее решение, которое запустит продажи</p>
-    </div>
-</div>
-
-<div style="text-align:center">
-    <a href="/survey" class="btn">Начать диагностику</a>
-</div>
-
-<div style="margin-top: 40px; padding: 20px; background: #f5f5f7; border-radius: 20px; text-align: center;">
-    <p style="font-size: 14px; color: #6e6e73;">Помогла 33 экспертам запустить продажи услуг и онлайн-курсов</p>
-</div>
-'''
-    return HTMLResponse(content=render_page(content))
-
-# HTML шаблоны с обновлённым футером
+# === HTML ШАБЛОНЫ ===
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -670,7 +845,43 @@ def render_premium_waiting_page(user_id: str):
 </body>
 </html>"""
 
-# Эндпоинты
+# === ОСНОВНЫЕ ЭНДПОИНТЫ ===
+@app.get("/")
+async def index():
+    content = '''
+<div class="hero">
+    <h1>Вероника Макаревич | Продюсер в кармане</h1>
+    <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
+</div>
+
+<div class="features">
+    <div class="feature">
+        <div class="feature-icon">⭐️</div>
+        <h3>Бесплатный аудит — 2 минуты</h3>
+        <p>Узнайте 3 конкретных шага, которые можно внедрить прямо сейчас</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">🔥</div>
+        <h3>Готовая стратегия — 5 минут</h3>
+        <p>План продаж с анализом конкурентов и разбором ЦА</p>
+    </div>
+    <div class="feature">
+        <div class="feature-icon">⚡️</div>
+        <h3>Первое действие — 15 минут</h3>
+        <p>Внедрите работающее решение, которое запустит продажи</p>
+    </div>
+</div>
+
+<div style="text-align:center">
+    <a href="/survey" class="btn">Начать диагностику</a>
+</div>
+
+<div style="margin-top: 40px; padding: 20px; background: #f5f5f7; border-radius: 20px; text-align: center;">
+    <p style="font-size: 14px; color: #6e6e73;">Помогла 33 экспертам запустить продажи услуг и онлайн-курсов</p>
+</div>
+'''
+    return HTMLResponse(content=render_page(content))
+
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
@@ -1378,6 +1589,326 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
             return Response(content="".join(lines), media_type="text/plain")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# === АДМИН-ДАШБОРД ===
+@app.get("/admin/dashboard")
+async def admin_dashboard(auth: bool = Depends(verify_admin)):
+    """Страница админ-дашборда с полной воронкой"""
+    
+    dashboard_html = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-дашборд | Salesplan</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f7;padding:20px}
+        .container{max-width:1400px;margin:0 auto}
+        h1{font-size:28px;margin-bottom:20px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:30px}
+        .stat-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .stat-card h3{font-size:14px;color:#6e6e73;margin-bottom:8px}
+        .stat-card .value{font-size:32px;font-weight:700;color:#1d1d1f}
+        .stat-card .trend{font-size:12px;color:#34c759;margin-top:8px}
+        .stat-card .small{font-size:14px;color:#6e6e73}
+        .chart-container{background:#fff;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        canvas{max-height:350px}
+        .funnel-container{background:#fff;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .funnel-step{display:flex;align-items:center;margin:15px 0;padding:15px;background:#f8f8fa;border-radius:12px}
+        .funnel-step .step-name{width:200px;font-weight:600}
+        .funnel-step .step-count{width:100px;font-size:24px;font-weight:700;color:#007aff}
+        .funnel-step .step-bar{flex:1;height:30px;background:#e5e5ea;border-radius:15px;overflow:hidden}
+        .funnel-step .step-fill{height:100%;background:#007aff;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px}
+        .tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid #e5e5e5;flex-wrap:wrap}
+        .tab{padding:12px 24px;cursor:pointer;border:none;background:none;font-size:16px;transition:all 0.2s}
+        .tab.active{border-bottom:2px solid #007aff;color:#007aff;font-weight:500}
+        .table-container{background:#fff;border-radius:16px;padding:20px;overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        th,td{padding:12px;text-align:left;border-bottom:1px solid #e5e5e5}
+        th{background:#f8f8fa;font-weight:600}
+        .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:12px}
+        .badge-success{background:#34c75920;color:#248a3d}
+        .badge-pending{background:#ff9f0a20;color:#cc7b00}
+        .report-link{color:#007aff;text-decoration:none}
+        .report-link:hover{text-decoration:underline}
+        .expand-btn{cursor:pointer;color:#007aff;font-size:12px}
+        .row-detail{display:none;background:#f8f8fa}
+        .row-detail td{padding:20px}
+        .detail-section{margin-bottom:15px}
+        .detail-section strong{display:block;margin-bottom:5px}
+        .detail-answers{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+        .answer-tag{background:#e5e5ea;padding:4px 12px;border-radius:20px;font-size:12px}
+        @media (max-width:700px){
+            .funnel-step{flex-wrap:wrap}
+            .funnel-step .step-name{width:100%;margin-bottom:10px}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 Воронка продаж — Salesplan</h1>
+    
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><h3>👥 Уникальных посетителей</h3><div class="value" id="totalVisitors">-</div></div>
+        <div class="stat-card"><h3>📝 Бесплатных диагностик</h3><div class="value" id="totalDiagnostics">-</div><div class="trend" id="convVisitToDiag">-</div></div>
+        <div class="stat-card"><h3>💳 Оплатили план</h3><div class="value" id="totalPayments">-</div><div class="trend" id="convDiagToPayment">-</div></div>
+        <div class="stat-card"><h3>📥 Скачали отчет</h3><div class="value" id="totalDownloads">-</div></div>
+        <div class="stat-card"><h3>💰 Выручка</h3><div class="value" id="totalRevenue">-</div></div>
+    </div>
+    
+    <div class="funnel-container">
+        <h3 style="margin-bottom:20px">🎯 Воронка продаж (за 7 дней)</h3>
+        <div id="funnelSteps"></div>
+    </div>
+    
+    <div class="chart-container">
+        <canvas id="funnelChart"></canvas>
+    </div>
+    
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button>
+        <button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button>
+        <button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button>
+    </div>
+    
+    <div id="clientsTab" class="table-container">
+        <h3 style="margin-bottom:15px">💰 Клиенты, оплатившие премиум-план</h3>
+        <table id="clientsTable">
+            <thead>
+                <tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <div id="diagnosticsTab" class="table-container" style="display:none">
+        <h3 style="margin-bottom:15px">📝 Бесплатные диагностики</h3>
+        <table id="diagnosticsTable">
+            <thead>
+                <tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <div id="consultationsTab" class="table-container" style="display:none">
+        <h3 style="margin-bottom:15px">📞 Заявки на консультации</h3>
+        <table id="consultationsTable">
+            <thead>
+                <tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let clientsData = [];
+    
+    async function loadStats() {
+        const res = await fetch('/admin/api/stats');
+        const data = await res.json();
+        
+        document.getElementById('totalVisitors').innerText = data.summary.visitors;
+        document.getElementById('totalDiagnostics').innerText = data.summary.diagnostics;
+        document.getElementById('totalPayments').innerText = data.summary.payments;
+        document.getElementById('totalDownloads').innerText = data.summary.downloads;
+        document.getElementById('totalRevenue').innerText = data.summary.total_revenue.toLocaleString() + ' ₽';
+        document.getElementById('convVisitToDiag').innerHTML = `📈 Конверсия: ${data.summary.conv_visit_to_diag}%`;
+        document.getElementById('convDiagToPayment').innerHTML = `📈 Конверсия: ${data.summary.conv_diag_to_payment}%`;
+        
+        // Воронка
+        const funnelDiv = document.getElementById('funnelSteps');
+        const steps = [
+            {name: '👥 Посетители сайта', key: 'visitors', color: '#007aff'},
+            {name: '📝 Бесплатная диагностика', key: 'diagnostics', color: '#5856d6'},
+            {name: '💳 Оплата плана (490₽)', key: 'payments', color: '#ff9f0a'},
+            {name: '📥 Скачивание отчета', key: 'downloads', color: '#34c759'}
+        ];
+        
+        const maxCount = Math.max(data.summary.visitors, 1);
+        funnelDiv.innerHTML = steps.map(step => {
+            const count = data.summary[step.key];
+            const percent = (count / maxCount * 100).toFixed(1);
+            return `
+                <div class="funnel-step">
+                    <div class="step-name">${step.name}</div>
+                    <div class="step-count">${count}</div>
+                    <div class="step-bar">
+                        <div class="step-fill" style="width: ${percent}%; background: ${step.color}">${percent}%</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // График по дням
+        const ctx = document.getElementById('funnelChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.funnel.map(d => d.date),
+                datasets: [
+                    {label: '👥 Посетители', data: data.funnel.map(d => d.visitors), borderColor: '#007aff', backgroundColor: '#007aff20', tension: 0.3, fill: true},
+                    {label: '📝 Диагностики', data: data.funnel.map(d => d.diagnostics), borderColor: '#5856d6', backgroundColor: '#5856d620', tension: 0.3, fill: true},
+                    {label: '💳 Оплаты', data: data.funnel.map(d => d.payments), borderColor: '#ff9f0a', backgroundColor: '#ff9f0a20', tension: 0.3, fill: true},
+                    {label: '📥 Скачивания', data: data.funnel.map(d => d.downloads), borderColor: '#34c759', backgroundColor: '#34c75920', tension: 0.3, fill: true}
+                ]
+            },
+            options: {responsive: true, maintainAspectRatio: true}
+        });
+    }
+    
+    async function loadClients() {
+        const res = await fetch('/admin/api/clients');
+        const data = await res.json();
+        clientsData = data.clients;
+        
+        const tbody = document.querySelector('#clientsTable tbody');
+        tbody.innerHTML = '';
+        
+        data.clients.forEach(client => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${new Date(client.payment_date).toLocaleDateString()}</td>
+                <td>${client.phone || '-'}</td>
+                <td><strong>${client.business_name || '-'}</strong><br><small>${(client.business_description || '').substring(0, 50)}...</small></td>
+                <td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g, '&quot;')})">📋 Показать анкету</span></td>
+                <td>${client.report_path ? '<a href="/download/' + client.user_id + '/premium" class="report-link">📥 Скачать отчет</a>' : '<span class="badge badge-pending">генерация...</span>'}</td>
+                <td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>
+            `;
+            
+            const detailRow = tbody.insertRow();
+            detailRow.className = 'row-detail';
+            detailRow.style.display = 'none';
+            detailRow.innerHTML = `<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers">
+                <span class="answer-tag">Продаёт: ${client.q1 || '-'}</span>
+                <span class="answer-tag">Чек: ${client.q2 || '-'}</span>
+                <span class="answer-tag">Клиентов: ${client.q3 || '-'}</span>
+                <span class="answer-tag">Цель: ${client.q4 || '-'}</span>
+                <span class="answer-tag">Воронка: ${client.q5 || '-'}</span>
+            </div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description || '-'}</div></td>`;
+        });
+    }
+    
+    async function loadDiagnostics() {
+        const res = await fetch('/admin/api/diagnostics');
+        const data = await res.json();
+        
+        const tbody = document.querySelector('#diagnosticsTable tbody');
+        tbody.innerHTML = '';
+        
+        data.diagnostics.forEach(d => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${new Date(d.date).toLocaleString()}</td>
+                <td><strong>${d.business_name || '-'}</strong><br><small>${(d.business_description || '').substring(0, 50)}...</small></td>
+                <td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}', '${d.q2}', '${d.q3}', '${d.q4}', '${d.q5}')">📋 Показать</span></td>
+                <td><span class="badge ${d.report_status === 'ready' ? 'badge-success' : 'badge-pending'}">${d.report_status === 'ready' ? '✅ Готов' : '⏳ Генерация'}</span></td>
+                <td>${d.report_status === 'ready' ? '<a href="/download/' + d.user_id + '/free" class="report-link">📥 Скачать</a>' : '-'}</td>
+            `;
+        });
+    }
+    
+    async function loadConsultations() {
+        const res = await fetch('/admin/api/consultations');
+        const data = await res.json();
+        
+        const tbody = document.querySelector('#consultationsTable tbody');
+        tbody.innerHTML = '';
+        
+        data.consultations.forEach(c => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${new Date(c.created_at).toLocaleString()}</td>
+                <td>${c.phone || '-'}</td>
+                <td>${c.time || '-'}</td>
+            `;
+        });
+    }
+    
+    function toggleDetail(btn) {
+        const row = btn.closest('tr');
+        const detailRow = row.nextElementSibling;
+        if (detailRow && detailRow.classList.contains('row-detail')) {
+            const isHidden = detailRow.style.display === 'none';
+            detailRow.style.display = isHidden ? 'table-row' : 'none';
+            btn.innerText = isHidden ? '▼ Скрыть' : '▶ Подробнее';
+        }
+    }
+    
+    function showAnswers(client) {
+        alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1 || '-'}\nСредний чек: ${client.q2 || '-'}\nКлиентов/мес: ${client.q3 || '-'}\nЦель: ${client.q4 || '-'}\nАвтоворонка: ${client.q5 || '-'}`);
+    }
+    
+    function showAnswersDialog(q1, q2, q3, q4, q5) {
+        alert(`📋 АНКЕТА\n\nПродаёт: ${q1 || '-'}\nСредний чек: ${q2 || '-'}\nКлиентов/мес: ${q3 || '-'}\nЦель: ${q4 || '-'}\nАвтоворонка: ${q5 || '-'}`);
+    }
+    
+    function showTab(tab) {
+        document.getElementById('clientsTab').style.display = tab === 'clients' ? 'block' : 'none';
+        document.getElementById('diagnosticsTab').style.display = tab === 'diagnostics' ? 'block' : 'none';
+        document.getElementById('consultationsTab').style.display = tab === 'consultations' ? 'block' : 'none';
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+    
+    loadStats();
+    loadClients();
+    loadDiagnostics();
+    loadConsultations();
+    
+    setInterval(() => { loadStats(); loadClients(); loadDiagnostics(); }, 30000);
+</script>
+</body>
+</html>
+    """
+    return HTMLResponse(content=dashboard_html)
+
+@app.get("/admin/api/stats")
+async def admin_stats(auth: bool = Depends(verify_admin)):
+    """API для полной статистики воронки"""
+    days = 7
+    funnel = get_full_funnel(days)
+    
+    total_visitors = sum(f['visitors'] for f in funnel)
+    total_diagnostics = sum(f['diagnostics'] for f in funnel)
+    total_payments = sum(f['payments'] for f in funnel)
+    total_downloads = sum(f['downloads'] for f in funnel)
+    
+    return {
+        "funnel": funnel,
+        "summary": {
+            "visitors": total_visitors,
+            "diagnostics": total_diagnostics,
+            "payments": total_payments,
+            "downloads": total_downloads,
+            "conv_visit_to_diag": round(total_diagnostics / max(total_visitors, 1) * 100, 1),
+            "conv_diag_to_payment": round(total_payments / max(total_diagnostics, 1) * 100, 1),
+            "total_revenue": total_payments * 490
+        }
+    }
+
+@app.get("/admin/api/clients")
+async def admin_clients(auth: bool = Depends(verify_admin)):
+    """API для списка оплативших клиентов"""
+    clients = get_all_premium_clients()
+    return {"clients": clients}
+
+@app.get("/admin/api/diagnostics")
+async def admin_diagnostics(auth: bool = Depends(verify_admin)):
+    """API для списка бесплатных диагностик"""
+    diagnostics = get_all_free_diagnostics()
+    return {"diagnostics": diagnostics}
+
+@app.get("/admin/api/consultations")
+async def admin_consultations(auth: bool = Depends(verify_admin)):
+    """API для заявок на консультации"""
+    consultations = get_new_consultations()
+    return {"consultations": consultations}
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
