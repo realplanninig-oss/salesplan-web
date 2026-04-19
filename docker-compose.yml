@@ -1,0 +1,13 @@
+services:
+  salesplan-web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DEEPSEEK_API_KEY
+      - YOOKASSA_SHOP_ID
+      - YOOKASSA_SECRET_KEY
+      - ADMIN_USERNAME
+      - ADMIN_PASSWORD
+      - PORT
+    restart: always
