@@ -1262,13 +1262,26 @@ async def create_yookassa_payment(
         save_payment_request(user_id, phone)
         return RedirectResponse(url=f"/payment?user_id={user_id}&error=phone_required", status_code=303)
     
-    # Для самозанятого НДС не нужен, блок receipt не передаём
+    # Для самозанятого: receipt обязателен, используем vat_code "6" (НДС не облагается)
     payment_data = {
         "amount": {"value": "490.00", "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
         "capture": True,
         "description": f"План продаж для пользователя {user_id}",
-        "metadata": {"user_id": user_id, "phone": phone}
+        "metadata": {"user_id": user_id, "phone": phone},
+        "receipt": {
+            "customer": {"phone": phone},
+            "items": [
+                {
+                    "description": "Профессиональный маркетинговый план продаж",
+                    "quantity": "1.00",
+                    "amount": {"value": "490.00", "currency": "RUB"},
+                    "vat_code": "6",
+                    "payment_mode": "full_payment",
+                    "payment_subject": "service"
+                }
+            ]
+        }
     }
     
     auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
