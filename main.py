@@ -987,14 +987,14 @@ async def survey():
 
 @app.post("/survey/submit")
 async def survey_submit(
+    request: Request,
     business_name: str = Form(...),
     business_description: str = Form(...),
     q1: str = Form(...),
     q2: str = Form(...),
     q3: str = Form(...),
     q4: str = Form(...),
-    q5: str = Form(...),
-    request: Request
+    q5: str = Form(...)
 ):
     user_id = str(uuid.uuid4())
     logger.info(f"New survey submission: user_id={user_id}, business={business_name}")
@@ -1229,8 +1229,8 @@ async def payment_page(user_id: str, status: str = None):
 
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(
-    request: Request, 
-    user_id: str = Form(...), 
+    request: Request,
+    user_id: str = Form(...),
     phone: str = Form(...),
     agree_oferta: bool = Form(False),
     agree_personal: bool = Form(False)
@@ -1259,7 +1259,7 @@ async def create_yookassa_payment(
         return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
     
     if not phone:
-        logger.error("Phone is required for receipt")
+        logger.error("Phone is required")
         save_payment_request(user_id, phone)
         return RedirectResponse(url=f"/payment?user_id={user_id}&error=phone_required", status_code=303)
     
