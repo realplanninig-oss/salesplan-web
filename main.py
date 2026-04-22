@@ -1,3 +1,5 @@
+# File: main.py — веб-приложение Salesplan с админ-дашбордом
+
 import logging
 import sqlite3
 import os
@@ -876,7 +878,7 @@ async def index():
     <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
 </div>
 
-<div class="features">
+<div class="features" id="features">
     <div class="feature">
         <div class="feature-icon">⭐️</div>
         <h3>Бесплатный аудит — 2 минуты</h3>
@@ -1499,7 +1501,13 @@ async def check_premium_status(user_id: str):
     return {"ready": row and row[0] == 'ready'}
 
 @app.get("/consultation", response_class=HTMLResponse)
-async def consultation_page(user_id: str):
+async def consultation_page(user_id: str = None):
+    # Если user_id не передан — создаём новый
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        logger.info(f"Created new user_id for direct consultation link: {user_id}")
+        save_user(user_id, None, None)
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -2252,4 +2260,4 @@ async def admin_consultations(auth: bool = Depends(verify_admin)):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)   
