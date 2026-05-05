@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan с админ-дашбордом
+# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия)
 
 import logging
 import sqlite3
@@ -11,6 +11,7 @@ import base64
 import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request, Depends
@@ -86,7 +87,7 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount TEXT, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount INTEGER, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     
     # Таблица для отслеживания посещений
     conn.execute("""
@@ -202,7 +203,7 @@ def get_sales_funnel_stats(days=7):
         SELECT 
             date(created_at) as date,
             COUNT(DISTINCT CASE WHEN status = 'succeeded' THEN user_id END) as payments,
-            SUM(CASE WHEN status = 'succeeded' THEN 490 ELSE 0 END) as revenue
+            SUM(CASE WHEN status = 'succeeded' THEN amount ELSE 0 END) as revenue
         FROM payments
         WHERE created_at >= date('now', ?)
         GROUP BY date(created_at)
@@ -437,7 +438,7 @@ def save_consultation(user_id: str, time: str, phone: str = None, username: str 
     conn.commit()
     conn.close()
 
-def save_payment_request(user_id: str, phone: str, payment_id: str = None, amount: str = "490.00", status: str = "pending"):
+def save_payment_request(user_id: str, phone: str, payment_id: str = None, amount: int = 490, status: str = "pending"):
     conn = sqlite3.connect(DB_PATH)
     conn.execute("INSERT INTO payments (user_id, phone, yookassa_payment_id, amount, status) VALUES (?, ?, ?, ?, ?)", 
                  (user_id, phone, payment_id, amount, status))
@@ -635,9 +636,11 @@ HTML_HEAD = """<!DOCTYPE html>
         .feature h3{font-size:18px;font-weight:600;margin-bottom:8px}
         .feature p{font-size:14px;color:#6e6e73}
         .btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;font-size:16px;font-weight:500;border-radius:12px;cursor:pointer;border:none;transition:all 0.2s ease}
-        .btn:hover{background:#005fc5;transform:scale(1.02)}
+        .btn-primary{background:#007aff;color:#fff}
+        .btn-primary:hover{background:#005fc5;transform:scale(1.02)}
         .btn-outline{background:transparent;border:1px solid #007aff;color:#007aff}
         .btn-outline:hover{background:#007aff10;transform:scale(1.02)}
+        .btn-sm{padding:8px 16px;font-size:14px}
         .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
@@ -652,13 +655,29 @@ HTML_HEAD = """<!DOCTYPE html>
         hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
         .price-old{font-size:20px;color:#8e8e93;text-decoration:line-through}
         .price-new{font-size:36px;font-weight:700;color:#007aff}
-        .course-card{background:linear-gradient(135deg,#667eea10 0%,#764ba210 100%);border-radius:28px;padding:32px;margin:32px 0;text-align:left}
+        .pricing-grid{display:flex;gap:24px;justify-content:center;margin:32px 0;flex-wrap:wrap}
+        .pricing-card{flex:1;min-width:260px;background:#fff;border-radius:24px;padding:24px;box-shadow:0 4px 12px rgba(0,0,0,0.08);transition:transform 0.2s;position:relative}
+        .pricing-card:hover{transform:translateY(-4px)}
+        .pricing-card.featured{border:2px solid #ff9f0a;background:linear-gradient(135deg,#fff8e8,#fff)}
+        .popular-badge{position:absolute;top:-12px;right:20px;background:#ff9f0a;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+        .pricing-card h3{font-size:22px;margin-bottom:16px}
+        .pricing-card .price{font-size:32px;font-weight:700;color:#007aff;margin:16px 0}
+        .pricing-card .price small{font-size:14px;font-weight:400;color:#6e6e73}
+        .pricing-card ul{list-style:none;padding:0;margin:20px 0}
+        .pricing-card li{padding:8px 0;border-bottom:1px solid #e5e5ea;font-size:14px}
+        .pricing-card li.highlight{color:#007aff;font-weight:500}
+        .cases-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:40px 0}
+        .case-card{background:#f5f5f7;border-radius:20px;padding:20px;text-align:center}
+        .case-icon{font-size:48px;margin-bottom:12px}
+        .case-title{font-weight:600;margin-bottom:8px}
+        .case-result{font-size:24px;font-weight:700;color:#34c759;margin-bottom:4px}
+        .case-desc{font-size:12px;color:#6e6e73}
+        .bot-link-block{background:#e8f0fe;border-radius:20px;padding:24px;margin:32px 0;text-align:center}
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:32px}
-            .hero p{font-size:16px}
-            .form-card{padding:20px}
-            input,textarea,.btn{font-size:16px}
+            .pricing-grid{flex-direction:column}
+            .cases-grid{grid-template-columns:repeat(2,1fr)}
         }
     </style>
 </head>
@@ -874,34 +893,42 @@ def render_premium_waiting_page(user_id: str):
 async def index():
     content = '''
 <div class="hero">
-    <h1>Вероника Макаревич | Продюсер в кармане</h1>
-    <p style="font-size: 18px;">«Я не волшебник, я практик. За моими плечами 33 эксперта, которые перестали ныть и начали продавать. Услуги, онлайн-курсы — без разницы. Есть система — есть результат.»</p>
+    <h1>Запуск продаж услуг и онлайн-школ<br>Пошаговый план для экспертов, коучей и владельцев проектов</h1>
+    <p style="font-size: 18px; margin-top: 20px;">«За 8 лет помогла 33 экспертам начать продавать. Есть система — есть результат.»</p>
 </div>
 
-<div class="features" id="features">
-    <div class="feature">
-        <div class="feature-icon">⭐️</div>
-        <h3>Бесплатный аудит — 2 минуты</h3>
-        <p>Узнайте 3 конкретных шага, которые можно внедрить прямо сейчас</p>
+<div class="cases-grid">
+    <div class="case-card">
+        <div class="case-icon">🇨🇳</div>
+        <div class="case-title">Эксперт по китайскому</div>
+        <div class="case-result">+120 000 ₽</div>
+        <div class="case-desc">без блога, только таргет и бот</div>
     </div>
-    <div class="feature">
-        <div class="feature-icon">🔥</div>
-        <h3>Готовая стратегия — 5 минут</h3>
-        <p>План продаж с анализом конкурентов и разбором ЦА</p>
+    <div class="case-card">
+        <div class="case-icon">🧠</div>
+        <div class="case-title">Психолог Елена</div>
+        <div class="case-result">с 0 до 180 000 ₽</div>
+        <div class="case-desc">7 клиентов за 2 недели</div>
     </div>
-    <div class="feature">
-        <div class="feature-icon">⚡️</div>
-        <h3>Первое действие — 15 минут</h3>
-        <p>Внедрите работающее решение, которое запустит продажи</p>
+    <div class="case-card">
+        <div class="case-icon">🌊</div>
+        <div class="case-title">Мастер Фен Шуй</div>
+        <div class="case-result">+195 000 ₽</div>
+        <div class="case-desc">первый запуск при рекламе 30 000 ₽</div>
+    </div>
+    <div class="case-card">
+        <div class="case-icon">🏫</div>
+        <div class="case-title">Онлайн-школа</div>
+        <div class="case-result">+2 000 000 ₽</div>
+        <div class="case-desc">марафон в ВК за 2 недели</div>
     </div>
 </div>
 
 <div style="text-align:center">
-    <a href="/survey" class="btn">Начать диагностику</a>
-</div>
-
-<div style="margin-top: 40px; padding: 20px; background: #f5f5f7; border-radius: 20px; text-align: center;">
-    <p style="font-size: 14px; color: #6e6e73;">Помогла 33 экспертам запустить продажи услуг и онлайн-курсов</p>
+    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_diagnostic'); return true;">
+        🔥 Получить разбор ситуации за 2 минуты
+    </a>
+    <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Бесплатно. Без телефона. Только польза.</p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -922,7 +949,7 @@ async def survey():
         </div>
         <div class="form-group">
             <label>2. Короткое описание (чем занимаетесь, кому помогаете)</label>
-            <textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж за 490₽ → бесплатный разбор плана за подписку в MAX" required></textarea>
+            <textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж → бесплатный разбор плана за подписку в MAX" required></textarea>
         </div>
         <div class="form-group">
             <label>3. Что вы продаёте?</label>
@@ -970,7 +997,7 @@ async def survey():
         </div>
         <div style="text-align:center">
             <p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ответьте на 7 коротких вопросов → получите персональный разбор вашего бизнеса с конкретными шагами для роста продаж</p>
-            <button type="submit" class="btn" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Получить диагностику</button>
+            <button type="submit" class="btn btn-primary" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Получить диагностику</button>
         </div>
     </form>
 </div>
@@ -1073,60 +1100,51 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <div style="margin: 32px 0; text-align: center;">
-        <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Что дальше?</h2>
-        <p style="font-size: 17px; color: #6e6e73; margin-bottom: 32px;">«Диагностика — это как сходить к терапевту. А теперь нужен спортивный тренер, который доведёт до результата.»</p>
-    </div>
+    <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Выберите свой путь</h2>
     
-    <div style="background: linear-gradient(135deg, #007aff10 0%, #005fc510 100%); border-radius: 28px; padding: 32px; margin: 32px 0;">
-        <h3 style="font-size: 24px; margin-bottom: 20px;">📋 В профессиональном маркетинговом плане запуска продаж:</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🎯 Разбор ЦА — кто платит и почему</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">🔍 Разбор 5 конкурентов — чем они лучше и как это обойти</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">⚡ Готовая воронка продаж — от подписки до чека</span>
-            <span style="background: #ffffff; padding: 8px 20px; border-radius: 30px; font-size: 14px;">📅 Контент план на месяц + 1 действие, которое запустит продажи</span>
+    <div class="pricing-grid">
+        <div class="pricing-card">
+            <h3>📄 Старт</h3>
+            <div class="price">490 ₽ <small>вместо 4 900 ₽</small></div>
+            <ul>
+                <li>✅ Профессиональный маркетинговый план</li>
+                <li>✅ Анализ 5 конкурентов</li>
+                <li>✅ Разбор ЦА</li>
+                <li>✅ Готовая воронка продаж</li>
+                <li>✅ Контент-план на месяц</li>
+            </ul>
+            <form action="/payment/create" method="post">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <input type="hidden" name="amount" value="490">
+                <button type="submit" class="btn btn-outline" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_basic_plan'); return true;">Выбрать</button>
+            </form>
+        </div>
+        
+        <div class="pricing-card featured">
+            <div class="popular-badge">🔥 Выбирают 80%</div>
+            <h3>🤖 Premium-доступ</h3>
+            <div class="price">1 490 ₽ <small>вместо 12 900 ₽</small></div>
+            <ul>
+                <li>✅ Маркетинговый план</li>
+                <li>✅ 30 дней AI-консультаций в MAX</li>
+                <li>✅ 7-дневный челлендж внедрения</li>
+                <li>✅ Доступ в закрытый MAX-канал</li>
+                <li class="highlight">💬 Прямой чат с AI-ассистентом</li>
+            </ul>
+            <form action="/payment/create" method="post">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <input type="hidden" name="amount" value="1490">
+                <button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_premium_plan'); return true;">🔥 Получить полный доступ</button>
+            </form>
+            <p style="font-size: 12px; margin-top: 12px; color: #6e6e73;">* AI-чат работает в MAX, отвечает на вопросы 24/7</p>
         </div>
     </div>
-    
-    <hr style="margin: 32px 0;">
-    
-    <div style="margin: 32px 0;">
-        <div class="price-old">4 900 ₽</div>
-        <div class="price-new">490 ₽</div>
-        <p style="margin-top: 8px;">«Да, я могла бы взять 4900. Но я хочу, чтобы вы сделали первый шаг. Следующие будут дороже.»</p>
-        <p style="margin-top: 8px; color: #ff3b30; font-weight: 600;">🔥 Предложение действует, пока вы находитесь на этой странице. Закроете страницу — цена вернётся к 4 900 ₽.</p>
-    </div>
-    
-    <form action="/payment/create" method="post" style="margin-top: 24px;">
-        <input type="hidden" name="user_id" value="{user_id}">
-        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 18px;" onclick="ym(108348240,'reachGoal','payment_start'); return true;">🔥 Забрать план за 490 ₽</button>
-        <p style="font-size: 13px; color: #8e8e93; margin-top: 16px;">Без телефона, без смс, только польза</p>
-    </form>
     
     <hr style="margin: 32px 0;">
     
     <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
         <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
-        <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи. Вот несколько примеров успешных кейсов:</p>
-    </div>
-    
-    <div style="display: flex; flex-wrap: wrap; gap: 16px; margin: 32px 0; text-align: left;">
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🇨🇳</div>
-            <p><strong>Эксперт по китайскому</strong><br>без блога, только таргет и бот<br>📈 +120 000 ₽ за 2 недели</p>
-        </div>
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🧠</div>
-            <p><strong>Психолог Елена</strong><br>7 клиентов за 2 недели<br>📈 доход с 0 до 180 000 ₽</p>
-        </div>
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🌊</div>
-            <p><strong>Мастер Фен Шуй</strong><br>первый запуск при рекламе 30 000 ₽<br>📈 +195 000 ₽</p>
-        </div>
-        <div style="flex: 1; min-width: 200px; background: #ffffff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 32px; margin-bottom: 12px;">🏫</div>
-            <p><strong>Онлайн-школа</strong><br>марафон в ВК за 2 недели<br>📈 +2 000 000 ₽</p>
-        </div>
+        <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</p>
     </div>
     
     <div style="margin: 32px 0;">
@@ -1141,43 +1159,34 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 @app.post("/payment/create")
-async def payment_create(user_id: str = Form(...)):
-    logger.info(f"Payment create for user {user_id}")
-    return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+async def payment_create(user_id: str = Form(...), amount: int = Form(490)):
+    logger.info(f"Payment create for user {user_id}, amount={amount}")
+    return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str, status: str = None):
+async def payment_page(user_id: str, amount: int = 490, status: str = None):
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
     
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
-        return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+        return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
+    
+    plan_name = "Маркетинговый план" if amount == 490 else "Premium-доступ (план + AI-чат 30 дней + челлендж)"
     
     content = f'''
 <div class="hero">
-    <h1>💰 План продаж — 490 ₽</h1>
+    <h1>💰 {plan_name} — {amount} ₽</h1>
     <p style="font-size: 18px;">«Спойлер: вы получите не просто документ, а готовую дорожную карту. Бери и делай.»</p>
 </div>
 
 <div class="form-card">
     {error_message}
     
-    <h3>Что внутри:</h3>
-    <ul style="margin-bottom: 20px;">
-        <li>🎯 Разбор ЦА — кто платит и почему</li>
-        <li>🔍 Разбор 5 конкурентов — чем они лучше и как это обойти</li>
-        <li>⚡ Готовая воронка продаж — от подписки до чека</li>
-        <li>📅 Контент план на месяц + 1 действие, которое запустит продажи</li>
-    </ul>
-    
-    <div class="price-old" style="text-align:center">4 900 ₽</div>
-    <div class="price-new" style="text-align:center">490 ₽</div>
-    <p style="text-align:center; margin-top:8px">«Я снизила цену, чтобы вы перестали думать и начали действовать.»</p>
-    
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;" id="paymentForm">
         <input type="hidden" name="user_id" value="{user_id}">
+        <input type="hidden" name="amount" value="{amount}">
         <div class="form-group">
             <label>📞 Куда прислать план?</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
@@ -1203,7 +1212,7 @@ async def payment_page(user_id: str, status: str = None):
         </div>
         
         <div style="text-align:center;margin:20px 0">
-            <button type="submit" class="btn" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_490'); return true;">💳 Оплатить 490 ₽</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">💳 Оплатить {amount} ₽</button>
         </div>
     </form>
     
@@ -1231,6 +1240,7 @@ async def create_yookassa_payment(
     request: Request,
     user_id: str = Form(...),
     phone: str = Form(...),
+    amount: int = Form(490),
     agree_oferta: bool = Form(False),
     agree_personal: bool = Form(False)
 ):
@@ -1241,7 +1251,7 @@ async def create_yookassa_payment(
         return HTMLResponse("Для оплаты необходимо дать согласие на обработку персональных данных", status_code=400)
     
     phone = format_phone(phone)
-    logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}")
+    logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}, amount={amount}")
     save_user(user_id, phone, None)
     
     # Сохраняем согласия в БД
@@ -1254,28 +1264,32 @@ async def create_yookassa_payment(
     
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.error("YooKassa credentials missing!")
-        save_payment_request(user_id, phone)
-        return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+        save_payment_request(user_id, phone, amount=amount)
+        return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
     
     if not phone:
         logger.error("Phone is required")
-        save_payment_request(user_id, phone)
-        return RedirectResponse(url=f"/payment?user_id={user_id}&error=phone_required", status_code=303)
+        save_payment_request(user_id, phone, amount=amount)
+        return RedirectResponse(url=f"/payment?user_id={user_id}&amp;amount={amount}&error=phone_required", status_code=303)
+    
+    description = "Профессиональный маркетинговый план"
+    if amount == 1490:
+        description = "Premium-доступ: Маркетинговый план + AI-чат 30 дней + Челлендж"
     
     # Для самозанятого: receipt обязателен, используем vat_code "6" (НДС не облагается)
     payment_data = {
-        "amount": {"value": "490.00", "currency": "RUB"},
+        "amount": {"value": f"{amount}.00", "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm"},
         "capture": True,
-        "description": f"План продаж для пользователя {user_id}",
-        "metadata": {"user_id": user_id, "phone": phone},
+        "description": description,
+        "metadata": {"user_id": user_id, "phone": phone, "amount": amount},
         "receipt": {
             "customer": {"phone": phone},
             "items": [
                 {
-                    "description": "Профессиональный маркетинговый план продаж",
+                    "description": description,
                     "quantity": "1.00",
-                    "amount": {"value": "490.00", "currency": "RUB"},
+                    "amount": {"value": f"{amount}.00", "currency": "RUB"},
                     "vat_code": "6",
                     "payment_mode": "full_payment",
                     "payment_subject": "service"
@@ -1307,19 +1321,19 @@ async def create_yookassa_payment(
             
             if not confirmation_url:
                 logger.error(f"No confirmation URL in response")
-                save_payment_request(user_id, phone)
-                return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+                save_payment_request(user_id, phone, amount=amount)
+                return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
             
-            save_payment_request(user_id, phone, payment_id, "490.00", "pending")
+            save_payment_request(user_id, phone, payment_id, amount, "pending")
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
-            save_payment_request(user_id, phone)
-            return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+            save_payment_request(user_id, phone, amount=amount)
+            return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
     except Exception as e:
         logger.error(f"YooKassa exception: {e}")
-        save_payment_request(user_id, phone)
-        return RedirectResponse(url=f"/payment?user_id={user_id}", status_code=303)
+        save_payment_request(user_id, phone, amount=amount)
+        return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
 
 @app.post("/payment/webhook")
 async def payment_webhook(request: Request):
@@ -1333,6 +1347,7 @@ async def payment_webhook(request: Request):
         status = payment.get("status")
         metadata = payment.get("metadata", {})
         user_id = metadata.get("user_id")
+        amount = int(metadata.get("amount", 490))
         
         if event == "payment.succeeded" and status == "succeeded":
             update_payment_status(payment_id, "succeeded")
@@ -1370,7 +1385,8 @@ async def payment_confirm(request: Request):
         payment_info = get_payment_by_yookassa_id(payment_id)
         if payment_info:
             user_id = payment_info["user_id"]
-            return RedirectResponse(url=f"/payment/success?user_id={user_id}", status_code=303)
+            amount = payment_info["amount"]
+            return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
     
     user_id = get_last_succeeded_payment()
     if user_id:
@@ -1396,8 +1412,8 @@ async def payment_confirm(request: Request):
     """, status_code=200)
 
 @app.get("/payment/success", response_class=HTMLResponse)
-async def payment_success(user_id: str):
-    logger.info(f"Payment success page for user {user_id}")
+async def payment_success(user_id: str, amount: int = 490):
+    logger.info(f"Payment success page for user {user_id}, amount={amount}")
     
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
@@ -1424,10 +1440,13 @@ async def payment_success(user_id: str):
         
         report_text_html = report_text_full.replace("\n", "<br>")
         
-        content = f'''
+        # Разный контент в зависимости от суммы оплаты
+        if amount == 1490:
+            # PREMIUM - показываем кнопку перехода в бота
+            content = f'''
 <div class="hero">
-    <h1>🎉 План готов!</h1>
-    <p style="font-size: 18px;">«Вот он — ваш персональный маршрут к стабильным продажам. Берите и делайте. Если что-то непонятно — я здесь.»</p>
+    <h1>🎉 Premium-доступ активирован!</h1>
+    <p style="font-size: 18px;">«Вот он — ваш персональный маршрут к стабильным продажам. Берите и делайте. Если что-то непонятно — AI-чат поможет 24/7.»</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
@@ -1437,18 +1456,60 @@ async def payment_success(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600;">«Хотите, чтобы я лично разобрала ваш план и сказала: "здесь ты всё правильно написал, а здесь — провалишься"?»</p>
-        <div style="text-align:center;margin-top:20px">
-            <a href="/consultation?user_id={user_id}" class="btn" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">→ Записаться на бесплатный разбор</a>
+    <div class="bot-link-block">
+        <div class="bot-icon">🤖</div>
+        <div class="bot-text">
+            <h4>Перейдите в MAX-чат</h4>
+            <p>Задавайте вопросы AI-ассистенту по плану и участвуйте в челлендже</p>
         </div>
+        <a href="https://realplanninig-oss-max-salesplan-bot-1a18.twc1.net/?user_id={user_id}" target="_blank" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','premium_purchase_success'); return true;">
+            🔥 Перейти в MAX-чат и активировать Premium-доступ
+        </a>
     </div>
     
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
 </div>
-'''
+
+<script>
+    ym(108348240,'reachGoal','premium_purchase_success');
+</script>'''
+        else:
+            # Базовый тариф 490 ₽ — только план
+            content = f'''
+<div class="hero">
+    <h1>🎉 Спасибо за покупку!</h1>
+    <p style="font-size: 18px;">«Вот он — ваш персональный маршрут к стабильным продажам. Берите и делайте.»</p>
+</div>
+
+<div class="form-card" style="text-align: center;">
+    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
+        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
+    </div>
+    
+    <hr style="margin: 32px 0;">
+    
+    <div class="bot-link-block">
+        <div class="bot-icon">🚀</div>
+        <div class="bot-text">
+            <h4>Хотите AI-поддержку?</h4>
+            <p>Доплатите 1 000 ₽ и получите 30 дней AI-консультаций в MAX</p>
+        </div>
+        <a href="/payment?user_id={user_id}&amount=1490" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','basic_purchase_success'); return true;">
+            🔥 Доплатить до Premium
+        </a>
+    </div>
+    
+    <div style="margin: 32px 0;">
+        <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
+    </div>
+</div>
+
+<script>
+    ym(108348240,'reachGoal','basic_purchase_success');
+</script>'''
+        
         return HTMLResponse(content=render_page(content))
     
     if not biz:
@@ -1480,6 +1541,7 @@ async def payment_success(user_id: str):
         save_report(user_id, "premium", premium_text)
         report_text_html = premium_text.replace("\n", "<br>")
         
+        # Базовый тариф 490 ₽ — только план
         content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1499,6 +1561,21 @@ async def check_premium_status(user_id: str):
     row = cursor.fetchone()
     conn.close()
     return {"ready": row and row[0] == 'ready'}
+
+@app.get("/api/check_premium")
+async def api_check_premium(user_id: str):
+    """API для проверки Premium-доступа пользователя (для чат-бота)"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT amount, status FROM payments 
+        WHERE user_id = ? AND amount = 1490 AND status = 'succeeded'
+        ORDER BY created_at DESC LIMIT 1
+    """, (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    has_access = row is not None
+    return {"has_access": has_access}
 
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
@@ -1556,7 +1633,7 @@ async def consultation_page(user_id: str = None):
             <label>🕐 Удобное время для звонка (по Москве)</label>
             <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
         </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Записаться</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Записаться</button>
     </form>
     
     <hr style="margin: 32px 0;">
@@ -1596,7 +1673,7 @@ async def subscribe_page(user_id: str):
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
     <div style="margin: 20px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;">📢 Подписаться на канал в MAX</a>
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-primary" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;">📢 Подписаться на канал в MAX</a>
     </div>
     
     <hr style="margin: 32px 0;">
@@ -1617,7 +1694,7 @@ async def subscribe_page(user_id: str):
     </div>
     
     <div style="margin: 24px 0;">
-        <a href="/" class="btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
+        <a href="/" class="btn btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
     </div>
 </div>
 '''
@@ -1787,7 +1864,7 @@ realplanninig-oss-salesplan-web-7eb2.twc1.net
 11.2. Продавец вправе изменять условия оферты в одностороннем порядке. 
 Изменения вступают в силу с момента их опубликования на Сайте.
 
-Дата публикации: «21» апреля 2026 г."""
+Дата публикации: «05» мая 2026 г."""
     
     oferta_html = f"""
 <div class="container">
@@ -1926,7 +2003,7 @@ realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»).
 11.1. Оператор вправе изменять настоящую Политику. 
 Новая редакция вступает в силу с момента ее публикации на Сайте.
 
-Дата публикации: «21» апреля 2026 г."""
+Дата публикации: «05» мая 2026 г."""
     
     privacy_html = f"""
 <div class="container">
@@ -2260,4 +2337,4 @@ async def admin_consultations(auth: bool = Depends(verify_admin)):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)   
+    uvicorn.run(app, host="0.0.0.0", port=port)
