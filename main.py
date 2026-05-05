@@ -1102,7 +1102,7 @@ async def diagnostic(user_id: str):
     
     <hr style="margin: 32px 0;">
     
-    <!-- ПРОГРЕВ В СТИЛЕ МУДРОГО НАСТАВНИКА -->
+    <!-- ПРОГРЕВ НА ПОКУПКУ ПЛАНА -->
     <div style="background: #f8f8fa; border-radius: 24px; padding: 28px; margin: 32px 0; text-align: left; border-left: 4px solid #ff9f0a;">
         <p style="font-size: 18px; font-weight: 500; margin-bottom: 16px;">🎯 Взгляд на ситуацию:</p>
         <p style="font-size: 16px; line-height: 1.5; margin-bottom: 16px;">
@@ -1154,11 +1154,6 @@ async def diagnostic(user_id: str):
     </div>
     
     <hr style="margin: 32px 0;">
-    
-    <div style="background: #f5f5f7; border-radius: 28px; padding: 28px; margin: 32px 0; text-align: left;">
-        <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">🎯 Я Вероника, продюсер экспертов</p>
-        <p>За 8 лет помогла десяткам специалистов выйти на стабильные продажи.</p>
-    </div>
     
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
@@ -1476,8 +1471,37 @@ async def payment_success(user_id: str, amount: int = 490):
             <p>Задавайте вопросы AI-ассистенту по плану и участвуйте в челлендже</p>
         </div>
         <a href="https://realplanninig-oss-max-salesplan-bot-1a18.twc1.net/?user_id={user_id}" target="_blank" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','premium_purchase_success'); return true;">
-            🔥 Перейти в MAX-чат и активировать Premium-доступ
+            🔥 Перейти в MAX-чат
         </a>
+    </div>
+    
+    <hr style="margin: 32px 0;">
+    
+    <!-- БОНУС: КОНСУЛЬТАЦИЯ ЗА ПОДПИСКУ НА КАНАЛ -->
+    <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
+        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: бесплатная консультация</h3>
+        <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">
+            Подпишитесь на мой MAX-канал и получите 30 минут личного разбора вашего плана.
+        </p>
+        <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
+            <p style="font-weight: 600; margin-bottom: 12px;">За 30 минут мы:</p>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;">✅ Найдём 3 точки утечки клиентов, о которых вы не знали</li>
+                <li style="margin-bottom: 10px;">✅ Определим 1 точный первый шаг к продажам</li>
+                <li style="margin-bottom: 10px;">✅ Дадим честный фидбек по вашему бизнесу и плану</li>
+            </ul>
+        </div>
+        <div class="bot-link-block" style="background: #007aff10; padding: 20px; border-radius: 20px;">
+            <p style="margin-bottom: 16px; font-weight: 500;">👇 Подпишитесь и получите консультацию</p>
+            <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-outline" style="margin-right: 12px; margin-bottom: 12px; display: inline-block;" onclick="ym(108348240,'reachGoal','consultation_channel_click'); return true;">
+                📢 Подписаться на канал
+            </a>
+            <a href="/consultation?user_id={user_id}" class="btn btn-primary" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
+                🔥 Записаться на консультацию
+            </a>
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 16px;">* После подписки вы получите приоритет в записи</p>
+        </div>
     </div>
     
     <div style="margin: 32px 0;">
@@ -2116,7 +2140,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
         <h3 style="margin-bottom:15px">💰 Клиенты, оплатившие премиум-план</h3>
         <table id="clientsTable">
             <thead>
-                <tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></table>
+                <tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -2139,7 +2163,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
                 <tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr>
             </thead>
             <tbody></tbody>
-        </td>
+        </table>
     </div>
 </div>
 
