@@ -86,7 +86,7 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS business_data (user_id TEXT PRIMARY KEY, business_name TEXT, business_description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
-    conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, time TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, time TEXT, question TEXT, status TEXT DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount INTEGER, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     
     # Таблица для отслеживания посещений
@@ -335,14 +335,14 @@ def get_new_consultations():
     """Новые заявки на консультации"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("""
-        SELECT c.*, u.phone, u.name
-        FROM consultations c
-        LEFT JOIN users u ON c.user_id = u.user_id
-        ORDER BY c.created_at DESC
+        SELECT id, user_id, phone, time, question, status, created_at
+        FROM consultations
+        WHERE status = 'new'
+        ORDER BY created_at DESC
         LIMIT 50
     """)
     
-    columns = ['id', 'user_id', 'time', 'created_at', 'phone', 'name']
+    columns = ['id', 'user_id', 'phone', 'time', 'question', 'status', 'created_at']
     results = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
     return results
@@ -432,9 +432,12 @@ def get_report(user_id: str, report_type: str):
         return {"id": row[0], "text": row[1], "file_path": row[2], "status": row[3]}
     return None
 
-def save_consultation(user_id: str, time: str, phone: str = None, username: str = None):
+def save_consultation_request(user_id: str, phone: str, time: str, question: str = None):
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO consultations (user_id, time) VALUES (?, ?)", (user_id, time))
+    conn.execute("""
+        INSERT INTO consultations (user_id, phone, time, question, status)
+        VALUES (?, ?, ?, ?, 'new')
+    """, (user_id, phone, time, question))
     conn.commit()
     conn.close()
 
@@ -477,6 +480,36 @@ def save_consent(user_id: str, consent_type: str, ip: str = None, user_agent: st
     conn.commit()
     conn.close()
     logger.info(f"Consent saved: user_id={user_id}, type={consent_type}")
+
+def get_moscow_time():
+    return datetime.utcnow() + timedelta(hours=3)
+
+def format_moscow_time(dt=None):
+    if dt is None:
+        dt = get_moscow_time()
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+def log_event(user_id: str, event_type: str, event_data: str = None):
+    logger.info(f"Event: {event_type} | User: {user_id} | Data: {event_data}")
+
+# === ОТПРАВКА СООБЩЕНИЙ В КАНАЛ MAX ===
+ADMIN_CHANNEL_ID = os.getenv("ADMIN_CHANNEL_ID")
+
+async def send_notification_to_channel(text: str):
+    """Отправка уведомления в канал MAX"""
+    if not ADMIN_CHANNEL_ID:
+        logger.error("ADMIN_CHANNEL_ID not configured")
+        return
+    
+    url = f"https://platform-api.max.ru/messages?channel_id={ADMIN_CHANNEL_ID}"
+    payload = {"text": text}
+    headers = {"Authorization": MAX_BOT_TOKEN, "Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+                logger.error(f"send_notification_to_channel failed: {resp.status} - {error_text}")
+            return await resp.json()
 
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     if not DEEPSEEK_API_KEY:
@@ -672,9 +705,10 @@ HTML_HEAD = """<!DOCTYPE html>
         .case-card{background:#f5f5f7;border-radius:20px;padding:20px;text-align:center}
         .case-icon{font-size:48px;margin-bottom:12px}
         .case-title{font-weight:600;margin-bottom:8px}
-        .case-result{font-size:24px;font-weight:700;color:#34c759;margin-bottom:4px}
+        .case-result{font-size:24px;font-weight:700;color:#34c759};margin-bottom:4px}
         .case-desc{font-size:12px;color:#6e6e73}
         .bot-link-block{background:#e8f0fe;border-radius:20px;padding:24px;margin:32px 0;text-align:center}
+        .timer-box{background:#ff3b30;color:white;text-align:center;padding:12px;border-radius:12px;margin-bottom:20px;font-weight:600}
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:32px}
@@ -895,8 +929,8 @@ def render_premium_waiting_page(user_id: str):
 async def index():
     content = '''
 <div class="hero">
-    <h1>Запуск продаж услуг и онлайн-школ<br>Пошаговый план для экспертов, коучей и владельцев проектов</h1>
-    <p style="font-size: 18px; margin-top: 20px;">«За 8 лет помогла 33 экспертам начать продавать. Есть система — есть результат.»</p>
+    <h1>Запуск продаж. Услуги и курсы.<br>Пошаговый план для экспертов, коучей и владельцев проектов</h1>
+    <p style="font-size: 18px; margin-top: 20px;">«За 8 лет помогла десяткам экспертов начать продавать. Есть система — есть результат.»</p>
 </div>
 
 <div class="cases-grid">
@@ -907,10 +941,10 @@ async def index():
         <div class="case-desc">без блога, только таргет и бот</div>
     </div>
     <div class="case-card">
-        <div class="case-icon">🚀</div>
-        <div class="case-title">Запуск продаж онлайн-курса</div>
-        <div class="case-result">с 0 до 180 000 ₽</div>
-        <div class="case-desc">за 2 недели</div>
+        <div class="case-icon">🎓</div>
+        <div class="case-title">Психолог Ольга</div>
+        <div class="case-result">+187 000 ₽</div>
+        <div class="case-desc">запуск продаж онлайн-курса с 1 вебинара</div>
     </div>
     <div class="case-card">
         <div class="case-icon">🌊</div>
@@ -920,7 +954,7 @@ async def index():
     </div>
     <div class="case-card">
         <div class="case-icon">🏫</div>
-        <div class="case-title">Онлайн-школа</div>
+        <div class="case-title">Онлайн-школа по коучингу</div>
         <div class="case-result">+2 000 000 ₽</div>
         <div class="case-desc">марафон в ВК за 2 недели</div>
     </div>
@@ -930,7 +964,7 @@ async def index():
     <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_diagnostic'); return true;">
         🔥 Найти точки роста за 2 минуты
     </a>
-    <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Бесплатно. Без телефона. Только польза.</p>
+    <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Честно. Никакого спама. Только польза.</p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -1113,7 +1147,22 @@ async def diagnostic(user_id: str):
         </p>
     </div>
     
-    <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Выберите свой путь</h2>
+    <!-- КНОПКА "ЧТО ДАЛЬШЕ?" -->
+    <div style="background: #e8f0fe; border-radius: 20px; padding: 20px; margin: 32px 0; text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 12px;">🤔</div>
+        <h3 style="font-size: 18px; margin-bottom: 8px;">Что делать с этой диагностикой?</h3>
+        <p style="font-size: 14px; color: #6e6e73; margin-bottom: 16px;">Вы получили карту слабых мест. Теперь нужно действовать.</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <a href="#pricing" class="btn btn-primary" style="padding: 10px 20px; font-size: 14px;" onclick="document.getElementById('pricing').scrollIntoView({behavior: 'smooth'}); return false;">
+                🚀 Выбрать тариф
+            </a>
+            <a href="/consultation?user_id={user_id}" class="btn btn-outline" style="padding: 10px 20px; font-size: 14px;">
+                📞 Записаться на консультацию
+            </a>
+        </div>
+    </div>
+    
+    <h2 style="font-size: 28px; margin-bottom: 16px;" id="pricing">🚀 Выберите свой путь</h2>
     
     <div class="pricing-grid">
         <div class="pricing-card">
@@ -1125,6 +1174,7 @@ async def diagnostic(user_id: str):
                 <li>✅ Разбор ЦА</li>
                 <li>✅ Готовая воронка продаж</li>
                 <li>✅ Контент-план на месяц</li>
+                <li class="highlight">⚡ План за 2 минуты после оплаты</li>
             </ul>
             <form action="/payment/create" method="post">
                 <input type="hidden" name="user_id" value="{user_id}">
@@ -1132,24 +1182,40 @@ async def diagnostic(user_id: str):
                 <button type="submit" class="btn btn-outline" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_basic_plan'); return true;">Выбрать</button>
             </form>
         </div>
-        
+
         <div class="pricing-card featured">
-            <div class="popular-badge">🔥 Выбирают 80%</div>
-            <h3>🤖 Premium-доступ</h3>
+            <div class="popular-badge">🔥 Выбирают 70%</div>
+            <h3>🤖 Внедрение — я сам</h3>
             <div class="price">1 490 ₽ <small>вместо 12 900 ₽</small></div>
             <ul>
                 <li>✅ Маркетинговый план</li>
-                <li>✅ 30 дней AI-консультаций в MAX</li>
-                <li>✅ 7-дневный челлендж внедрения</li>
-                <li>✅ Доступ в закрытый MAX-канал</li>
-                <li class="highlight">💬 Прямой чат с AI-ассистентом</li>
+                <li>✅ 30 дней AI‑консультаций в MAX</li>
+                <li>✅ 7‑дневный челлендж внедрения</li>
+                <li>✅ Доступ в закрытый MAX‑канал</li>
+                <li class="highlight">💬 Чат с AI‑ассистентом 24/7</li>
             </ul>
             <form action="/payment/create" method="post">
                 <input type="hidden" name="user_id" value="{user_id}">
                 <input type="hidden" name="amount" value="1490">
-                <button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_premium_plan'); return true;">🔥 Получить полный доступ</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_premium_plan'); return true;">🔥 Получить доступ</button>
             </form>
             <p style="font-size: 12px; margin-top: 12px; color: #6e6e73;">* AI-чат работает в MAX, отвечает на вопросы 24/7</p>
+        </div>
+
+        <div class="pricing-card" style="border-color: #34c759;">
+            <div class="popular-badge" style="background: #34c759;">💎 VIP</div>
+            <h3>💼 Внедрение под ключ</h3>
+            <div class="price">Индивидуально</div>
+            <ul>
+                <li>✅ Маркетинговый план</li>
+                <li>✅ Внедрение от продюсера</li>
+                <li>✅ Полное сопровождение</li>
+                <li class="highlight">🎯 Готовый результат «под ключ»</li>
+            </ul>
+            <a href="/consultation?user_id={user_id}" class="btn btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;" onclick="ym(108348240,'reachGoal','select_vip_plan'); return true;">
+                🔥 Записаться на консультацию
+            </a>
+            <p style="font-size: 12px; margin-top: 12px; color: #6e6e73;">* Обсудим детали и цену на созвоне</p>
         </div>
     </div>
     
@@ -1181,7 +1247,7 @@ async def payment_page(user_id: str, amount: int = 490, status: str = None):
     if existing_report and existing_report["status"] == "ready":
         return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
     
-    plan_name = "Маркетинговый план" if amount == 490 else "Premium-доступ (план + AI-чат 30 дней + челлендж)"
+    plan_name = "Маркетинговый план" if amount == 490 else "Внедрение — я сам (план + AI-чат 30 дней + челлендж)"
     
     content = f'''
 <div class="hero">
@@ -1192,29 +1258,29 @@ async def payment_page(user_id: str, amount: int = 490, status: str = None):
 <div class="form-card">
     {error_message}
     
+    <!-- ТАЙМЕР -->
+    <div id="timer" class="timer-box">
+        ⏰ Скидка 1 000 ₽ действует: <span id="timer-countdown">10:00</span>
+    </div>
+    
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;" id="paymentForm">
         <input type="hidden" name="user_id" value="{user_id}">
         <input type="hidden" name="amount" value="{amount}">
         <div class="form-group">
-            <label>📞 Куда прислать план?</label>
+            <label>📞 Телефон (нужен для чека по закону)</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;">
+            <p style="font-size: 12px; color: #8e8e93; margin-top: 6px;">Чек придёт на этот номер. Звонков и рекламы не будет.</p>
         </div>
         
-        <!-- Чекбоксы с согласиями -->
+        <!-- ОДИН ЧЕКБОКС ВМЕСТО ДВУХ -->
         <div style="margin: 20px 0;">
-            <label style="display: flex; align-items: flex-start; gap: 10px; background: #f5f5f7; padding: 12px; border-radius: 12px; margin-bottom: 10px; cursor: pointer;">
-                <input type="checkbox" name="agree_oferta" required style="width: 18px; margin-top: 2px;">
+            <label style="display: flex; align-items: flex-start; gap: 10px; background: #f5f5f7; padding: 12px; border-radius: 12px; cursor: pointer;">
+                <input type="checkbox" name="agree_all" required style="width: 18px; margin-top: 2px;">
                 <span style="font-size: 13px; line-height: 1.4;">
                     Я принимаю условия 
-                    <a href="/oferta" target="_blank" style="color: #007aff;">публичной оферты</a>
-                </span>
-            </label>
-            
-            <label style="display: flex; align-items: flex-start; gap: 10px; background: #f5f5f7; padding: 12px; border-radius: 12px; cursor: pointer;">
-                <input type="checkbox" name="agree_personal" required style="width: 18px; margin-top: 2px;">
-                <span style="font-size: 13px; line-height: 1.4;">
-                    Я даю согласие на обработку моих персональных данных в соответствии с 
-                    <a href="/privacy" target="_blank" style="color: #007aff;">Политикой обработки персональных данных</a>
+                    <a href="/oferta" target="_blank" style="color: #007aff;">публичной оферты</a> 
+                    и даю согласие на обработку 
+                    <a href="/privacy" target="_blank" style="color: #007aff;">персональных данных</a>
                 </span>
             </label>
         </div>
@@ -1233,6 +1299,24 @@ async def payment_page(user_id: str, amount: int = 490, status: str = None):
 </div>
 
 <script>
+    // Таймер
+    let timeLeft = 600;
+    const timerEl = document.getElementById('timer-countdown');
+    const timerDiv = document.getElementById('timer');
+    
+    const interval = setInterval(() => {
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            timerDiv.style.background = '#8e8e93';
+            timerDiv.innerHTML = '⏰ Скидка закончилась. Цена вернётся к 4 900 ₽ через 24 часа.';
+            return;
+        }
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerEl.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+    
     window.addEventListener('beforeunload', function(e) {{
         const message = "Подождите! Вы не завершили оплату.\\n\\nПосле оплаты вас ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернитесь и завершите оплату — это займёт 2 минуты.";
         e.preventDefault();
@@ -1249,24 +1333,20 @@ async def create_yookassa_payment(
     user_id: str = Form(...),
     phone: str = Form(...),
     amount: int = Form(490),
-    agree_oferta: bool = Form(False),
-    agree_personal: bool = Form(False)
+    agree_all: bool = Form(False)
 ):
-    # Проверка согласий
-    if not agree_oferta:
-        return HTMLResponse("Для оплаты необходимо принять условия публичной оферты", status_code=400)
-    if not agree_personal:
-        return HTMLResponse("Для оплаты необходимо дать согласие на обработку персональных данных", status_code=400)
+    # Проверка согласия (один чекбокс)
+    if not agree_all:
+        return HTMLResponse("Для оплаты необходимо принять условия публичной оферты и дать согласие на обработку персональных данных", status_code=400)
     
     phone = format_phone(phone)
     logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}, amount={amount}")
     save_user(user_id, phone, None)
     
-    # Сохраняем согласия в БД
+    # Сохраняем одно согласие вместо двух
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
-    save_consent(user_id, 'oferta', client_ip, user_agent)
-    save_consent(user_id, 'personal', client_ip, user_agent)
+    save_consent(user_id, 'oferta_and_personal', client_ip, user_agent)
     
     base_url = str(request.base_url).rstrip('/')
     
@@ -1282,7 +1362,7 @@ async def create_yookassa_payment(
     
     description = "Профессиональный маркетинговый план"
     if amount == 1490:
-        description = "Premium-доступ: Маркетинговый план + AI-чат 30 дней + Челлендж"
+        description = "Внедрение — я сам: Маркетинговый план + AI-чат 30 дней + Челлендж"
     
     # Для самозанятого: receipt обязателен, используем vat_code "6" (НДС не облагается)
     payment_data = {
@@ -1450,11 +1530,11 @@ async def payment_success(user_id: str, amount: int = 490):
         
         # Разный контент в зависимости от суммы оплаты
         if amount == 1490:
-            # PREMIUM - показываем кнопку перехода в бота
+            # PREMIUM (Внедрение — я сам)
             content = f'''
 <div class="hero">
-    <h1>🎉 Premium-доступ активирован!</h1>
-    <p style="font-size: 18px;">«Вот он — ваш персональный маршрут к стабильным продажам. Берите и делайте. Если что-то непонятно — AI-чат поможет 24/7.»</p>
+    <h1>🎉 Доступ к пакету «Внедрение — я сам» активирован!</h1>
+    <p style="font-size: 18px;">«Вот он — ваш билет к системным продажам. Берите и делайте. AI-чат ответит 24/7.»</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
@@ -1513,31 +1593,61 @@ async def payment_success(user_id: str, amount: int = 490):
     ym(108348240,'reachGoal','premium_purchase_success');
 </script>'''
         else:
-            # Базовый тариф 490 ₽ — только план
+            # Базовый тариф 490 ₽ — только план + бонусная консультация
             content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
-    <p style="font-size: 18px;">«Вот он — ваш персональный маршрут к стабильным продажам. Берите и делайте.»</p>
+    <p style="font-size: 18px;">«Вот ваш маркетинговый план. Дальше всё зависит от вас.»</p>
 </div>
 
 <div class="form-card" style="text-align: center;">
     <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
         <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
     </div>
-    
+
     <hr style="margin: 32px 0;">
-    
+
+    <!-- Доплата до "Внедрение — я сам" -->
     <div class="bot-link-block">
         <div class="bot-icon">🚀</div>
         <div class="bot-text">
-            <h4>Хотите AI-поддержку?</h4>
-            <p>Доплатите 1 000 ₽ и получите 30 дней AI-консультаций в MAX</p>
+            <h4>Хотите AI‑поддержку и челлендж?</h4>
+            <p>Доплатите 1 000 ₽ и получите 30 дней AI‑консультаций в MAX + 7‑дневный челлендж + закрытый канал</p>
         </div>
         <a href="/payment?user_id={user_id}&amount=1490" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','basic_purchase_success'); return true;">
-            🔥 Доплатить до Premium
+            🔥 Доплатить 1 000 ₽
         </a>
     </div>
-    
+
+    <hr style="margin: 32px 0;">
+
+    <!-- БОНУСНАЯ КОНСУЛЬТАЦИЯ (после 490 ₽) -->
+    <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
+        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: бесплатная консультация</h3>
+        <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">
+            После подписки на мой MAX‑канал вы получите 30 минут личного разбора вашего плана.
+        </p>
+        <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
+            <p style="font-weight: 600; margin-bottom: 12px;">За 30 минут мы:</p>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;">✅ Найдём 3 точки утечки клиентов, о которых вы не знали</li>
+                <li style="margin-bottom: 10px;">✅ Определим 1 точный первый шаг к продажам</li>
+                <li style="margin-bottom: 10px;">✅ Дадим честный фидбек по вашему бизнесу и плану</li>
+            </ul>
+        </div>
+        <div class="bot-link-block" style="background: #007aff10; padding: 20px; border-radius: 20px;">
+            <p style="margin-bottom: 16px; font-weight: 500;">👇 Подпишитесь и получите консультацию</p>
+            <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-outline" style="margin-right: 12px; margin-bottom: 12px; display: inline-block;" onclick="ym(108348240,'reachGoal','consultation_channel_click'); return true;">
+                📢 Подписаться на канал
+            </a>
+            <a href="/consultation?user_id={user_id}" class="btn btn-primary" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
+                🔥 Записаться на консультацию
+            </a>
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 16px;">* После подписки вы получите приоритет в записи</p>
+        </div>
+    </div>
+
     <div style="margin: 32px 0;">
         <a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a>
     </div>
@@ -1621,72 +1731,60 @@ async def consultation_page(user_id: str = None):
         logger.info(f"Created new user_id for direct consultation link: {user_id}")
         save_user(user_id, None, None)
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    phone = row[0] if row else ""
-    
     content = f'''
 <div class="hero" style="margin-bottom: 30px;">
     <h1 style="font-size: 36px;">🔥 Бесплатная консультация</h1>
-    <p style="font-size: 18px;">«Да, я серьёзно. Бесплатно. Но только для первых 100 подписчиков. Осталось 97 мест.»</p>
+    <p style="font-size: 18px;">«Да, я серьёзно. Бесплатно. Разберём ваш бизнес за 30 минут.»</p>
 </div>
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
     <div style="background: #007aff10; border-radius: 20px; padding: 24px; margin-bottom: 24px;">
-        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">97</span></div>
-        <p style="color: #6e6e73;">Только для первых 100 подписчиков</p>
+        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">50</span></div>
+        <p style="color: #6e6e73;">Бесплатно — только для первых 50 подписчиков</p>
     </div>
     
     <div style="text-align: left; margin-bottom: 24px;">
-        <p style="font-weight: 600;">Что вы получите:</p>
+        <p style="font-weight: 600;">Что вы получите за 30 минут:</p>
         <ul style="margin-top: 10px;">
-            <li>3 точки утечки клиентов, о которых вы не знали</li>
-            <li>1 точный первый шаг к продажам</li>
-            <li>Честный фидбек по вашему бизнесу</li>
+            <li>✅ 3 точки утечки клиентов, о которых вы не знали</li>
+            <li>✅ 1 точный первый шаг к продажам</li>
+            <li>✅ Честный фидбек по вашему бизнесу и маркетинговому плану</li>
         </ul>
     </div>
     
     <hr style="margin: 24px 0;">
     
-    <div style="text-align: left; margin-bottom: 24px;">
-        <p style="font-weight: 600;">После отправки заявки:</p>
-        <p style="margin-top: 10px;">1. ✅ Я проверю подписку в MAX (1 минута)</p>
-        <p>2. 📝 Напишу вам для согласования времени (15 минут)</p>
-        <p>3. 🎯 Отвечу на ваши вопросы по плану запуска продаж (30 минут)</p>
-    </div>
-    
-    <hr style="margin: 24px 0;">
-    
-    <form action="/consultation/submit" method="post">
+    <form action="/consultation/submit" method="post" id="consultationForm">
         <input type="hidden" name="user_id" value="{user_id}">
         <div class="form-group">
             <label>📞 Ваш телефон</label>
-            <input type="tel" name="phone" value="{phone}" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px; border-radius: 16px;">
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px; border-radius: 16px;">
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 6px;">Только для связи. Спама не будет.</p>
+        </div>
+        <div class="form-group">
+            <label>📝 Ваш вопрос или описание бизнеса</label>
+            <textarea name="question" rows="4" placeholder="Например: «Помогите запустить онлайн-школу по психологии»" required style="border-radius: 16px;"></textarea>
         </div>
         <div class="form-group">
             <label>🕐 Удобное время для звонка (по Москве)</label>
             <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Записаться</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
+            📅 Отправить заявку
+        </button>
     </form>
     
-    <hr style="margin: 32px 0;">
-    
-    <p style="font-size: 14px; color: #8e8e93;">«Никакой воды. Только польза. Только конкретика. Только честно.»</p>
+    <p style="font-size: 14px; color: #8e8e93; margin-top: 20px;">«Никакой воды. Только польза. Только конкретика.»</p>
 </div>
 
 <script>
-    let counter = 97;
-    const counterElement = document.getElementById('counter');
-    const form = document.querySelector('form');
+    let counter = 50;
+    const form = document.getElementById('consultationForm');
     if (form) {{
-        form.addEventListener('submit', function() {{
-            if (counter > 0) {{
-                counter--;
-                if(counterElement) counterElement.textContent = counter;
-            }}
+        form.addEventListener('submit', function(e) {{
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Отправляю...';
         }});
     }}
 </script>
@@ -1694,9 +1792,26 @@ async def consultation_page(user_id: str = None):
     return HTMLResponse(content=render_page(content))
 
 @app.post("/consultation/submit")
-async def consultation_submit(user_id: str = Form(...), time: str = Form(...), phone: str = Form(None), username: str = Form(None)):
-    save_consultation(user_id, time, phone, username)
-    logger.info(f"Consultation request: user_id={user_id}, time={time}, phone={phone}")
+async def consultation_submit(
+    user_id: str = Form(...),
+    phone: str = Form(...),
+    time: str = Form(...),
+    question: str = Form(None)
+):
+    # Сохраняем заявку в БД
+    save_consultation_request(user_id, phone, time, question)
+    
+    # Отправляем уведомление админу в канал
+    await send_notification_to_channel(
+        f"📞 НОВАЯ ЗАЯВКА НА КОНСУЛЬТАЦИЮ\n\n"
+        f"Пользователь: {user_id}\n"
+        f"Телефон: {phone}\n"
+        f"Время: {time}\n"
+        f"Вопрос: {question}\n"
+        f"⏰ {format_moscow_time()}"
+    )
+    
+    # Перенаправляем на страницу подписки
     return RedirectResponse(url=f"/subscribe?user_id={user_id}", status_code=303)
 
 @app.get("/subscribe", response_class=HTMLResponse)
@@ -1704,35 +1819,42 @@ async def subscribe_page(user_id: str):
     content = f'''
 <div class="hero" style="margin-bottom: 30px;">
     <h1 style="font-size: 36px;">🤝 Остался последний шаг</h1>
-    <p style="font-size: 18px;">Вы почти у цели. Честное слово, это самый сложный этап — нажать на кнопку.</p>
+    <p style="font-size: 18px;">Вы почти у цели. Чтобы получить консультацию, подпишитесь на канал.</p>
 </div>
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
     <div style="margin: 20px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-primary" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;">📢 Подписаться на канал в MAX</a>
+        <p style="font-size: 16px; margin-bottom: 20px;">В канале я делюсь:</p>
+        <ul style="text-align: left; display: inline-block; margin-bottom: 30px;">
+            <li>🔥 Кейсами с цифрами</li>
+            <li>🔍 Разборами ошибок</li>
+            <li>📝 Скриптами, которые продают</li>
+        </ul>
     </div>
     
-    <hr style="margin: 32px 0;">
-    
-    <div style="text-align: left;">
-        <p style="font-size: 16px; font-weight: 600;">✅ А дальше:</p>
-        <p style="font-size: 14px; color: #6e6e73; margin-top: 10px;">
-            1. Я проверю подписку (1 минута, честно)<br>
-            2. Напишу вам в MAX — договоримся о времени (15 минут)<br>
-            3. Проведу консультацию — отвечу на все вопросы (30 минут)
-        </p>
+    <div style="margin: 30px 0;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-primary" style="width: 80%; padding: 16px; background: #007aff; border-radius: 16px;" onclick="ym(108348240,'reachGoal','subscribe_channel'); return true;">
+            📢 Подписаться на канал в MAX
+        </a>
     </div>
     
-    <hr style="margin: 32px 0;">
+    <hr style="margin: 30px 0;">
     
-    <div style="background: #007aff10; border-radius: 16px; padding: 16px; margin: 20px 0;">
-        <p style="font-size: 14px; color: #6e6e73;">✅ После подписки я свяжусь с вами в MAX для согласования времени консультации</p>
+    <div style="background: #007aff10; border-radius: 16px; padding: 20px;">
+        <p style="font-weight: 600;">✅ После подписки:</p>
+        <p style="margin-top: 10px;">Я проверю подписку и напишу вам в MAX для согласования точной даты и времени консультации.</p>
+        <p style="margin-top: 15px; font-size: 14px; color: #6e6e73;">Обычно я отвечаю в течение часа в рабочее время.</p>
     </div>
     
-    <div style="margin: 24px 0;">
+    <div style="margin: 30px 0;">
         <a href="/" class="btn btn-outline" style="display: inline-block; padding: 12px 24px; border: 1px solid #007aff; border-radius: 16px; color: #007aff; text-decoration: none;">→ На главную</a>
     </div>
 </div>
+
+<script>
+    // Отправка события о том, что пользователь дошёл до подписки
+    ym(108348240,'reachGoal','consultation_lead');
+</script>
 '''
     return HTMLResponse(content=render_page(content))
 
