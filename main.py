@@ -498,15 +498,16 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
 Описание: {description}
 {survey_info}
 
-Напиши отчет в разговорном стиле Вероники. НЕ ИСПОЛЬЗУЙ символы *, #, _, `, ~. Для списков используй просто дефис. Для заголовков используй ЗАГЛАВНЫЕ БУКВЫ.
+Напиши отчет в деловом, мудром стиле. Без лишних слов. Используй метафоры, говори прямо. Обращайся на "ты". НЕ используй символы форматирования (*, #, _, `, ~). Для списков используй дефис.
 
-1. ОБЩАЯ ИНФОРМАЦИЯ (ниша, ЦА, оценка 0-100)
-2. АНАЛИЗ (3 сильные стороны, 3 зоны роста)
-3. РЕКОМЕНДАЦИИ (3 конкретных шага)"""
+Структура:
+1. ЧТО СЕЙЧАС? (ниша, ЦА, оценка от 0 до 100, честно)
+2. ГДЕ РАСТИ? (3 сильные стороны, 3 точки роста)
+3. ПЕРВЫЙ ШАГ (3 конкретных действия прямо сейчас)"""
     
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты Вероника, продюсер экспертов. Говоришь разговорно, с эмодзи, на 'ты'. НИКОГДА не используй символы *, #, _, `, ~. Только обычный текст и эмодзи."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 2000}
+    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты — профессиональный бизнес-консультант в мудром, прямом стиле. Без воды, без пустых обещаний."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 2000}
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=120)
@@ -540,18 +541,19 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
 Описание: {description}
 {survey_info}
 
-Напиши план в разговорном стиле Вероники. НЕ ИСПОЛЬЗУЙ символы *, #, _, `, ~. Для списков используй просто дефис. Для заголовков используй ЗАГЛАВНЫЕ БУКВЫ.
+Напиши план в деловом, мудром стиле. Без воды. Конкретно. Обращайся на "ты". НЕ используй символы форматирования.
 
-1. ОЦЕНКА СИТУАЦИИ
-2. АНАЛИЗ КОНКУРЕНТОВ (3-5 игроков)
-3. КОМУ ПРОДАВАТЬ (ЦА)
+Структура:
+1. РЕАЛЬНОСТЬ
+2. КОНКУРЕНТЫ (3-5 игроков)
+3. КЛИЕНТ (кто, что хочет, что мешает)
 4. СИЛЬНЫЕ И СЛАБЫЕ СТОРОНЫ
-5. ВОРОНКА ПРОДАЖ ШАГ ЗА ШАГОМ
-6. ПЛАН ДЕЙСТВИЙ НА МЕСЯЦ"""
+5. ВОРОНКА (шаг за шагом)
+6. ПЛАН НА МЕСЯЦ (по неделям)"""
     
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты Вероника, продюсер экспертов. НИКОГДА не используй символы *, #, _, `, ~. Только обычный текст и эмодзи."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 4000}
+    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты — профессиональный бизнес-консультант в мудром, прямом стиле. Без воды."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 4000}
     
     try:
         response = requests.post(url, headers=headers, json=data, timeout=300)
@@ -905,10 +907,10 @@ async def index():
         <div class="case-desc">без блога, только таргет и бот</div>
     </div>
     <div class="case-card">
-        <div class="case-icon">🧠</div>
-        <div class="case-title">Психолог Елена</div>
+        <div class="case-icon">🚀</div>
+        <div class="case-title">Запуск продаж онлайн-курса</div>
         <div class="case-result">с 0 до 180 000 ₽</div>
-        <div class="case-desc">7 клиентов за 2 недели</div>
+        <div class="case-desc">за 2 недели</div>
     </div>
     <div class="case-card">
         <div class="case-icon">🌊</div>
@@ -926,7 +928,7 @@ async def index():
 
 <div style="text-align:center">
     <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_diagnostic'); return true;">
-        🔥 Получить разбор ситуации за 2 минуты
+        🔥 Найти точки роста за 2 минуты
     </a>
     <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Бесплатно. Без телефона. Только польза.</p>
 </div>
@@ -997,7 +999,7 @@ async def survey():
         </div>
         <div style="text-align:center">
             <p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ответьте на 7 коротких вопросов → получите персональный разбор вашего бизнеса с конкретными шагами для роста продаж</p>
-            <button type="submit" class="btn btn-primary" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Получить диагностику</button>
+            <button type="submit" class="btn btn-primary" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Найти точки роста</button>
         </div>
     </form>
 </div>
@@ -1099,6 +1101,17 @@ async def diagnostic(user_id: str):
     </div>
     
     <hr style="margin: 32px 0;">
+    
+    <!-- ПРОГРЕВ В СТИЛЕ МУДРОГО НАСТАВНИКА -->
+    <div style="background: #f8f8fa; border-radius: 24px; padding: 28px; margin: 32px 0; text-align: left; border-left: 4px solid #ff9f0a;">
+        <p style="font-size: 18px; font-weight: 500; margin-bottom: 16px;">🎯 Взгляд на ситуацию:</p>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 16px;">
+            «Диагностика — это как рентген. Вы увидели, где кости сломаны, где мышцы атрофировались.<br><br>
+            Но рентген не лечит. Чтобы встать на ноги, нужен костыль, а потом — реабилитация.<br><br>
+            Маркетинговый план — это ваш костыль. AI-чат — это круглосуточный врач. Челлендж — это зарядка каждый день.<br><br>
+            Вы уже знаете, что болит. Теперь выбирайте: лежать дальше или вставать и идти. Я не уговариваю. Я показываю путь. Дальше — ваше решение.»
+        </p>
+    </div>
     
     <h2 style="font-size: 28px; margin-bottom: 16px;">🚀 Выберите свой путь</h2>
     
@@ -1541,7 +1554,6 @@ async def payment_success(user_id: str, amount: int = 490):
         save_report(user_id, "premium", premium_text)
         report_text_html = premium_text.replace("\n", "<br>")
         
-        # Базовый тариф 490 ₽ — только план
         content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -2104,7 +2116,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
         <h3 style="margin-bottom:15px">💰 Клиенты, оплатившие премиум-план</h3>
         <table id="clientsTable">
             <thead>
-                <tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr>
+                <tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></table>
             </thead>
             <tbody></tbody>
         </table>
@@ -2127,7 +2139,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
                 <tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr>
             </thead>
             <tbody></tbody>
-        </table>
+        </td>
     </div>
 </div>
 
