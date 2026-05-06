@@ -9,7 +9,6 @@ import re
 import asyncio
 import base64
 import secrets
-import aiohttp
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -485,12 +484,16 @@ async def send_notification_to_channel(text: str):
     url = f"https://platform-api.max.ru/messages?channel_id={ADMIN_CHANNEL_ID}"
     payload = {"text": text}
     headers = {"Authorization": MAX_BOT_TOKEN, "Content-Type": "application/json"}
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload, headers=headers) as resp:
-            if resp.status != 200:
-                error_text = await resp.text()
-                logger.error(f"send_notification_to_channel failed: {resp.status} - {error_text}")
-            return await resp.json()
+    
+    def _send_sync():
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            if response.status_code != 200:
+                logger.error(f"send_notification_to_channel failed: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"send_notification_to_channel exception: {e}")
+    
+    await asyncio.get_event_loop().run_in_executor(None, _send_sync)
 
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     if not DEEPSEEK_API_KEY:
