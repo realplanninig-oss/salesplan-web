@@ -300,6 +300,308 @@ def get_all_free_diagnostics():
             f.q1, f.q2, f.q3, f.q4, f.q5,
             r.status as report_status,
             r.report_text
+        FROM forms f# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия)
+
+import logging
+import sqlite3
+import os
+import requests
+import uuid
+import re
+import asyncio
+import base64
+import secrets
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Form, HTTPException, Request, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import uvicorn
+
+# Загружаем переменные окружения
+load_dotenv()
+
+# === ДИАГНОСТИКА ПРИ ЗАПУСКЕ ===
+print("=" * 60)
+print("ENVIRONMENT VARIABLES CHECK - Salesplan Web")
+print("=" * 60)
+print(f"DEEPSEEK_API_KEY: {'✓ SET' if os.getenv('DEEPSEEK_API_KEY') else '✗ MISSING'}")
+print(f"YOOKASSA_SHOP_ID: {os.getenv('YOOKASSA_SHOP_ID', '✗ MISSING')}")
+print(f"YOOKASSA_SECRET_KEY: {'✓ SET' if os.getenv('YOOKASSA_SECRET_KEY') else '✗ MISSING'}")
+print(f"ADMIN_USERNAME: {os.getenv('ADMIN_USERNAME', 'admin')}")
+print(f"ADMIN_PASSWORD: {'✓ SET' if os.getenv('ADMIN_PASSWORD') else '✗ MISSING'}")
+print(f"PORT: {os.getenv('PORT', '8000')}")
+print("=" * 60)
+
+# === КОНФИГУРАЦИЯ ===
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
+YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+# Проверка обязательных переменных
+missing_vars = []
+if not DEEPSEEK_API_KEY:
+    missing_vars.append("DEEPSEEK_API_KEY")
+if not YOOKASSA_SHOP_ID:
+    missing_vars.append("YOOKASSA_SHOP_ID")
+if not YOOKASSA_SECRET_KEY:
+    missing_vars.append("YOOKASSA_SECRET_KEY")
+
+if missing_vars:
+    print(f"⚠️ WARNING: Missing environment variables: {missing_vars}")
+    print("   Some features may not work correctly!")
+
+LOGS_DIR = Path("./logs")
+LOGS_DIR.mkdir(exist_ok=True)
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler(LOGS_DIR / "salesplan.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+logger.info("=" * 50)
+logger.info("APPLICATION STARTING WITH CONFIGURATION:")
+logger.info(f"DEEPSEEK_API_KEY: {'✓ SET' if DEEPSEEK_API_KEY else '✗ MISSING'}")
+logger.info(f"YOOKASSA_SHOP_ID: {YOOKASSA_SHOP_ID if YOOKASSA_SHOP_ID else '✗ MISSING'}")
+logger.info(f"YOOKASSA_SECRET_KEY: {'✓ SET' if YOOKASSA_SECRET_KEY else '✗ MISSING'}")
+logger.info("=" * 50)
+
+DB_PATH = "salesplan.db"
+REPORTS_DIR = Path("./reports")
+REPORTS_DIR.mkdir(exist_ok=True)
+
+# === БАЗА ДАННЫХ ===
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, phone TEXT, name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS business_data (user_id TEXT PRIMARY KEY, business_name TEXT, business_description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, time TEXT, question TEXT, status TEXT DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount INTEGER, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS visits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visit_date TEXT NOT NULL,
+            user_id TEXT,
+            ip TEXT,
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_consents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            consent_type TEXT NOT NULL,
+            consent_given_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(user_id)
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+app = FastAPI(title="Salesplan Web")
+
+# === MIDDLEWARE ===
+BLOCKED_PATHS = [
+    "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
+    "/.env", "/.git", "/robots.txt", "/api", "/_next/server"
+]
+
+@app.middleware("http")
+async def track_and_block_requests(request: Request, call_next):
+    path = request.url.path
+    user_agent = request.headers.get("user-agent", "").lower()
+    client_ip = request.client.host if request.client else "unknown"
+    
+    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success"]:
+        track_visit(ip=client_ip, user_agent=user_agent)
+    
+    if path == "/favicon.ico":
+        return await call_next(request)
+    
+    for blocked in BLOCKED_PATHS:
+        if path.startswith(blocked):
+            logger.warning(f"Blocked malicious path: {path} from {client_ip}")
+            return Response(status_code=404)
+    
+    bad_bots = ["bot", "crawler", "scanner", "nikto", "sqlmap", "wget", "curl", "python-requests", "java"]
+    for bot in bad_bots:
+        if bot in user_agent and "yandex" not in user_agent and "google" not in user_agent:
+            logger.warning(f"Blocked bot: {user_agent} from {client_ip}")
+            return Response(status_code=403)
+    
+    response = await call_next(request)
+    return response
+
+# === ФУНКЦИИ ДЛЯ ОТСЛЕЖИВАНИЯ ПОСЕЩЕНИЙ ===
+def track_visit(user_id=None, ip=None, user_agent=None):
+    conn = sqlite3.connect(DB_PATH)
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if ip:
+        cursor = conn.execute("""
+            SELECT id FROM visits 
+            WHERE ip = ? AND visit_date = ? 
+            LIMIT 1
+        """, (ip, today))
+        
+        if not cursor.fetchone():
+            conn.execute("""
+                INSERT INTO visits (visit_date, ip, user_agent)
+                VALUES (?, ?, ?)
+            """, (today, ip, user_agent[:500] if user_agent else None))
+    
+    conn.commit()
+    conn.close()
+
+def get_unique_visitors(days=7):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            visit_date,
+            COUNT(DISTINCT ip) as unique_visitors,
+            COUNT(*) as total_visits
+        FROM visits
+        WHERE visit_date >= date('now', ?)
+        GROUP BY visit_date
+        ORDER BY visit_date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "visitors": r[1], "total_visits": r[2]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_sales_funnel_stats(days=7):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            date(created_at) as date,
+            COUNT(DISTINCT CASE WHEN status = 'succeeded' THEN user_id END) as payments,
+            SUM(CASE WHEN status = 'succeeded' THEN amount ELSE 0 END) as revenue
+        FROM payments
+        WHERE created_at >= date('now', ?)
+        GROUP BY date(created_at)
+        ORDER BY date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "payments": r[1], "revenue": r[2]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_free_diagnostics_stats(days=7):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            date(completed_at) as date,
+            COUNT(*) as total
+        FROM forms
+        WHERE completed_at >= date('now', ?)
+        GROUP BY date(completed_at)
+        ORDER BY date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "diagnostics": r[1]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_report_downloads_stats(days=7):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            date(ready_at) as date,
+            COUNT(*) as downloads
+        FROM reports
+        WHERE report_type = 'premium' 
+            AND status = 'ready'
+            AND ready_at >= date('now', ?)
+        GROUP BY date(ready_at)
+        ORDER BY date DESC
+    """, (f'-{days} days',))
+    
+    results = [{"date": r[0], "downloads": r[1]} for r in cursor.fetchall()]
+    conn.close()
+    return results
+
+def get_full_funnel(days=7):
+    visitors = {v['date']: v['visitors'] for v in get_unique_visitors(days)}
+    diagnostics = {d['date']: d['diagnostics'] for d in get_free_diagnostics_stats(days)}
+    payments = {p['date']: p['payments'] for p in get_sales_funnel_stats(days)}
+    downloads = {d['date']: d['downloads'] for d in get_report_downloads_stats(days)}
+    
+    all_dates = set(visitors.keys()) | set(diagnostics.keys()) | set(payments.keys()) | set(downloads.keys())
+    all_dates = sorted(list(all_dates), reverse=True)[:days]
+    
+    funnel = []
+    for date in all_dates:
+        funnel.append({
+            "date": date,
+            "visitors": visitors.get(date, 0),
+            "diagnostics": diagnostics.get(date, 0),
+            "payments": payments.get(date, 0),
+            "downloads": downloads.get(date, 0)
+        })
+    
+    return funnel
+
+def get_all_premium_clients():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            p.user_id,
+            p.phone,
+            p.created_at as payment_date,
+            b.business_name,
+            b.business_description,
+            f.q1, f.q2, f.q3, f.q4, f.q5,
+            r.file_path,
+            r.status as report_status,
+            r.ready_at
+        FROM payments p
+        LEFT JOIN business_data b ON p.user_id = b.user_id
+        LEFT JOIN forms f ON p.user_id = f.user_id
+        LEFT JOIN reports r ON p.user_id = r.user_id AND r.report_type = 'premium'
+        WHERE p.status = 'succeeded'
+        ORDER BY p.created_at DESC
+    """)
+    
+    columns = ['user_id', 'phone', 'payment_date', 'business_name', 
+               'business_description', 'q1', 'q2', 'q3', 'q4', 'q5',
+               'report_path', 'report_status', 'report_ready_at']
+    
+    results = []
+    for row in cursor.fetchall():
+        results.append(dict(zip(columns, row)))
+    
+    conn.close()
+    return results
+
+def get_all_free_diagnostics():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT 
+            f.user_id,
+            f.completed_at,
+            b.business_name,
+            b.business_description,
+            f.q1, f.q2, f.q3, f.q4, f.q5,
+            r.status as report_status,
+            r.report_text
         FROM forms f
         LEFT JOIN business_data b ON f.user_id = b.user_id
         LEFT JOIN reports r ON f.user_id = r.user_id AND r.report_type = 'free'
@@ -423,7 +725,7 @@ def save_consultation_request(user_id: str, phone: str, time: str, question: str
     conn.commit()
     conn.close()
 
-def save_payment_request(user_id: str, phone: str, payment_id: str = None, amount: int = 490, status: str = "pending"):
+def save_payment_request(user_id: str, phone: str, payment_id: str = None, amount: int = None, status: str = "pending"):
     conn = sqlite3.connect(DB_PATH)
     conn.execute("INSERT INTO payments (user_id, phone, yookassa_payment_id, amount, status) VALUES (?, ?, ?, ?, ?)", 
                  (user_id, phone, payment_id, amount, status))
@@ -1233,7 +1535,9 @@ async def payment_page(user_id: str, amount: int = 490, status: str = None):
     {error_message}
     
     <div id="timer" style="background: #ff3b30; color: white; text-align: center; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-weight: 600;">
-        ⏰ Скидка 1 000 ₽ действует: <span id="timer-countdown">10:00</span>
+        <div>💰 Обычная цена: <span id="oldPrice">4900</span> ₽</div>
+        <div style="font-size: 20px; margin: 8px 0;">🔥 Сегодня: <span id="currentPrice">490</span> ₽</div>
+        <div>⏰ Скидка <span id="discountAmount">4410</span> ₽ действует: <span id="timer-countdown">10:00</span></div>
     </div>
     
     <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;" id="paymentForm">
@@ -1275,11 +1579,26 @@ async def payment_page(user_id: str, amount: int = 490, status: str = None):
     var timerEl = document.getElementById('timer-countdown');
     var timerDiv = document.getElementById('timer');
     
+    var amount = {amount};
+    var oldPriceSpan = document.getElementById('oldPrice');
+    var currentPriceSpan = document.getElementById('currentPrice');
+    var discountSpan = document.getElementById('discountAmount');
+    
+    if (amount == 1490) {{
+        oldPriceSpan.innerText = '12900';
+        currentPriceSpan.innerText = '1490';
+        discountSpan.innerText = '11410';
+    }} else {{
+        oldPriceSpan.innerText = '4900';
+        currentPriceSpan.innerText = '490';
+        discountSpan.innerText = '4410';
+    }}
+    
     var interval = setInterval(function() {{
         if (timeLeft <= 0) {{
             clearInterval(interval);
             timerDiv.style.background = '#8e8e93';
-            timerDiv.innerHTML = '⏰ Скидка закончилась. Цена вернётся к 4 900 ₽ через 24 часа.';
+            timerDiv.innerHTML = '⏰ Скидка закончилась. Цена вернётся к обычной через 24 часа.';
             return;
         }}
         timeLeft--;
@@ -1303,7 +1622,7 @@ async def create_yookassa_payment(
     request: Request,
     user_id: str = Form(...),
     phone: str = Form(...),
-    amount: int = Form(490),
+    amount: int = Form(...),
     agree_all: bool = Form(False)
 ):
     if not agree_all:
@@ -1527,7 +1846,7 @@ async def payment_success(user_id: str, amount: int = 490):
         <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
         <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: бесплатная консультация</h3>
         <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">
-            Подпишитесь на мой MAX-канал и получите 30 минут личного разбора вашего плана.
+            Получите 30 минут личного разбора вашего плана.
         </p>
         <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
             <p style="font-weight: 600; margin-bottom: 12px;">За 30 минут мы:</p>
@@ -1537,15 +1856,11 @@ async def payment_success(user_id: str, amount: int = 490):
                 <li style="margin-bottom: 10px;">✅ Дадим честный фидбек по вашему бизнесу и плану</li>
             </ul>
         </div>
-        <div class="bot-link-block" style="background: #007aff10; padding: 20px; border-radius: 20px;">
-            <p style="margin-bottom: 16px; font-weight: 500;">👇 Подпишитесь и получите консультацию</p>
-            <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-outline" style="margin-right: 12px; margin-bottom: 12px; display: inline-block;" onclick="ym(108348240,'reachGoal','consultation_channel_click'); return true;">
-                📢 Подписаться на канал
-            </a>
+        <div style="text-align: center; margin: 32px 0;">
             <a href="/consultation?user_id={user_id}" class="btn btn-primary" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
-                🔥 Записаться на консультацию
+                🔥 Записаться на бесплатную консультацию
             </a>
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 16px;">* После подписки вы получите приоритет в записи</p>
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">30 минут личного разбора вашего плана</p>
         </div>
     </div>
     
@@ -1588,7 +1903,7 @@ async def payment_success(user_id: str, amount: int = 490):
         <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
         <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: бесплатная консультация</h3>
         <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">
-            После подписки на мой MAX‑канал вы получите 30 минут личного разбора вашего плана.
+            Получите 30 минут личного разбора вашего плана.
         </p>
         <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
             <p style="font-weight: 600; margin-bottom: 12px;">За 30 минут мы:</p>
@@ -1598,15 +1913,11 @@ async def payment_success(user_id: str, amount: int = 490):
                 <li style="margin-bottom: 10px;">✅ Дадим честный фидбек по вашему бизнесу и плану</li>
             </ul>
         </div>
-        <div class="bot-link-block" style="background: #007aff10; padding: 20px; border-radius: 20px;">
-            <p style="margin-bottom: 16px; font-weight: 500;">👇 Подпишитесь и получите консультацию</p>
-            <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-outline" style="margin-right: 12px; margin-bottom: 12px; display: inline-block;" onclick="ym(108348240,'reachGoal','consultation_channel_click'); return true;">
-                📢 Подписаться на канал
-            </a>
+        <div style="text-align: center; margin: 32px 0;">
             <a href="/consultation?user_id={user_id}" class="btn btn-primary" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
-                🔥 Записаться на консультацию
+                🔥 Записаться на бесплатную консультацию
             </a>
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 16px;">* После подписки вы получите приоритет в записи</p>
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">30 минут личного разбора вашего плана</p>
         </div>
     </div>
 
@@ -1691,6 +2002,22 @@ async def consultation_page(user_id: str = None):
         logger.info(f"Created new user_id for direct consultation link: {user_id}")
         save_user(user_id, None, None)
     
+    # Получаем уже сохранённые данные пользователя
+    user_phone = ""
+    business_info = ""
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    if row and row[0]:
+        user_phone = row[0]
+    
+    cursor = conn.execute("SELECT business_name, business_description FROM business_data WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    if row:
+        business_info = f"Бизнес: {row[0]}. Описание: {row[1]}"
+    conn.close()
+    
     content = f'''
 <div class="hero" style="margin-bottom: 30px;">
     <h1 style="font-size: 36px;">🔥 Бесплатная консультация</h1>
@@ -1716,19 +2043,14 @@ async def consultation_page(user_id: str = None):
     
     <form action="/consultation/submit" method="post" id="consultationForm">
         <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group">
-            <label>📞 Ваш телефон</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px; border-radius: 16px;">
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 6px;">Только для связи. Спама не будет.</p>
-        </div>
-        <div class="form-group">
-            <label>📝 Ваш вопрос или описание бизнеса</label>
-            <textarea name="question" rows="4" placeholder="Например: «Помогите запустить онлайн-школу по психологии»" required style="border-radius: 16px;"></textarea>
-        </div>
+        <input type="hidden" name="phone" value="{user_phone}">
+        <input type="hidden" name="question" value="{business_info}">
+        
         <div class="form-group">
             <label>🕐 Удобное время для звонка (по Москве)</label>
             <input type="text" name="time" placeholder="например: завтра в 15:00" required style="border-radius: 16px;">
         </div>
+        
         <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
             📅 Отправить заявку
         </button>
