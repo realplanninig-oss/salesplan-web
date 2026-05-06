@@ -9,6 +9,7 @@ import re
 import asyncio
 import base64
 import secrets
+import aiohttp
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -41,6 +42,7 @@ YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 MAX_BOT_TOKEN = os.getenv("MAX_BOT_TOKEN")
+ADMIN_CHANNEL_ID = os.getenv("ADMIN_CHANNEL_ID")
 
 # Проверка обязательных переменных
 missing_vars = []
@@ -475,14 +477,11 @@ def log_event(user_id: str, event_type: str, event_data: str = None):
     logger.info(f"Event: {event_type} | User: {user_id} | Data: {event_data}")
 
 # === ОТПРАВКА СООБЩЕНИЙ В КАНАЛ MAX ===
-ADMIN_CHANNEL_ID = os.getenv("ADMIN_CHANNEL_ID")
-
 async def send_notification_to_channel(text: str):
-    if not ADMIN_CHANNEL_ID:
-        logger.error("ADMIN_CHANNEL_ID not configured")
+    if not ADMIN_CHANNEL_ID or not MAX_BOT_TOKEN:
+        logger.error("ADMIN_CHANNEL_ID or MAX_BOT_TOKEN not configured")
         return
     
-    import aiohttp
     url = f"https://platform-api.max.ru/messages?channel_id={ADMIN_CHANNEL_ID}"
     payload = {"text": text}
     headers = {"Authorization": MAX_BOT_TOKEN, "Content-Type": "application/json"}
@@ -1214,7 +1213,7 @@ async def payment_create(user_id: str = Form(...), amount: int = Form(...)):
     return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
 
 @app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str, amount: int = 490, status: str = None):
+async def payment_page(user_id: str, amount: int, status: str = None):
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
@@ -1487,7 +1486,7 @@ async def payment_confirm(request: Request):
     """, status_code=200)
 
 @app.get("/payment/success", response_class=HTMLResponse)
-async def payment_success(user_id: str, amount: int = 490):
+async def payment_success(user_id: str, amount: int):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
     
     biz = get_business_data(user_id)
