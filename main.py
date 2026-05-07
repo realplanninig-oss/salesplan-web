@@ -1428,6 +1428,7 @@ async def payment_webhook(request: Request):
     try:
         body = await request.json()
         logger.info(f"Webhook received")
+        logger.info(f"Webhook body: {body}")
         
         event = body.get("event")
         payment = body.get("object", {})
@@ -1435,10 +1436,27 @@ async def payment_webhook(request: Request):
         status = payment.get("status")
         metadata = payment.get("metadata", {})
         user_id = metadata.get("user_id")
-        amount = int(metadata.get("amount", 490))
+        amount = metadata.get("amount")
+        
+        if amount is not None:
+            try:
+                amount = int(amount)
+            except (ValueError, TypeError):
+                amount = 490
+        else:
+            amount = 490
+        
+        logger.info(f"Webhook parsed: event={event}, payment_id={payment_id}, status={status}, user_id={user_id}, amount={amount}")
         
         if event == "payment.succeeded" and status == "succeeded":
             update_payment_status(payment_id, "succeeded")
+            
+            if user_id and amount == 1490:
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute("UPDATE payments SET amount = ? WHERE yookassa_payment_id = ? AND amount != ?", (amount, payment_id, amount))
+                conn.commit()
+                conn.close()
+                logger.info(f"Updated payment amount to {amount} for payment_id {payment_id}")
             
             if user_id:
                 biz = get_business_data(user_id)
@@ -1564,23 +1582,23 @@ async def payment_success(user_id: str, amount: int = 490):
     
     <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
         <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
-        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: бесплатная консультация</h3>
+        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: 30 минут со мной</h3>
         <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">
-            Получите 30 минут личного разбора вашего плана.
+            «Я посмотрю ваш план, бизнес и скажу честно: что работает, а что нет. Без воды. Без «всё хорошо». Только факты и следующая точка входа.»
         </p>
         <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
-            <p style="font-weight: 600; margin-bottom: 12px;">За 30 минут мы:</p>
+            <p style="font-weight: 600; margin-bottom: 12px;">Что вынесете за 30 минут:</p>
             <ul style="list-style: none; padding: 0;">
-                <li style="margin-bottom: 10px;">✅ Найдём 3 точки утечки клиентов, о которых вы не знали</li>
-                <li style="margin-bottom: 10px;">✅ Определим 1 точный первый шаг к продажам</li>
-                <li style="margin-bottom: 10px;">✅ Дадим честный фидбек по вашему бизнесу и плану</li>
+                <li style="margin-bottom: 10px;">✅ Чёткий план первой продажи, которую можно сделать завтра</li>
+                <li style="margin-bottom: 10px;">✅ Ответ, на каком этапе воронки вы теряете деньги</li>
+                <li style="margin-bottom: 10px;">✅ Честный разбор — где вы сливаете время и бюджет впустую</li>
             </ul>
         </div>
         <div style="text-align: center; margin: 32px 0;">
             <a href="/consultation?user_id={user_id}" class="btn btn-primary" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
-                🔥 Записаться на бесплатную консультацию
+                🔥 Забрать 30 минут
             </a>
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">30 минут личного разбора вашего плана</p>
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">Без подписок, без обязательств. Просто созвон и польза.</p>
         </div>
     </div>
     
@@ -1621,23 +1639,23 @@ async def payment_success(user_id: str, amount: int = 490):
 
     <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
         <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
-        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: бесплатная консультация</h3>
+        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: 30 минут со мной</h3>
         <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">
-            Получите 30 минут личного разбора вашего плана.
+            «Я посмотрю ваш план, бизнес и скажу честно: что работает, а что нет. Без воды. Без «всё хорошо». Только факты и следующая точка входа.»
         </p>
         <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
-            <p style="font-weight: 600; margin-bottom: 12px;">За 30 минут мы:</p>
+            <p style="font-weight: 600; margin-bottom: 12px;">Что вынесете за 30 минут:</p>
             <ul style="list-style: none; padding: 0;">
-                <li style="margin-bottom: 10px;">✅ Найдём 3 точки утечки клиентов, о которых вы не знали</li>
-                <li style="margin-bottom: 10px;">✅ Определим 1 точный первый шаг к продажам</li>
-                <li style="margin-bottom: 10px;">✅ Дадим честный фидбек по вашему бизнесу и плану</li>
+                <li style="margin-bottom: 10px;">✅ Чёткий план первой продажи, которую можно сделать завтра</li>
+                <li style="margin-bottom: 10px;">✅ Ответ, на каком этапе воронки вы теряете деньги</li>
+                <li style="margin-bottom: 10px;">✅ Честный разбор — где вы сливаете время и бюджет впустую</li>
             </ul>
         </div>
         <div style="text-align: center; margin: 32px 0;">
             <a href="/consultation?user_id={user_id}" class="btn btn-primary" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">
-                🔥 Записаться на бесплатную консультацию
+                🔥 Забрать 30 минут
             </a>
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">30 минут личного разбора вашего плана</p>
+            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">Без подписок, без обязательств. Просто созвон и польза.</p>
         </div>
     </div>
 
