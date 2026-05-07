@@ -839,7 +839,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 </body>
 </html>"""
 
-def render_premium_waiting_page(user_id: str):
+def render_premium_waiting_page(user_id: str, amount: int):
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -867,7 +867,7 @@ def render_premium_waiting_page(user_id: str):
                 .then(data => {{
                     if (data.ready) {{
                         isRedirected = true;
-                        window.location.href = '/payment/success?user_id={user_id}';
+                        window.location.href = '/payment/success?user_id={user_id}&amount={amount}';
                     }} else {{
                         attempts++;
                         step = Math.min(3, Math.floor(attempts / 20) + 1);
@@ -1528,11 +1528,23 @@ async def payment_confirm(request: Request):
 async def payment_success(user_id: str, amount: int = 490):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
     
+    # Восстанавливаем реальную сумму из БД, если передан 490
+    if amount == 490:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.execute("SELECT amount FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY id DESC LIMIT 1", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0] == 1490:
+            amount = 1490
+            logger.info(f"Fixed amount from DB: {amount} for user {user_id}")
+    
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     
+    # Проверяем существующий отчёт
     existing_report = get_report(user_id, "premium")
     
+    # Если отчёт готов — показываем его
     if existing_report and existing_report["status"] == "ready":
         report_text_full = None
         
@@ -1546,13 +1558,11 @@ async def payment_success(user_id: str, amount: int = 490):
                     logger.error(f"Failed to read report file: {e}")
         
         if not report_text_full:
-            report_text_full = existing_report.get("text")
-        
-        if not report_text_full:
-            report_text_full = "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
+            report_text_full = existing_report.get("text") or "Текст плана продаж временно недоступен. Пожалуйста, обратитесь в поддержку."
         
         report_text_html = report_text_full.replace("\n", "<br>")
         
+        # === КОНТЕНТ ДЛЯ 1490 ₽ (без апсела, с MAX-чатом) ===
         if amount == 1490:
             content = f'''
 <div class="hero">
@@ -1611,6 +1621,7 @@ async def payment_success(user_id: str, amount: int = 490):
     ym(108348240,'reachGoal','premium_purchase_success');
 </script>'''
         else:
+            # === КОНТЕНТ ДЛЯ 490 ₽ (с апселом, без MAX-чата) ===
             content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1670,10 +1681,15 @@ async def payment_success(user_id: str, amount: int = 490):
         
         return HTMLResponse(content=render_page(content))
     
+    # Если отчёта нет — показываем страницу ожидания
     if not biz:
         biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
     if not answers:
         answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
+    
+    # Проверяем, не запущена ли уже генерация
+    if existing_report and existing_report["status"] == "generating":
+        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
     
     if DEEPSEEK_API_KEY:
         conn = sqlite3.connect(DB_PATH)
@@ -1683,7 +1699,7 @@ async def payment_success(user_id: str, amount: int = 490):
         conn.close()
         
         asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-        return HTMLResponse(content=render_premium_waiting_page(user_id))
+        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
     else:
         premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
 
@@ -2287,7 +2303,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
                 <tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr>
             </thead>
             <tbody></tbody>
-        </table>
+        </tr>
     </div>
     
     <div id="consultationsTab" class="table-container" style="display:none">
