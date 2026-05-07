@@ -1710,7 +1710,7 @@ async def payment_success(user_id: str, amount: int = 490):
 Рекомендации для увеличения продаж:
 1. Проанализируйте целевую аудиторию
 2. Настройте автоворонку
-3. Добавьте триггерные сообщения
+3. Добавьте призывы к действию
 """
         save_report(user_id, "premium", premium_text)
         report_text_html = premium_text.replace("\n", "<br>")
@@ -1778,17 +1778,17 @@ async def consultation_page(user_id: str = None):
 </div>
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
-    <div style="background: #007aff10; border-radius: 20px; padding: 24px; margin-bottom: 24px;">
-        <div style="font-size: 48px; font-weight: 700; color: #007aff;">Осталось мест: <span id="counter">50</span></div>
-        <p style="color: #6e6e73;">Бесплатно — только для первых 50 подписчиков</p>
+    <div style="background: #007aff10; border-radius: 20px; padding: 16px 24px; margin-bottom: 24px;">
+        <div style="font-size: 14px; font-weight: 600; color: #ff3b30; text-align: center;">🔥 Осталось всего <span id="counter" style="font-size: 24px; font-weight: 700;">17</span> мест</div>
+        <p style="font-size: 12px; color: #6e6e73; text-align: center; margin-top: 4px;">Бесплатно — только для первых 17 подписчиков</p>
     </div>
     
     <div style="text-align: left; margin-bottom: 24px;">
-        <p style="font-weight: 600;">Что вы получите за 30 минут:</p>
-        <ul style="margin-top: 10px;">
-            <li>✅ 3 точки утечки клиентов, о которых вы не знали</li>
-            <li>✅ 1 точный первый шаг к продажам</li>
-            <li>✅ Честный фидбек по вашему бизнесу и маркетинговому плану</li>
+        <p style="font-weight: 600; margin-bottom: 12px;">Что вы получите за 30 минут:</p>
+        <ul style="list-style: none; padding: 0;">
+            <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">✅ Чёткий план первой продажи, которую можно сделать завтра</li>
+            <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">✅ Ответ, на каком этапе воронки вы теряете деньги</li>
+            <li style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">✅ Честный разбор — где вы сливаете время и бюджет впустую</li>
         </ul>
     </div>
     
@@ -1813,7 +1813,7 @@ async def consultation_page(user_id: str = None):
 </div>
 
 <script>
-    let counter = 50;
+    let counter = 17;
     const form = document.getElementById('consultationForm');
     if (form) {{
         form.addEventListener('submit', function(e) {{
@@ -2300,10 +2300,10 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
         <h3 style="margin-bottom:15px">📝 Бесплатные диагностики</h3>
         <table id="diagnosticsTable">
             <thead>
-                <tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr>
+                <tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></table>
             </thead>
             <tbody></tbody>
-        </tr>
+        </table>
     </div>
     
     <div id="consultationsTab" class="table-container" style="display:none">
@@ -2482,10 +2482,16 @@ async def admin_stats(auth: bool = Depends(verify_admin)):
     days = 7
     funnel = get_full_funnel(days)
     
+    # Правильно считаем выручку — суммируем amount из успешных платежей
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT SUM(amount) FROM payments WHERE status = 'succeeded'")
+    row = cursor.fetchone()
+    conn.close()
+    total_revenue = row[0] if row and row[0] else 0
+    
     total_visitors = sum(f['visitors'] for f in funnel)
     total_diagnostics = sum(f['diagnostics'] for f in funnel)
-    total_payments = sum(f['payments'] for f in funnel)
-    total_downloads = sum(f['downloads'] for f in funnel)
+    total_payments = len([p for p in get_sales_funnel_stats(days) if p['payments'] > 0])
     
     return {
         "funnel": funnel,
@@ -2493,10 +2499,10 @@ async def admin_stats(auth: bool = Depends(verify_admin)):
             "visitors": total_visitors,
             "diagnostics": total_diagnostics,
             "payments": total_payments,
-            "downloads": total_downloads,
+            "downloads": sum(f['downloads'] for f in funnel),
             "conv_visit_to_diag": round(total_diagnostics / max(total_visitors, 1) * 100, 1),
             "conv_diag_to_payment": round(total_payments / max(total_diagnostics, 1) * 100, 1),
-            "total_revenue": total_payments * 490
+            "total_revenue": total_revenue
         }
     }
 
