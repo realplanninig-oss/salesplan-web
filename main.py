@@ -1528,6 +1528,15 @@ async def payment_confirm(request: Request):
 async def payment_success(user_id: str, amount: int = 490):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
     
+    # Получаем телефон пользователя для апсела
+    user_phone = ""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    if row and row[0]:
+        user_phone = row[0]
+    conn.close()
+    
     # Восстанавливаем реальную сумму из БД, если передан 490
     if amount == 490:
         conn = sqlite3.connect(DB_PATH)
@@ -1641,9 +1650,15 @@ async def payment_success(user_id: str, amount: int = 490):
             <h4>Хотите AI‑поддержку и челлендж?</h4>
             <p>Доплатите 1 000 ₽ и получите 30 дней AI‑консультаций в MAX + 7‑дневный челлендж + закрытый канал</p>
         </div>
-        <a href="/payment?user_id={user_id}&amount=1490" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','basic_purchase_success'); return true;">
-            🔥 Доплатить 1 000 ₽
-        </a>
+        <form action="/create_yookassa_payment" method="post" style="display: inline; margin: 0;">
+            <input type="hidden" name="user_id" value="{user_id}">
+            <input type="hidden" name="phone" value="{user_phone}">
+            <input type="hidden" name="amount" value="1490">
+            <input type="hidden" name="agree_all" value="true">
+            <button type="submit" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">
+                🔥 Доплатить 1 000 ₽
+            </button>
+        </form>
     </div>
 
     <hr style="margin: 32px 0;">
@@ -1779,8 +1794,8 @@ async def consultation_page(user_id: str = None):
 
 <div class="form-card" style="text-align: center; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);">
     <div style="background: #007aff10; border-radius: 20px; padding: 16px 24px; margin-bottom: 24px;">
-        <div style="font-size: 14px; font-weight: 600; color: #ff3b30; text-align: center;">🔥 Осталось всего <span id="counter" style="font-size: 24px; font-weight: 700;">17</span> мест</div>
-        <p style="font-size: 12px; color: #6e6e73; text-align: center; margin-top: 4px;">Бесплатно — только для первых 17 подписчиков</p>
+        <div style="font-size: 14px; font-weight: 600; color: #ff3b30; text-align: center;">🔥 Осталось всего <span id="counter" style="font-size: 28px; font-weight: 700;">97</span> мест из 100</div>
+        <p style="font-size: 12px; color: #6e6e73; text-align: center; margin-top: 4px;">Бесплатно — только для первых 100 подписчиков</p>
     </div>
     
     <div style="text-align: left; margin-bottom: 24px;">
@@ -1813,7 +1828,7 @@ async def consultation_page(user_id: str = None):
 </div>
 
 <script>
-    let counter = 17;
+    let counter = 97;
     const form = document.getElementById('consultationForm');
     if (form) {{
         form.addEventListener('submit', function(e) {{
@@ -2300,7 +2315,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
         <h3 style="margin-bottom:15px">📝 Бесплатные диагностики</h3>
         <table id="diagnosticsTable">
             <thead>
-                <tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></table>
+                <tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr>
             </thead>
             <tbody></tbody>
         </table>
