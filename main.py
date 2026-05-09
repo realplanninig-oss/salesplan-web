@@ -2590,5 +2590,3 @@ async def admin_consultations(auth: bool = Depends(verify_admin)):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-curl https://realplanninig-oss-salesplan-web-7eb2.twc1.net/api/check_premium?user_id=ec56c230-396b-47b0-bdac-5261b62be8a1
