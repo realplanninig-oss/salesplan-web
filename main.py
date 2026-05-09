@@ -86,7 +86,7 @@ def init_db():
     conn.execute("CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, phone TEXT, name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS business_data (user_id TEXT PRIMARY KEY, business_name TEXT, business_description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS forms (user_id TEXT PRIMARY KEY, q1 TEXT, q2 TEXT, q3 TEXT, q4 TEXT, q5 TEXT, q6 TEXT, q7 TEXT, completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-    conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP)")
+    conn.execute("CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, report_type TEXT NOT NULL, report_text TEXT, file_path TEXT, status TEXT DEFAULT 'generating', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ready_at TIMESTAMP, paid_at TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS consultations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, time TEXT, question TEXT, status TEXT DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, phone TEXT, yookassa_payment_id TEXT, amount INTEGER, status TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
     conn.execute("""
@@ -120,7 +120,7 @@ app = FastAPI(title="Salesplan Web")
 # === MIDDLEWARE ===
 BLOCKED_PATHS = [
     "/_next", "/api/route", "/app", "/wp-content", "/wp-admin", "/cgi-bin",
-    "/.env", "/.git", "/robots.txt", "/api", "/_next/server"
+    "/.env", "/.git", "/robots.txt", "/_next/server"
 ]
 
 @app.middleware("http")
@@ -135,10 +135,16 @@ async def track_and_block_requests(request: Request, call_next):
     if path == "/favicon.ico":
         return await call_next(request)
     
+    # Блокируем вредоносные пути
     for blocked in BLOCKED_PATHS:
         if path.startswith(blocked):
             logger.warning(f"Blocked malicious path: {path} from {client_ip}")
             return Response(status_code=404)
+    
+    # Отдельная проверка для API — не блокируем /api/check_premium
+    if path.startswith("/api") and not path.startswith("/api/check_premium"):
+        logger.warning(f"Blocked API path: {path} from {client_ip}")
+        return Response(status_code=404)
     
     bad_bots = ["bot", "crawler", "scanner", "nikto", "sqlmap", "wget", "curl", "python-requests", "java"]
     for bot in bad_bots:
@@ -271,7 +277,8 @@ def get_all_premium_clients():
             f.q1, f.q2, f.q3, f.q4, f.q5,
             r.file_path,
             r.status as report_status,
-            r.ready_at
+            r.ready_at,
+            r.paid_at
         FROM payments p
         LEFT JOIN business_data b ON p.user_id = b.user_id
         LEFT JOIN forms f ON p.user_id = f.user_id
@@ -282,7 +289,7 @@ def get_all_premium_clients():
     
     columns = ['user_id', 'phone', 'payment_date', 'business_name', 
                'business_description', 'q1', 'q2', 'q3', 'q4', 'q5',
-               'report_path', 'report_status', 'report_ready_at']
+               'report_path', 'report_status', 'report_ready_at', 'paid_at']
     
     results = []
     for row in cursor.fetchall():
@@ -475,25 +482,38 @@ def format_moscow_time(dt=None):
 def log_event(user_id: str, event_type: str, event_data: str = None):
     logger.info(f"Event: {event_type} | User: {user_id} | Data: {event_data}")
 
+async def send_message_to_user(user_id: str, text: str):
+    """Отправка сообщения пользователю в MAX (для уведомлений после оплаты)"""
+    if not MAX_BOT_TOKEN:
+        logger.error("MAX_BOT_TOKEN not configured")
+        return
+    
+    url = f"https://platform-api.max.ru/messages?user_id={user_id}"
+    payload = {"text": text}
+    headers = {"Authorization": MAX_BOT_TOKEN, "Content-Type": "application/json"}
+    import aiohttp
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+                logger.error(f"send_message_to_user failed: {resp.status} - {error_text}")
+
 # === ОТПРАВКА СООБЩЕНИЙ В КАНАЛ MAX ===
 async def send_notification_to_channel(text: str):
     if not ADMIN_CHANNEL_ID or not MAX_BOT_TOKEN:
         logger.error("ADMIN_CHANNEL_ID or MAX_BOT_TOKEN not configured")
         return
     
+    import aiohttp
     url = f"https://platform-api.max.ru/messages?channel_id={ADMIN_CHANNEL_ID}"
     payload = {"text": text}
     headers = {"Authorization": MAX_BOT_TOKEN, "Content-Type": "application/json"}
-    
-    def _send_sync():
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            if response.status_code != 200:
-                logger.error(f"send_notification_to_channel failed: {response.status_code} - {response.text}")
-        except Exception as e:
-            logger.error(f"send_notification_to_channel exception: {e}")
-    
-    await asyncio.get_event_loop().run_in_executor(None, _send_sync)
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+                logger.error(f"send_notification_to_channel failed: {resp.status} - {error_text}")
+            return await resp.json()
 
 def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     if not DEEPSEEK_API_KEY:
@@ -1364,6 +1384,8 @@ async def create_yookassa_payment(
     description = "Профессиональный маркетинговый план"
     if amount == 1490:
         description = "Внедрение — я сам: Маркетинговый план + AI-чат 30 дней + Челлендж"
+    elif amount == 1000:
+        description = "Доплата до Premium: AI-чат 30 дней + Челлендж + закрытый канал"
     
     payment_data = {
         "amount": {"value": f"{amount}.00", "currency": "RUB"},
@@ -1458,11 +1480,33 @@ async def payment_webhook(request: Request):
                 conn.close()
                 logger.info(f"Updated payment amount to {amount} for payment_id {payment_id}")
             
+            # Обработка доплаты 1000 ₽
+            if user_id and amount == 1000:
+                logger.info(f"Processing upsell payment 1000 RUB for user {user_id}")
+                # Обновляем paid_at в reports
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute("""
+                    UPDATE reports SET paid_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND report_type = 'premium' AND paid_at IS NULL
+                """, (user_id,))
+                conn.commit()
+                conn.close()
+                
+                # Отправляем уведомление в чат-бот
+                bot_url = f"https://realplanninig-oss-max-salesplan-bot-1a18.twc1.net/?user_id={user_id}"
+                await send_notification_to_channel(
+                    f"💰 ДОПЛАТА ДО PREMIUM\n\n"
+                    f"Пользователь: {user_id}\n"
+                    f"Доплатил 1000 ₽\n"
+                    f"Теперь доступен Premium\n"
+                    f"⏰ {format_moscow_time()}"
+                )
+            
             if user_id:
                 biz = get_business_data(user_id)
                 answers = get_form_data(user_id)
                 
-                if biz and answers and DEEPSEEK_API_KEY:
+                if biz and answers and DEEPSEEK_API_KEY and amount != 1000:
                     existing_report = get_report(user_id, "premium")
                     if not existing_report or existing_report["status"] != "ready":
                         conn = sqlite3.connect(DB_PATH)
@@ -1546,6 +1590,9 @@ async def payment_success(user_id: str, amount: int = 490):
         if row and row[0] == 1490:
             amount = 1490
             logger.info(f"Fixed amount from DB: {amount} for user {user_id}")
+        elif row and row[0] == 1000:
+            amount = 1490  # После доплаты 1000 показываем как Premium
+            logger.info(f"Upsell detected, showing premium page for user {user_id}")
     
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
@@ -1630,7 +1677,7 @@ async def payment_success(user_id: str, amount: int = 490):
     ym(108348240,'reachGoal','premium_purchase_success');
 </script>'''
         else:
-            # === КОНТЕНТ ДЛЯ 490 ₽ (с апселом, без MAX-чата) ===
+            # === КОНТЕНТ ДЛЯ 490 ₽ (с апселом 1000 ₽, без MAX-чата) ===
             content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1650,12 +1697,12 @@ async def payment_success(user_id: str, amount: int = 490):
             <h4>Хотите AI‑поддержку и челлендж?</h4>
             <p>Доплатите 1 000 ₽ и получите 30 дней AI‑консультаций в MAX + 7‑дневный челлендж + закрытый канал</p>
         </div>
-        <form action="/create_yookassa_payment" method="post" style="display: inline; margin: 0;">
+        <form action="/create_yookassa_payment" method="post" style="margin-top: 10px;">
             <input type="hidden" name="user_id" value="{user_id}">
             <input type="hidden" name="phone" value="{user_phone}">
-            <input type="hidden" name="amount" value="1490">
+            <input type="hidden" name="amount" value="1000">
             <input type="hidden" name="agree_all" value="true">
-            <button type="submit" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">
+            <button type="submit" class="btn btn-primary" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">
                 🔥 Доплатить 1 000 ₽
             </button>
         </form>
@@ -1752,11 +1799,15 @@ async def check_premium_status(user_id: str):
 
 @app.get("/api/check_premium")
 async def api_check_premium(user_id: str):
+    """API для проверки доступа чат-ботом"""
     conn = sqlite3.connect(DB_PATH)
+    # Проверяем, есть ли у пользователя активный Premium (оплачено 1490 ИЛИ есть paid_at)
     cursor = conn.execute("""
-        SELECT amount, status FROM payments 
-        WHERE user_id = ? AND amount = 1490 AND status = 'succeeded'
-        ORDER BY created_at DESC LIMIT 1
+        SELECT amount, paid_at FROM payments p
+        LEFT JOIN reports r ON r.user_id = p.user_id AND r.report_type = 'premium'
+        WHERE p.user_id = ? AND p.status = 'succeeded' 
+        AND (p.amount = 1490 OR r.paid_at IS NOT NULL)
+        ORDER BY p.created_at DESC LIMIT 1
     """, (user_id,))
     row = cursor.fetchone()
     conn.close()
