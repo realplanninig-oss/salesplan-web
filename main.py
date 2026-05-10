@@ -4490,6 +4490,29 @@ async def admin_consultations(auth: bool = Depends(verify_admin)):
     consultations = get_new_consultations()
     return {"consultations": consultations}
 
+@app.get("/api/check_premium_by_phone")
+async def api_check_premium_by_phone(phone: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("""
+        SELECT r.user_id, r.paid_at, p.amount 
+        FROM payments p
+        JOIN reports r ON p.user_id = r.user_id
+        WHERE p.phone = ? AND p.status = 'succeeded' AND r.report_type = 'premium' AND r.status = 'ready'
+        ORDER BY p.created_at DESC LIMIT 1
+    """, (phone,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    has_access = False
+    user_id = None
+    if row and row[1]:
+        paid_at = datetime.fromisoformat(row[1])
+        days_left = 30 - (get_moscow_time() - paid_at).days
+        has_access = days_left > 0 and row[2] in (1490, 1000)
+        user_id = row[0]
+    
+    return {"has_access": has_access, "user_id": user_id, "phone": phone}
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
