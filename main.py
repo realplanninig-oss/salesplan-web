@@ -1924,8 +1924,7 @@ async def subscribe_page(user_id: str):
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("SELECT file_path, report_text FR# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия)
-
+    
 import logging
 import sqlite3
 import os
