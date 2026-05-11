@@ -1115,43 +1115,38 @@ async def payment_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
         return JSONResponse(content={"status": "error"}, status_code=500)
 
+# ИСПРАВЛЕННЫЙ ЭНДПОИНТ /payment/confirm
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
     params = dict(request.query_params)
     logger.info(f"Payment confirm called with params: {params}")
     payment_id = params.get("paymentId") or params.get("payment_id")
     user_id = params.get("user_id")
+    
+    # Если есть payment_id, пытаемся получить информацию о платеже
     if payment_id:
         payment_info = get_payment_by_yookassa_id(payment_id)
         if payment_info:
             user_id = payment_info["user_id"]
-            amount = payment_info["amount"]
-            if amount is None:
-                amount = 490
+            amount = payment_info["amount"] if payment_info["amount"] is not None else 490
+            logger.info(f"Payment confirm: redirect via payment_id for user {user_id} amount {amount}")
             return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
+    
+    # Если есть user_id (из query или получен выше), ищем последний платёж (любой статус)
     if user_id:
         conn = sqlite3.connect(DB_PATH)
-        row = conn.execute("SELECT yookassa_payment_id, amount FROM payments WHERE user_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
+        row = conn.execute("SELECT amount FROM payments WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
         conn.close()
         if row:
-            payment_id = row[0]
-            amount = row[1]
-            if YOOKASSA_SECRET_KEY and YOOKASSA_SHOP_ID:
-                auth = base64.b64encode(f"{YOOKASSA_SHOP_ID}:{YOOKASSA_SECRET_KEY}".encode()).decode()
-                try:
-                    resp = requests.get(f"https://api.yookassa.ru/v3/payments/{payment_id}", headers={"Authorization": f"Basic {auth}"}, timeout=10)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        if data.get("status") == "succeeded":
-                            update_payment_status(payment_id, "succeeded")
-                            conn = sqlite3.connect(DB_PATH)
-                            conn.execute("UPDATE reports SET paid_at = CURRENT_TIMESTAMP WHERE user_id = ? AND report_type = 'premium' AND status = 'ready'", (user_id,))
-                            conn.commit()
-                            conn.close()
-                            return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
-                except Exception as e:
-                    logger.error(f"Failed to check payment status: {e}")
+            amount = row[0] if row[0] is not None else 490
+            logger.info(f"Payment confirm: redirecting to success for user {user_id} with amount {amount}")
             return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
+        else:
+            logger.warning(f"Payment confirm: no payments found for user {user_id}")
+    else:
+        logger.warning("Payment confirm: neither payment_id nor user_id provided")
+    
+    # Если ничего не удалось, показываем заглушку
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы получить план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
 @app.get("/payment/success", response_class=HTMLResponse)
