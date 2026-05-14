@@ -186,7 +186,7 @@ def get_free_diagnostics_stats(days=7):
         SELECT date(completed_at) as date, COUNT(*) as total
         FROM forms WHERE completed_at >= date('now', ?) GROUP BY date(completed_at) ORDER BY date DESC
     """, (f'-{days} days',))
-    results = [{"date": r[0], "diagnostics": r[1]} for r in cursor.fetchall()]
+    results = [{"date": d[0], "diagnostics": d[1]} for d in cursor.fetchall()]
     conn.close()
     return results
 
@@ -197,7 +197,7 @@ def get_report_downloads_stats(days=7):
         FROM reports WHERE report_type = 'premium' AND status = 'ready' AND ready_at >= date('now', ?)
         GROUP BY date(ready_at) ORDER BY date DESC
     """, (f'-{days} days',))
-    results = [{"date": r[0], "downloads": r[1]} for r in cursor.fetchall()]
+    results = [{"date": d[0], "downloads": d[1]} for d in cursor.fetchall()]
     conn.close()
     return results
 
@@ -755,9 +755,13 @@ def render_premium_waiting_page(user_id: str, amount: int):
 async def index():
     content = '''
 <div class="hero">
-    <h1>Запуск продаж.</h1>
-    <h2>Пошаговый план для экспертов</h2>
-    <p>За 1 минуту - маркетинговый план от AI, обученного опытным продюсером экспертов на 50+ нишах</p>
+    <h1>Бесплатно найдём 3 слабых места в ваших продажах.</h1>
+    <h2>AI устранит их за 7 дней — вы получите готовую воронку для первой сделки.</h2>
+    <p>А через 14 дней — 5 касаний и первую продажу. Челлендж 21 день с поддержкой AI и продюсера.</p>
+    <div style="margin-top: 30px;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_diagnostic'); return true;">🔥 Найти 3 дыры бесплатно</a>
+    </div>
+    <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">Никакого спама. Только польза. Ваша воронка через 7 дней.</p>
 </div>
 <div class="cases-grid">
     <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">без блога, только таргет и бот</div></div>
@@ -884,41 +888,70 @@ async def diagnostic(user_id: str):
             Вы уже знаете, что болит. Теперь выбирайте: лежать дальше или вставать и идти. Я не уговариваю. Я показываю путь. Дальше — ваше решение.»
         </p>
     </div>
-    <div style="background: #e8f0fe; border-radius: 20px; padding: 20px; margin: 32px 0; text-align: center;">
-        <div style="font-size: 32px; margin-bottom: 12px;">🤔</div>
-        <h3 style="font-size: 18px; margin-bottom: 8px;">Что делать с этой диагностикой?</h3>
-        <p style="font-size: 14px; color: #6e6e73; margin-bottom: 16px;">Вы получили карту слабых мест. Теперь нужно действовать.</p>
-        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-            <a href="#pricing" class="btn btn-primary" style="padding: 10px 20px; font-size: 14px;" onclick="document.getElementById('pricing').scrollIntoView({{behavior: 'smooth'}}); return false;">🚀 Выбрать тариф</a>
-            <a href="/consultation?user_id={user_id}" class="btn btn-outline" style="padding: 10px 20px; font-size: 14px;">📞 Записаться на консультацию</a>
-        </div>
-    </div>
     <h2 style="font-size: 28px; margin-bottom: 16px; text-align: center;" id="pricing">🚀 Выберите свой путь</h2>
     <div class="pricing-grid">
         <div class="pricing-card">
             <h2>📄 Старт</h2>
             <div class="price">490 ₽ <small>вместо 4 900 ₽</small></div>
-            <ul><li>✅ Профессиональный маркетинговый план</li><li>✅ Анализ 5 конкурентов</li><li>✅ Разбор ЦА</li><li>✅ Готовая воронка продаж</li><li>✅ Контент-план на месяц</li><li class="highlight">⚡ План за 2 минуты после оплаты</li></ul>
-            <form action="/payment/create" method="post"><input type="hidden" name="user_id" value="{user_id}"><input type="hidden" name="amount" value="490"><button type="submit" class="btn btn-outline" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_basic_plan'); return true;">Выбрать</button></form>
+            <ul>
+                <li>✅ Профессиональный маркетинговый план</li>
+                <li>✅ Анализ 5 конкурентов</li>
+                <li>✅ Разбор ЦА</li>
+                <li>✅ Готовая воронка продаж</li>
+                <li>✅ Контент-план на месяц</li>
+                <li class="highlight">⚡ План за 2 минуты после оплаты</li>
+            </ul>
+            <form action="/payment/create" method="post">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <input type="hidden" name="amount" value="490">
+                <button type="submit" class="btn btn-outline" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_basic_plan'); return true;">Выбрать</button>
+            </form>
         </div>
         <div class="pricing-card featured">
             <div class="popular-badge">🔥 Выбирают 70%</div>
             <h2>🤖 Внедрение — я сам</h2>
             <div class="price">1 490 ₽ <small>вместо 12 900 ₽</small></div>
-            <ul><li>✅ Маркетинговый план</li><li>✅ 30 дней AI‑консультаций в MAX</li><li>✅ 7‑дневный челлендж внедрения</li><li>✅ Доступ в закрытый MAX‑канал</li><li class="highlight">💬 Чат с AI‑ассистентом 24/7</li></ul>
-            <form action="/payment/create" method="post"><input type="hidden" name="user_id" value="{user_id}"><input type="hidden" name="amount" value="1490"><button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_premium_plan'); return true;">🔥 Получить доступ</button></form>
+            <ul>
+                <li>✅ Маркетинговый план</li>
+                <li>✅ 30 дней AI‑консультаций в MAX</li>
+                <li>✅ 21‑дневный челлендж внедрения с проверкой заданий от продюсера</li>
+                <li>✅ Доступ в закрытый MAX‑канал</li>
+                <li class="highlight">💬 Чат с AI‑ассистентом 24/7</li>
+            </ul>
+            <form action="/payment/create" method="post">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <input type="hidden" name="amount" value="1490">
+                <button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_premium_plan'); return true;">🔥 Получить доступ</button>
+            </form>
             <p style="font-size: 12px; margin-top: 12px; color: #6e6e73; text-align: center;">* AI-чат работает в MAX, отвечает на вопросы 24/7</p>
         </div>
-        <div class="pricing-card" style="border-color: #34c759;">
-            <div class="popular-badge" style="background: #34c759;">💎 VIP</div>
+        <div class="pricing-card" style="border-color: #ff9f0a; background: linear-gradient(135deg, #fff8e8, #fff);">
+            <div class="popular-badge" style="background: #ff9f0a;">🔥 Внедрение под ключ</div>
             <h2>💼 Внедрение под ключ</h2>
-            <div class="price">Индивидуально</div>
-            <ul><li>✅ Маркетинговый план</li><li>✅ Внедрение от продюсера</li><li>✅ Полное сопровождение</li><li class="highlight">🎯 Готовый результат «под ключ»</li></ul>
-            <a href="/consultation?user_id={user_id}" class="btn btn-primary" style="width: 100%; display: block; text-align: center; text-decoration: none; margin-top: 16px;" onclick="ym(108348240,'reachGoal','select_vip_plan'); return true;">🔥 Записаться на консультацию</a>
-            <p style="font-size: 12px; margin-top: 12px; color: #6e6e73; text-align: center;">* Обсудим детали и цену на созвоне</p>
+            <div class="price">50 000 ₽ <small>вместо 150 000 ₽</small></div>
+            <ul>
+                <li>✅ Я лично настраиваю воронку под ваш бизнес</li>
+                <li>✅ Пишу скрипты продаж и возражений</li>
+                <li>✅ Подключаю рассылки и автоответчики</li>
+                <li>✅ Даю готовую систему, которая приносит заявки без вас</li>
+                <li class="highlight">⚡ Гарантия первой сделки в течение 14 дней</li>
+            </ul>
+            <form action="/payment/create" method="post">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <input type="hidden" name="amount" value="50000">
+                <button type="submit" class="btn btn-primary" style="width: 100%; background: #ff9f0a;" onclick="ym(108348240,'reachGoal','select_producer_offer'); return true;">🔥 Заказать внедрение</button>
+            </form>
+            <p style="font-size: 12px; margin-top: 12px; color: #6e6e73; text-align: center;">* После оплаты я свяжусь с вами в течение часа</p>
         </div>
     </div>
     <hr style="margin: 32px 0;">
+    <div style="background: #e8f0fe; border-radius: 20px; padding: 24px; margin: 32px 0; text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 12px;">🎧</div>
+        <h3 style="font-size: 20px; margin-bottom: 8px;">Нужна помощь?</h3>
+        <p style="font-size: 16px; color: #1d1d1f; margin-bottom: 16px;">Запишитесь на бесплатную 30-минутную консультацию. После подписки на канал я свяжусь с вами.</p>
+        <a href="/consultation?user_id={user_id}" class="btn btn-primary" style="background: #007aff;" onclick="ym(108348240,'reachGoal','consultation_link'); return true;">📅 Записаться на консультацию</a>
+        <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">* После записи нужно будет подписаться на канал в MAX — это обязательное условие.</p>
+    </div>
     <div style="margin: 32px 0; text-align: center;"><a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a></div>
 </div>
 <script> ym(108348240,'reachGoal','diagnostic_got'); </script>
@@ -938,7 +971,14 @@ async def payment_page(user_id: str, amount: int, status: str = None):
     existing_report = get_report(user_id, "premium")
     if existing_report and existing_report["status"] == "ready":
         return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
-    plan_name = "Маркетинговый план" if amount == 490 else "Внедрение — я сам (план + AI-чат 30 дней + челлендж)"
+    if amount == 490:
+        plan_name = "Маркетинговый план"
+    elif amount == 1490:
+        plan_name = "Внедрение — я сам (план + AI-чат 30 дней + челлендж)"
+    elif amount == 50000:
+        plan_name = "Внедрение под ключ (полная настройка воронки от продюсера)"
+    else:
+        plan_name = f"План за {amount} ₽"
     content = f'''
 <div class="hero">
     <h1>💰 {plan_name} — {amount} ₽</h1>
@@ -973,6 +1013,10 @@ async def payment_page(user_id: str, amount: int, status: str = None):
         oldPriceSpan.innerText = '12900';
         currentPriceSpan.innerText = '1490';
         discountSpan.innerText = '11410';
+    }} else if (amount == 50000) {{
+        oldPriceSpan.innerText = '150000';
+        currentPriceSpan.innerText = '50000';
+        discountSpan.innerText = '100000';
     }} else {{
         oldPriceSpan.innerText = '4900';
         currentPriceSpan.innerText = '490';
@@ -1025,11 +1069,16 @@ async def create_yookassa_payment(
         logger.error("Phone is required")
         save_payment_request(user_id, phone, amount=amount)
         return RedirectResponse(url=f"/payment?user_id={user_id}&amp;amount={amount}&error=phone_required", status_code=303)
-    description = "Профессиональный маркетинговый план"
-    if amount == 1490:
+    if amount == 490:
+        description = "Профессиональный маркетинговый план"
+    elif amount == 1490:
         description = "Внедрение — я сам: Маркетинговый план + AI-чат 30 дней + Челлендж"
     elif amount == 1000:
         description = "Доплата до Premium: AI-чат 30 дней + Челлендж + закрытый канал"
+    elif amount == 50000:
+        description = "Внедрение под ключ: персональная настройка воронки от продюсера"
+    else:
+        description = f"План продаж за {amount} ₽"
     payment_data = {
         "amount": {"value": f"{amount}.00", "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm?user_id={user_id}"},
@@ -1115,15 +1164,12 @@ async def payment_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
         return JSONResponse(content={"status": "error"}, status_code=500)
 
-# ИСПРАВЛЕННЫЙ ЭНДПОИНТ /payment/confirm
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
     params = dict(request.query_params)
     logger.info(f"Payment confirm called with params: {params}")
     payment_id = params.get("paymentId") or params.get("payment_id")
     user_id = params.get("user_id")
-    
-    # Если есть payment_id, пытаемся получить информацию о платеже
     if payment_id:
         payment_info = get_payment_by_yookassa_id(payment_id)
         if payment_info:
@@ -1131,8 +1177,6 @@ async def payment_confirm(request: Request):
             amount = payment_info["amount"] if payment_info["amount"] is not None else 490
             logger.info(f"Payment confirm: redirect via payment_id for user {user_id} amount {amount}")
             return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
-    
-    # Если есть user_id (из query или получен выше), ищем последний платёж (любой статус)
     if user_id:
         conn = sqlite3.connect(DB_PATH)
         row = conn.execute("SELECT amount FROM payments WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
@@ -1145,8 +1189,6 @@ async def payment_confirm(request: Request):
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
-    
-    # Если ничего не удалось, показываем заглушку
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы получить план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
 @app.get("/payment/success", response_class=HTMLResponse)
@@ -1535,7 +1577,7 @@ new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{la
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
 data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
 async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
-async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
+async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
 function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
 function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
