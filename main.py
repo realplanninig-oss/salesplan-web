@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия)
+# File: main.py — веб-приложение Salesplan с админ-дашбордом (УТП: тест + точки роста)
 
 import logging
 import sqlite3
@@ -508,7 +508,8 @@ HTML_HEAD = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Salesplan</title>
+    <title>Тест: почему клиенты уходят к конкурентам — бесплатный разбор</title>
+    <meta name="description" content="Пройдите тест за 2 минуты. Узнайте 3 точки роста вашего бизнеса. AI построит воронку продаж и даст план к первой сделке за 7 дней.">
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -755,13 +756,13 @@ def render_premium_waiting_page(user_id: str, amount: int):
 async def index():
     content = '''
 <div class="hero">
-    <h1>Бесплатно найдём 3 слабых места в ваших продажах.</h1>
-    <h2>AI устранит их за 7 дней — вы получите готовую воронку для первой сделки.</h2>
-    <p>А через 14 дней — 5 касаний и первую продажу. Челлендж 21 день с поддержкой AI и продюсера.</p>
+    <h1>Пройдите бесплатный тест — узнайте, почему клиенты выбирают конкурентов.</h1>
+    <h2>AI найдёт 3 точки роста и построит готовую воронку продаж за 7 дней.</h2>
+    <p>Без спама. Без воды. Только конкретные шаги к первой сделке.</p>
     <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_diagnostic'); return true;">🔥 Найти 3 дыры бесплатно</a>
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_test'); return true;">🔥 Пройти тест бесплатно</a>
     </div>
-    <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">Никакого спама. Только польза. Ваша воронка через 7 дней.</p>
+    <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">2 минуты — и вы получите 3 точки роста + дорожную карту</p>
 </div>
 <div class="cases-grid">
     <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">без блога, только таргет и бот</div></div>
@@ -770,8 +771,8 @@ async def index():
     <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа по коучингу</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">марафон в ВК за 2 недели</div></div>
 </div>
 <div style="text-align:center">
-    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_diagnostic'); return true;">🔥 Найти точки роста за 2 минуты</a>
-    <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Честно. Никакого спама. Только польза.</p>
+    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_test'); return true;">🔥 Пройти тест</a>
+    <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Честный разбор. Никакой магии. Только маркетинг.</p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -780,8 +781,8 @@ async def index():
 async def survey():
     content = """
 <div class="hero">
-    <h1>Шаг 1 из 2. Давайте знакомиться</h1>
-    <p style="font-size: 18px;">«Чем честнее ответите — тем точнее будет разбор. Обещаю: никакой магии. Только маркетинг, который работает.»</p>
+    <h1>Тест: шаг 1 из 2. Давайте знакомиться</h1>
+    <p style="font-size: 18px;">«Честно ответьте на 7 вопросов — AI выявит 3 точки роста и построит воронку. Без воды.»</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -1281,7 +1282,7 @@ async def payment_success(user_id: str, amount: int = 490):
         <div class="bot-icon">🚀</div>
         <div class="bot-text">
             <h4>Хотите AI‑поддержку и челлендж?</h4>
-            <p>Доплатите 1 000 ₽ и получите 30 дней AI‑консультаций в MAX + 7‑дневный челлендж + закрытый канал</p>
+            <p>Доплатите 1 000 ₽ и получите 30 дней AI‑консультаций в MAX + 21-дневный челлендж + закрытый канал</p>
         </div>
         <form action="/create_yookassa_payment" method="post" style="display: inline; margin: 0;">
             <input type="hidden" name="user_id" value="{user_id}">
@@ -1575,9 +1576,9 @@ funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const
 const ctx=document.getElementById('funnelChart').getContext('2d');
 new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
 async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
-async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
+async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
 function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
 function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
