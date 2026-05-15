@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan с админ-дашбордом (версия: тест + ИИ+продюсер)
+# File: main.py — веб-приложение Salesplan с админ-дашбордом (УТП: тест + точки роста)
 
 import logging
 import sqlite3
@@ -508,8 +508,8 @@ HTML_HEAD = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Тест: 3 ошибки в продажах — ИИ + продюсер экспертов</title>
-    <meta name="description" content="Тест за 2 минуты: узнайте 3 скрытые ошибки в воронке, которые стоят 70% клиентов. ИИ и продюсер дадут готовую воронку за 7 дней.">
+    <title>Тест: почему клиенты уходят к конкурентам — бесплатный разбор</title>
+    <meta name="description" content="Пройдите тест за 2 минуты. Узнайте 3 точки роста вашего бизнеса. AI построит воронку продаж и даст план к первой сделке за 7 дней.">
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -756,9 +756,9 @@ def render_premium_waiting_page(user_id: str, amount: int):
 async def index():
     content = '''
 <div class="hero">
-    <h1>Тест за 2 минуты: узнай 3 скрытые ошибки в твоей воронке, которые стоят тебе 70% клиентов.</h1>
-    <h2>ИИ + продюсер экспертов дадут готовую воронку продаж за 7 дней и приведут к первой сделке за 21 день.</h2>
-    <p>Без спама. Без воды. Только конкретные шаги к росту.</p>
+    <h1>Пройдите бесплатный тест — узнайте, почему клиенты выбирают конкурентов.</h1>
+    <h2>AI найдёт 3 точки роста и построит готовую воронку продаж за 7 дней.</h2>
+    <p>Без спама. Без воды. Только конкретные шаги к первой сделке.</p>
     <div style="margin-top: 30px;">
         <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_test'); return true;">🔥 Пройти тест бесплатно</a>
     </div>
@@ -781,8 +781,8 @@ async def index():
 async def survey():
     content = """
 <div class="hero">
-    <h1>Честный разбор от продюсера экспертов с ИИ. Узнайте 3 скрытые точки роста за 2 минуты.</h1>
-    <p style="font-size: 18px;">«Ответьте на 7 вопросов — я лично (через AI) найду узкие места и дам готовую воронку. Без воды.»</p>
+    <h1>Тест: шаг 1 из 2. Давайте знакомиться</h1>
+    <p style="font-size: 18px;">«Честно ответьте на 7 вопросов — AI выявит 3 точки роста и построит воронку. Без воды.»</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -790,7 +790,7 @@ async def survey():
         <div class="form-group"><label>2. Короткое описание (чем занимаетесь, кому помогаете)</label><textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж → бесплатный разбор плана за подписку в MAX" required></textarea></div>
         <div class="form-group"><label>3. Что вы продаёте?</label><div class="radio-group"><label><input type="radio" name="q1" value="Услугу" required> Услугу</label><label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label><label><input type="radio" name="q1" value="Консультацию"> Консультацию</label><label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label></div></div>
         <div class="form-group"><label>4. Средний чек (₽)</label><div class="radio-group"><label><input type="radio" name="q2" value="до 5k" required> до 5k</label><label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label><label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label><label><input type="radio" name="q2" value=">50k"> >50k</label></div></div>
-        <div class="form-group"><label>5. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q3" value="<10" required> меньше 10</label><label><input type="radio" name="q3" value="10-50"> 10-50</label><label><input type="radio" name="q3" value="50-200"> 50-200</label><label><input type="radio" name="q3" value=">200"> أكثر من 200</label></div></div>
+        <div class="form-group"><label>5. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q3" value="<10" required> меньше 10</label><label><input type="radio" name="q3" value="10-50"> 10-50</label><label><input type="radio" name="q3" value="50-200"> 50-200</label><label><input type="radio" name="q3" value=">200"> более 200</label></div></div>
         <div class="form-group"><label>6. Цель на 2026</label><div class="radio-group"><label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q4" value="Масштаб"> Масштаб</label></div></div>
         <div class="form-group"><label>7. Уже есть автоворонка?</label><div class="radio-group"><label><input type="radio" name="q5" value="Да" required> Да</label><label><input type="radio" name="q5" value="Нет"> Нет</label><label><input type="radio" name="q5" value="В разработке"> В разработке</label></div></div>
         <div style="text-align:center"><p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ответьте на 7 коротких вопросов → получите персональный разбор вашего бизнеса с конкретными шагами для роста продаж</p><button type="submit" class="btn btn-primary" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Найти точки роста</button></div>
