@@ -830,8 +830,9 @@ async def index():
         <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Получить план первых клиентов</a>
     </div>
     <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">Бесплатно. 2 минуты – и вы получите 3 точки роста + дорожную карту.</p>
+    <p style="margin-top: 12px; font-size: 12px; color: #8e8e93;">✅ Опыт: 8 лет продюсирования экспертов, 50+ успешных запусков</p>
 </div>
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы наших клиентов</h2>
+<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
 <div class="cases-grid">
     <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">без блога, только таргет и бот</div></div>
     <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">запуск продаж онлайн-курса с 1 вебинара</div></div>
