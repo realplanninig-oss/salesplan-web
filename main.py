@@ -823,12 +823,13 @@ async def funnel_7_days():
 async def index():
     content = '''
 <div class="hero">
-    <h1>Первые клиенты за 2 недели. Готовая воронка за 7 дней.</h1>
-    <p><small>Продюсер экспертов + ИИ. Только конкретные шаги к росту.</small></p>
+    <h1>Первые клиенты за 2 недели – реально</h1>
+    <h2>Готовая воронка продаж за 7 дней. Продюсер экспертов + ИИ.</h2>
+    <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">Без спама. Только конкретные шаги.</p>
     <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_test'); return true;">🔥 Пройти бесплатный тест</a>
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Получить план первых клиентов</a>
     </div>
-    <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">2 минуты — и вы получите 3 точки роста + дорожную карту</p>
+    <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">Бесплатно. 2 минуты – и вы получите 3 точки роста + дорожную карту.</p>
 </div>
 <h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы наших клиентов</h2>
 <div class="cases-grid">
