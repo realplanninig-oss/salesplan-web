@@ -823,14 +823,14 @@ async def funnel_7_days():
 async def index():
     content = '''
 <div class="hero">
-    <h1>Первые клиенты за 2 недели – реально</h1>
-    <h2>Готовая воронка продаж за 7 дней. Продюсер экспертов + ИИ.</h2>
+    <h1>Первые клиенты за 2 недели. Даже если вы никогда не вели блог.</h1>
+    <h2>AI + продюсер экспертов построят воронку продаж. Никакой команды – только вы.</h2>
     <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">Без спама. Только конкретные шаги.</p>
     <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Получить план первых клиентов</a>
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Получить план продаж</a>
     </div>
     <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">Бесплатно. 2 минуты – и вы получите 3 точки роста + дорожную карту.</p>
-    <p style="margin-top: 12px; font-size: 12px; color: #8e8e93;">✅ Опыт: 8 лет продюсирования экспертов, 50+ успешных запусков</p>
+    <p style="margin-top: 12px; font-size: 12px; color: #8e8e93;">✅ 8 лет продюсирования экспертов, 50+ запусков</p>
 </div>
 <h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
 <div class="cases-grid">
