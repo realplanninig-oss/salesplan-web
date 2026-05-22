@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan с админ-дашбордом (версия с новыми лендингами и тарифами 490/4900/14900)
+# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия со всеми правками)
 
 import logging
 import sqlite3
@@ -130,7 +130,7 @@ async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
-    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success", "/start-clients", "/funnel-7-days"]:
+    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success", "/start-clients", "/funnel-7-days", "/consultation", "/subscribe"]:
         track_visit(ip=client_ip, user_agent=user_agent)
     if path == "/favicon.ico":
         return await call_next(request)
@@ -572,6 +572,7 @@ HTML_HEAD = """<!DOCTYPE html>
         .case-title{font-weight:600;margin-bottom:8px}
         .case-result{font-size:24px;font-weight:700;color:#34c759}
         .case-desc{font-size:12px;color:#6e6e73}
+        .bot-link-block{background:#e8f0fe;border-radius:20px;padding:24px;margin:32px 0;text-align:center}
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:28px}
@@ -758,11 +759,10 @@ def render_premium_waiting_page(user_id: str, amount: int):
 async def start_clients():
     content = '''
 <div class="hero">
-    <h1>Первые клиенты за 2 недели – реально</h1>
-    <h2>Продюсер экспертов с кейсами от 60 000 до 2 000 000 ₽ запускает ваши продажи</h2>
-    <p>Гарантия: вы получите первых платных клиентов в течение 14 дней после внедрения плана. Если нет – я верну деньги за тариф «Под ключ».</p>
+    <h1>Продюсер экспертов с кейсами от 60 000 до 2 000 000 ₽ запустит продажи</h1>
+    <p>Вы получите клиентов в течение 14 дней после внедрения плана.</p>
     <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_start_clients'); return true;">🔥 Получить план первых клиентов</a>
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_start_clients'); return true;">🔥 Получить план внедрения</a>
     </div>
 </div>
 <h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы</h2>
@@ -787,11 +787,10 @@ async def start_clients():
 async def funnel_7_days():
     content = '''
 <div class="hero">
-    <h1>Готовая воронка продаж за 7 дней</h1>
-    <h2>Автоматизируйте привлечение клиентов без лишних затрат</h2>
-    <p>AI + продюсер настроят воронку, касания и чат-бота. Вы получите систему, которая работает 24/7.</p>
+    <h1>Воронка продаж за 7 дней — под ключ</h1>
+    <h2>Запустите автоворонку, которая работает 24/7 без вашего участия</h2>
     <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_7'); return true;">⚡ Построить воронку за 7 дней</a>
+        <a href="/consultation" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_7'); return true;">🔥 Получить воронку за 7 дней</a>
     </div>
 </div>
 <div style="background: #f5f5f7; border-radius: 24px; padding: 32px; margin: 40px 0;">
@@ -807,13 +806,14 @@ async def funnel_7_days():
 <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 40px;">
     <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">🤖 <strong>AI на каждом шагу</strong><br>Без программирования</div>
     <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">⚡ <strong>Скорость</strong><br>Воронка за 7 дней</div>
-    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">📱 <strong>Работает в MAX, VK, Яндекс.Директ</strong><br>Без Instagram/Telegram</div>
+    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">📱 <strong>Работает в MAX, VK, Яндекс.Директ</strong></div>
+    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">📧 <strong>Готовая структура писем и касаний</strong></div>
 </div>
 <div style="text-align:center; margin: 20px 0;">
-    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_7_2'); return true;">🚀 Построить воронку</a>
+    <a href="/consultation" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_7_2'); return true;">🚀 Получить воронку</a>
 </div>
 <div style="background: #e8f0fe; border-radius: 20px; padding: 24px; text-align: center; margin-top: 30px;">
-    <p style="font-size: 16px;">🎁 <strong>Бонус:</strong> чек-лист из 10 пунктов для быстрого запуска – получите после заполнения анкеты.</p>
+    <p style="font-size: 16px;">🎁 <strong>Бонус:</strong> 30-минутный разбор вашей воронки после заполнения анкеты – <a href="/consultation">записаться</a>.</p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -823,9 +823,8 @@ async def funnel_7_days():
 async def index():
     content = '''
 <div class="hero">
-    <h1>Продюсер экспертов + ИИ</h1>
-    <h2>Первые клиенты за 2 недели. Готовая воронка за 7 дней.</h2>
-    <p>Без спама. Без воды. Только конкретные шаги к росту.</p>
+    <h1>Первые клиенты за 2 недели. Готовая воронка за 7 дней.</h1>
+    <p><small>Продюсер экспертов + ИИ. Только конкретные шаги к росту.</small></p>
     <div style="margin-top: 30px;">
         <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_test'); return true;">🔥 Пройти бесплатный тест</a>
     </div>
@@ -849,8 +848,8 @@ async def index():
 async def survey():
     content = """
 <div class="hero">
-    <h1>Честный разбор от продюсера экспертов с ИИ. Узнайте 3 скрытые точки роста за 2 минуты.</h1>
-    <p style="font-size: 18px;">«Ответьте на 7 вопросов — я лично (через AI) найду узкие места и дам готовую воронку. Без воды.»</p>
+    <h1>Честный разбор от продюсера экспертов. Узнайте 3 скрытые точки роста за 2 минуты.</h1>
+    <p style="font-size: 18px;">«Ответьте на 7 вопросов — найду узкие места и дам готовую воронку. Без воды.»</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -964,7 +963,6 @@ async def diagnostic(user_id: str):
             <div class="price">490 ₽ <small>вместо 4 900 ₽</small></div>
             <ul>
                 <li>✅ Маркетинговый план (ЦА, конкуренты, воронка, контент-план)</li>
-                <li>✅ Скачивание в PDF</li>
                 <li class="highlight">⚡ План через 2 минуты после оплаты</li>
             </ul>
             <form action="/payment/create" method="post">
@@ -999,7 +997,7 @@ async def diagnostic(user_id: str):
                 <li>✅ Всё из Профи</li>
                 <li>✅ Личная настройка воронки под ваш бизнес</li>
                 <li>✅ Скрипты продаж и возражений</li>
-                <li>✅ Настройка чат-бота и авторассылок</li>
+                <li>✅ Настройка чат-бота</li>
                 <li class="highlight">⚡ Гарантия первой сделки в течение 14 дней</li>
             </ul>
             <form action="/payment/create" method="post">
@@ -1034,9 +1032,7 @@ async def payment_page(user_id: str, amount: int, status: str = None):
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
-    existing_report = get_report(user_id, "premium")
-    if existing_report and existing_report["status"] == "ready":
-        return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
+    # Не проверяем existing_report, так как отчёт генерируется только после оплаты
     if amount == 490:
         plan_name = "Маркетинговый план"
     elif amount == 4900:
@@ -1141,8 +1137,6 @@ async def create_yookassa_payment(
         description = "Тариф Профи: Маркетинговый план + AI-чат 30 дней + Челлендж + канал"
     elif amount == 14900:
         description = "Внедрение под ключ: персональная настройка воронки от продюсера"
-    elif amount == 1000:
-        description = "Доплата до Premium: AI-чат 30 дней + Челлендж + закрытый канал"
     else:
         description = f"План продаж за {amount} ₽"
     payment_data = {
@@ -1174,19 +1168,7 @@ async def create_yookassa_payment(
                 save_payment_request(user_id, phone, amount=amount)
                 return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
             save_payment_request(user_id, phone, payment_id, amount, "pending")
-            # Запускаем генерацию отчёта сразу
-            biz = get_business_data(user_id)
-            answers = get_form_data(user_id)
-            if biz and answers and DEEPSEEK_API_KEY:
-                existing = get_report(user_id, "premium")
-                if not existing or existing["status"] != "ready":
-                    conn = sqlite3.connect(DB_PATH)
-                    cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
-                    report_id = cursor.lastrowid
-                    conn.commit()
-                    conn.close()
-                    asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-                    logger.info(f"Started premium report generation for user {user_id} before payment")
+            # НЕ генерируем отчёт здесь, только после подтверждения оплаты в вебхуке
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
@@ -1221,10 +1203,25 @@ async def payment_webhook(request: Request):
             update_payment_status(payment_id, "succeeded")
             if user_id:
                 conn = sqlite3.connect(DB_PATH)
+                # Обновим paid_at для отчёта, если он уже готов (но его может не быть)
                 conn.execute("UPDATE reports SET paid_at = CURRENT_TIMESTAMP WHERE user_id = ? AND report_type = 'premium' AND status = 'ready'", (user_id,))
                 conn.commit()
                 conn.close()
                 logger.info(f"Updated paid_at for user {user_id} after payment")
+                
+                # Генерируем отчёт после успешной оплаты
+                biz = get_business_data(user_id)
+                answers = get_form_data(user_id)
+                if biz and answers and DEEPSEEK_API_KEY:
+                    existing = get_report(user_id, "premium")
+                    if not existing or existing["status"] != "ready":
+                        conn = sqlite3.connect(DB_PATH)
+                        cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
+                        report_id = cursor.lastrowid
+                        conn.commit()
+                        conn.close()
+                        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
+                        logger.info(f"Started premium report generation for user {user_id} after payment")
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
         logger.error(f"Webhook error: {e}")
@@ -1260,22 +1257,31 @@ async def payment_confirm(request: Request):
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 490):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
+    # Проверяем, есть ли успешный платёж для этого пользователя
+    conn = sqlite3.connect(DB_PATH)
+    payment_row = conn.execute("SELECT status, amount FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
+    conn.close()
+    if not payment_row:
+        # Нет успешного платежа – перенаправляем на главную
+        return RedirectResponse(url="/", status_code=303)
+    # Если сумма в параметре не совпадает с суммой платежа, используем сумму из платежа
+    if payment_row[1] and payment_row[1] != amount:
+        amount = payment_row[1]
+        logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
+    
     user_phone = ""
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if row and row[0]:
         user_phone = row[0]
     conn.close()
-    if amount == 490:
-        conn = sqlite3.connect(DB_PATH)
-        row = conn.execute("SELECT amount FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
-        conn.close()
-        if row and row[0] in (4900, 14900, 1000):
-            amount = row[0]
-            logger.info(f"Fixed amount from DB: {amount} for user {user_id}")
+    
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     existing_report = get_report(user_id, "premium")
+    # Ждём готовности отчёта (может генерироваться)
+    if existing_report and existing_report["status"] == "generating":
+        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
     if existing_report and existing_report["status"] == "ready":
         report_text_full = None
         if existing_report.get("file_path"):
@@ -1289,8 +1295,9 @@ async def payment_success(user_id: str, amount: int = 490):
         if not report_text_full:
             report_text_full = existing_report.get("text") or "Текст плана продаж временно недоступен. Обратитесь в поддержку."
         report_text_html = report_text_full.replace("\n", "<br>")
-        if amount in (4900, 1000):
-            content = f'''
+        if amount in (4900, 14900):
+            if amount == 4900:
+                content = f'''
 <div class="hero">
     <h1>🎉 Доступ к пакету «Профи» активирован!</h1>
     <p style="font-size: 18px;">«Вот он — ваш билет к системным продажам. Берите и делайте. AI-чат ответит 24/7.»</p>
@@ -1332,8 +1339,8 @@ async def payment_success(user_id: str, amount: int = 490):
     <div style="margin: 32px 0;"><a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a></div>
 </div>
 <script> ym(108348240,'reachGoal','premium_purchase_success'); </script>'''
-        elif amount == 14900:
-            content = f'''
+            else:  # amount == 14900
+                content = f'''
 <div class="hero">
     <h1>🎉 Внедрение под ключ активировано!</h1>
     <p style="font-size: 18px;">«Вы выбрали полный пакет. Я свяжусь с вами в течение часа, чтобы начать настройку воронки.»</p>
@@ -1349,7 +1356,9 @@ async def payment_success(user_id: str, amount: int = 490):
     <div style="margin: 32px 0;"><a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a></div>
 </div>
 <script> ym(108348240,'reachGoal','producer_purchase_success'); </script>'''
+            return HTMLResponse(content=render_page(content))
         else:
+            # amount == 490 или что-то другое
             content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1364,15 +1373,16 @@ async def payment_success(user_id: str, amount: int = 490):
         <div class="bot-icon">🚀</div>
         <div class="bot-text">
             <h4>Хотите AI‑поддержку и челлендж?</h4>
-            <p>Доплатите 1 000 ₽ и получите 30 дней AI‑консультаций в MAX + 21-дневный челлендж + закрытый канал</p>
+            <p>Доплатите 4 000 ₽ и получите тариф Профи (30 дней AI‑консультаций в MAX + 21-дневный челлендж + закрытый канал)</p>
         </div>
         <form action="/create_yookassa_payment" method="post" style="display: inline; margin: 0;">
             <input type="hidden" name="user_id" value="{user_id}">
             <input type="hidden" name="phone" value="{user_phone}">
-            <input type="hidden" name="amount" value="1000">
+            <input type="hidden" name="amount" value="4900">
             <input type="hidden" name="agree_all" value="true">
-            <button type="submit" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">🔥 Доплатить 1 000 ₽</button>
+            <button type="submit" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">🔥 Доплатить 4 000 ₽</button>
         </form>
+        <p style="font-size: 12px; margin-top: 8px;">* Вместо 4900 ₽ вы платите только 4000 ₽, потому что 490 ₽ уже оплачены.</p>
     </div>
     <hr style="margin: 32px 0;">
     <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
@@ -1395,42 +1405,206 @@ async def payment_success(user_id: str, amount: int = 490):
     <div style="margin: 32px 0;"><a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a></div>
 </div>
 <script> ym(108348240,'reachGoal','basic_purchase_success'); </script>'''
-        return HTMLResponse(content=render_page(content))
-    if not biz:
-        biz = {"name": "Тестовый бизнес", "description": "Тестовое описание"}
-    if not answers:
-        answers = {"q1": "Услугу", "q2": "до 5k", "q3": "<10", "q4": "500k/мес", "q5": "Нет"}
-    if existing_report and existing_report["status"] == "generating":
-        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
-    if DEEPSEEK_API_KEY:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
-        report_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
+            return HTMLResponse(content=render_page(content))
     else:
-        premium_text = f"""ПРОФЕССИОНАЛЬНЫЙ МАРКЕТИНГОВЫЙ ПЛАН
+        # Отчёт не готов – показываем страницу ожидания
+        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
 
-Данные о бизнесе:
-Название: {biz['name']}
-Описание: {biz['description']}
+# === КОНСУЛЬТАЦИЯ И ПОДПИСКА ===
+@app.get("/consultation", response_class=HTMLResponse)
+async def consultation_page(user_id: str = None):
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        save_user(user_id, None, None)
+    content = f'''
+<div class="hero" style="margin-bottom: 30px;">
+    <h1 style="font-size: 36px;">🔥 Бесплатная 30-минутная консультация</h1>
+    <p style="font-size: 18px;">«Разберём ваш бизнес, найдём узкие места и дадим план действий.»</p>
+</div>
+<div class="form-card" style="text-align: center;">
+    <form action="/consultation/submit" method="post" id="consultationForm">
+        <input type="hidden" name="user_id" value="{user_id}">
+        <div class="form-group"><label>📞 Ваш телефон</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required><p style="font-size: 12px; color: #6e6e73;">Только для связи. Спама не будет.</p></div>
+        <div class="form-group"><label>🕐 Удобное время для звонка (по Москве)</label><input type="text" name="time" placeholder="например: завтра в 15:00" required></div>
+        <div class="form-group"><label>✏️ Ваш вопрос (кратко)</label><textarea name="question" rows="3"></textarea></div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Отправить заявку</button>
+    </form>
+</div>
+<script>
+    document.getElementById('consultationForm').addEventListener('submit', function(e) {{
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.textContent = '⏳ Отправляю...';
+    }});
+</script>
+'''
+    return HTMLResponse(content=render_page(content))
 
-Рекомендации для увеличения продаж:
-1. Проанализируйте целевую аудиторию
-2. Настройте автоворонку
-3. Добавьте призывы к действию
-"""
-        save_report(user_id, "premium", premium_text)
-        report_text_html = premium_text.replace("\n", "<br>")
-        content = f'''<div class="hero"><h1>🎉 Спасибо за покупку!</h1></div><div class="form-card" style="text-align: center;"><div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;"><div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div></div></div>'''
-        return HTMLResponse(content=render_page(content))
+@app.post("/consultation/submit")
+async def consultation_submit(
+    user_id: str = Form(...),
+    phone: str = Form(...),
+    time: str = Form(...),
+    question: str = Form(None)
+):
+    save_consultation_request(user_id, phone, time, question)
+    save_user(user_id, phone, None)
+    await send_notification_to_channel(
+        f"📞 НОВАЯ ЗАЯВКА НА КОНСУЛЬТАЦИЮ\n\n"
+        f"Пользователь: {user_id}\nТелефон: {phone}\nВремя: {time}\nВопрос: {question}\n⏰ {format_moscow_time()}"
+    )
+    return RedirectResponse(url=f"/subscribe?user_id={user_id}", status_code=303)
 
-# === ДОПОЛНИТЕЛЬНЫЕ ЭНДПОИНТЫ (CHECK STATUS, CONSULTATION, SUBSCRIBE, DOWNLOAD, ADMIN и т.д.) ===
-# Они остаются без изменений, но для полноты кода я их привожу (они уже были в исходном файле).
-# Если вы их удалили, вставьте их сюда. В этой версии они уже включены в код выше, но для уверенности я их повторю коротко.
-# На самом деле в полном коде они уже есть, так как я скопировал весь файл. Поэтому продолжать не нужно – код уже полный.
+@app.get("/subscribe", response_class=HTMLResponse)
+async def subscribe_page(user_id: str):
+    content = f'''
+<div class="hero" style="margin-bottom: 30px;">
+    <h1 style="font-size: 36px;">🤝 Остался последний шаг</h1>
+    <p style="font-size: 18px;">Чтобы получить консультацию, подпишитесь на канал в MAX.</p>
+</div>
+<div class="form-card" style="text-align: center;">
+    <div style="margin: 30px 0;"><a href="https://max.ru/id781407988795_biz" target="_blank" class="btn btn-primary" style="width: 80%; padding: 16px;">📢 Подписаться на канал</a></div>
+    <p>После подписки я проверю и напишу вам в MAX для согласования времени.</p>
+    <div style="margin-top: 30px;"><a href="/" class="btn btn-outline">На главную</a></div>
+</div>
+'''
+    return HTMLResponse(content=render_page(content))
+
+# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ ===
+@app.get("/oferta", response_class=HTMLResponse)
+async def oferta_page():
+    return HTMLResponse(content=render_page("<h1>Публичная оферта</h1><p>Текст оферты будет добавлен позже.</p>"))
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page():
+    return HTMLResponse(content=render_page("<h1>Политика обработки персональных данных</h1><p>Текст политики будет добавлен позже.</p>"))
+
+# === ДОПОЛНИТЕЛЬНЫЕ ЭНДПОИНТЫ (АДМИНКА, API, СКАЧИВАНИЕ) ===
+@app.get("/download/{user_id}/{report_type}")
+async def download_report(user_id: str, report_type: str):
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT file_path, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type)).fetchone()
+    conn.close()
+    if row and row[0] and os.path.exists(row[0]):
+        with open(row[0], "r", encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
+    if row and row[1]:
+        return Response(content=row[1], media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
+    raise HTTPException(status_code=404, detail="Report not found")
+
+@app.get("/admin/logs")
+async def admin_logs(auth: bool = Depends(verify_admin)):
+    try:
+        with open(LOGS_DIR / "salesplan.log", "r", encoding="utf-8") as f:
+            lines = f.readlines()[-500:]
+            return Response(content="".join(lines), media_type="text/plain")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# === АДМИН-ДАШБОРД ===
+@app.get("/admin/dashboard")
+async def admin_dashboard(auth: bool = Depends(verify_admin)):
+    dashboard_html = """<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Админ-дашборд | Salesplan</title><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
+        *{margin:0;padding:0;box-sizing:border-box} body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f7;padding:20px}
+        .container{max-width:1400px;margin:0 auto} h1{font-size:28px;margin-bottom:20px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:30px}
+        .stat-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .stat-card h3{font-size:14px;color:#6e6e73;margin-bottom:8px}
+        .stat-card .value{font-size:32px;font-weight:700;color:#1d1d1f}
+        .stat-card .trend{font-size:12px;color:#34c759;margin-top:8px}
+        .chart-container{background:#fff;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.05)} canvas{max-height:350px}
+        .funnel-container{background:#fff;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+        .funnel-step{display:flex;align-items:center;margin:15px 0;padding:15px;background:#f8f8fa;border-radius:12px}
+        .funnel-step .step-name{width:200px;font-weight:600}
+        .funnel-step .step-count{width:100px;font-size:24px;font-weight:700;color:#007aff}
+        .funnel-step .step-bar{flex:1;height:30px;background:#e5e5ea;border-radius:15px;overflow:hidden}
+        .funnel-step .step-fill{height:100%;background:#007aff;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px}
+        .tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid #e5e5e5;flex-wrap:wrap}
+        .tab{padding:12px 24px;cursor:pointer;border:none;background:none;font-size:16px;transition:all 0.2s}
+        .tab.active{border-bottom:2px solid #007aff;color:#007aff;font-weight:500}
+        .table-container{background:#fff;border-radius:16px;padding:20px;overflow-x:auto} table{width:100%;border-collapse:collapse}
+        th,td{padding:12px;text-align:left;border-bottom:1px solid #e5e5e5} th{background:#f8f8fa;font-weight:600}
+        .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:12px}
+        .badge-success{background:#34c75920;color:#248a3d} .badge-pending{background:#ff9f0a20;color:#cc7b00}
+        .report-link{color:#007aff;text-decoration:none} .expand-btn{cursor:pointer;color:#007aff;font-size:12px}
+        .row-detail{display:none;background:#f8f8fa} .row-detail td{padding:20px}
+        .detail-section{margin-bottom:15px} .detail-section strong{display:block;margin-bottom:5px}
+        .detail-answers{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+        .answer-tag{background:#e5e5ea;padding:4px 12px;border-radius:20px;font-size:12px}
+        @media (max-width:700px){.funnel-step{flex-wrap:wrap}.funnel-step .step-name{width:100%;margin-bottom:10px}.stats-grid{grid-template-columns:repeat(2,1fr)}}
+    </style></head>
+<body><div class="container">
+<h1>📊 Воронка продаж — Salesplan</h1>
+<div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><h3>👥 Уникальных посетителей</h3><div class="value" id="totalVisitors">-</div></div>
+    <div class="stat-card"><h3>📝 Бесплатных диагностик</h3><div class="value" id="totalDiagnostics">-</div><div class="trend" id="convVisitToDiag">-</div></div>
+    <div class="stat-card"><h3>💳 Оплатили план</h3><div class="value" id="totalPayments">-</div><div class="trend" id="convDiagToPayment">-</div></div>
+    <div class="stat-card"><h3>📥 Скачали отчет</h3><div class="value" id="totalDownloads">-</div></div>
+    <div class="stat-card"><h3>💰 Выручка</h3><div class="value" id="totalRevenue">-</div></div>
+</div>
+<div class="funnel-container"><h3>🎯 Воронка продаж (за 7 дней)</h3><div id="funnelSteps"></div></div>
+<div class="chart-container"><canvas id="funnelChart"></canvas></div>
+<div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button><button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button></div>
+<div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
+<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></td></thead><tbody></tbody></table></div>
+<div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody></table></div>
+</div>
+<script>
+let clientsData=[];
+async function loadStats(){const res=await fetch('/admin/api/stats');const data=await res.json();
+document.getElementById('totalVisitors').innerText=data.summary.visitors;
+document.getElementById('totalDiagnostics').innerText=data.summary.diagnostics;
+document.getElementById('totalPayments').innerText=data.summary.payments;
+document.getElementById('totalDownloads').innerText=data.summary.downloads;
+document.getElementById('totalRevenue').innerText=data.summary.total_revenue.toLocaleString()+' ₽';
+document.getElementById('convVisitToDiag').innerHTML=`📈 Конверсия: ${data.summary.conv_visit_to_diag}%`;
+document.getElementById('convDiagToPayment').innerHTML=`📈 Конверсия: ${data.summary.conv_diag_to_payment}%`;
+const funnelDiv=document.getElementById('funnelSteps');
+const steps=[[{name:'👥 Посетители сайта',key:'visitors',color:'#007aff'},{name:'📝 Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'💳 Оплата плана (490₽)',key:'payments',color:'#ff9f0a'},{name:'📥 Скачивание отчета',key:'downloads',color:'#34c759'}]];
+const maxCount=Math.max(data.summary.visitors,1);
+funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const percent=(count/maxCount*100).toFixed(1);return `<div class="funnel-step"><div class="step-name">${step.name}</div><div class="step-count">${count}</div><div class="step-bar"><div class="step-fill" style="width:${percent}%;background:${step.color}">${percent}%</div></div></div>`;}).join('');
+const ctx=document.getElementById('funnelChart').getContext('2d');
+new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
+async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<table>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></table>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
+async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
+async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
+function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
+function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
+function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
+function showTab(tab){document.getElementById('clientsTab').style.display=tab==='clients'?'block':'none';document.getElementById('diagnosticsTab').style.display=tab==='diagnostics'?'block':'none';document.getElementById('consultationsTab').style.display=tab==='consultations'?'block':'none';document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));event.target.classList.add('active');}
+loadStats();loadClients();loadDiagnostics();loadConsultations();setInterval(()=>{loadStats();loadClients();loadDiagnostics();},30000);
+</script>
+</body>
+</html>"""
+    return HTMLResponse(content=dashboard_html)
+
+@app.get("/admin/api/stats")
+async def admin_stats(auth: bool = Depends(verify_admin)):
+    days = 7
+    funnel = get_full_funnel(days)
+    conn = sqlite3.connect(DB_PATH)
+    total_revenue = conn.execute("SELECT SUM(amount) FROM payments WHERE status = 'succeeded'").fetchone()[0] or 0
+    conn.close()
+    total_visitors = sum(f['visitors'] for f in funnel)
+    total_diagnostics = sum(f['diagnostics'] for f in funnel)
+    total_payments = len([p for p in get_sales_funnel_stats(days) if p['payments'] > 0])
+    return {"funnel": funnel, "summary": {"visitors": total_visitors, "diagnostics": total_diagnostics, "payments": total_payments, "downloads": sum(f['downloads'] for f in funnel), "conv_visit_to_diag": round(total_diagnostics / max(total_visitors,1)*100,1), "conv_diag_to_payment": round(total_payments / max(total_diagnostics,1)*100,1), "total_revenue": total_revenue}}
+
+@app.get("/admin/api/clients")
+async def admin_clients(auth: bool = Depends(verify_admin)):
+    return {"clients": get_all_premium_clients()}
+
+@app.get("/admin/api/diagnostics")
+async def admin_diagnostics(auth: bool = Depends(verify_admin)):
+    return {"diagnostics": get_all_free_diagnostics()}
+
+@app.get("/admin/api/consultations")
+async def admin_consultations(auth: bool = Depends(verify_admin)):
+    return {"consultations": get_new_consultations()}
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
