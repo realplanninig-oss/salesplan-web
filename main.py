@@ -573,12 +573,24 @@ HTML_HEAD = """<!DOCTYPE html>
         .case-result{font-size:24px;font-weight:700;color:#34c759}
         .case-desc{font-size:12px;color:#6e6e73}
         .bot-link-block{background:#e8f0fe;border-radius:20px;padding:24px;margin:32px 0;text-align:center}
+        /* Мобильная адаптация */
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:28px}
             .hero h2{font-size:22px}
             .pricing-grid{flex-direction:column}
             .cases-grid{grid-template-columns:repeat(2,1fr)}
+            .btn{width:100%;margin:8px 0}
+            .form-card{padding:24px 16px}
+            .radio-group label{padding:12px}
+            .pricing-card{min-width:auto}
+            .hero p{font-size:16px}
+            .stat-card .value{font-size:24px}
+            .funnel-step .step-name{width:100%;margin-bottom:10px}
+            .funnel-step{flex-wrap:wrap}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+            .table-container{overflow-x:auto}
+            th,td{font-size:12px;padding:8px}
         }
     </style>
 </head>
@@ -825,11 +837,10 @@ async def index():
 <div class="hero">
     <h1>Первые клиенты за 2 недели. Даже если вы никогда не вели блог.</h1>
     <h2>AI + продюсер экспертов построят воронку продаж. Никакой команды – только вы.</h2>
-    <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">Без спама. Только конкретные шаги.</p>
     <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Получить план продаж</a>
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Бесплатно: диагностика перед запуском клиентов →</a>
     </div>
-    <p style="margin-top: 20px; font-size: 14px; color: #6e6e73;">Бесплатно. 2 минуты – и вы получите 3 точки роста + дорожную карту.</p>
+    <p style="margin-top: 20px; font-size: 14px; color: #007aff; font-style: italic;">«Получите бесплатный разбор — а затем план, как превратить точки роста в первых клиентов за 2 недели»</p>
     <p style="margin-top: 12px; font-size: 12px; color: #8e8e93;">✅ 8 лет продюсирования экспертов, 50+ запусков</p>
 </div>
 <h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
@@ -934,8 +945,8 @@ async def diagnostic(user_id: str):
     report_text_html = report_text_full.replace("\n", "<br>")
     content = f'''
 <div class="hero">
-    <h1>✨ Ваша персональная диагностика готова</h1>
-    <p style="font-size: 18px;">«Держите. Это не просто текст — это карта вашего ближайшего пути к деньгам. Я подсветила слабые места и точки роста. Теперь выбор за вами.»</p>
+    <h1>Пройдите диагностику бизнеса перед запуском клиентов</h1>
+    <p style="font-size: 18px;">«Узнайте скрытые точки роста за 2 минуты»</p>
 </div>
 <div class="form-card" style="text-align: center;">
     <div style="background: #e8f0fe; border-radius: 16px; padding: 12px 16px; margin-bottom: 20px; text-align: center;">
@@ -1072,8 +1083,13 @@ async def payment_page(user_id: str, amount: int, status: str = None):
         <input type="hidden" name="user_id" value="{user_id}">
         <input type="hidden" name="amount" value="{amount}">
         <div class="form-group"><label>📞 Телефон (нужен для чека по закону)</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;"><p style="font-size: 12px; color: #8e8e93; margin-top: 6px;">Чек придёт на этот номер. Звонков и рекламы не будет.</p></div>
-        <div style="margin: 20px 0;"><label style="display: flex; align-items: flex-start; gap: 10px; background: #f5f5f7; padding: 12px; border-radius: 12px; cursor: pointer;"><input type="checkbox" name="agree_all" required style="width: 18px; margin-top: 2px;"><span style="font-size: 13px; line-height: 1.4;">Я принимаю условия <a href="/oferta" target="_blank" style="color: #007aff;">публичной оферты</a> и даю согласие на обработку <a href="/privacy" target="_blank" style="color: #007aff;">персональных данных</a></span></label></div>
         <div style="text-align:center;margin:20px 0"><button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">💳 Оплатить {amount} ₽</button></div>
+        <p style="font-size: 12px; text-align: center; margin-top: 12px;">
+            Оплачивая, вы принимаете условия 
+            <a href="/oferta" target="_blank">публичной оферты</a> 
+            и даёте согласие на обработку 
+            <a href="/privacy" target="_blank">персональных данных</a>.
+        </p>
     </form>
     <hr style="margin: 20px 0;">
     <div style="text-align: center; margin-top: 20px;"><p style="font-size: 14px; color: #6e6e73;">✅ Безопасная оплата через ЮKassa — ваши деньги под защитой</p><p style="font-size: 14px; color: #6e6e73; margin-top: 10px;">❓ Не подойдёт? Вернём деньги в течение 3 дней — без вопросов и танцев с бубном</p></div>
@@ -1113,11 +1129,9 @@ async def create_yookassa_payment(
     request: Request,
     user_id: str = Form(...),
     phone: str = Form(...),
-    amount: int = Form(...),
-    agree_all: bool = Form(False)
+    amount: int = Form(...)
 ):
-    if not agree_all:
-        return HTMLResponse("Для оплаты необходимо принять условия публичной оферты и дать согласие на обработку персональных данных", status_code=400)
+    # Чекбокс удалён, согласие считается полученным при нажатии кнопки "Оплатить"
     phone = format_phone(phone)
     logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}, amount={amount}")
     save_user(user_id, phone, None)
@@ -1381,7 +1395,6 @@ async def payment_success(user_id: str, amount: int = 490):
             <input type="hidden" name="user_id" value="{user_id}">
             <input type="hidden" name="phone" value="{user_phone}">
             <input type="hidden" name="amount" value="4900">
-            <input type="hidden" name="agree_all" value="true">
             <button type="submit" class="btn btn-primary" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">🔥 Доплатить 4 000 ₽</button>
         </form>
         <p style="font-size: 12px; margin-top: 8px;">* Вместо 4900 ₽ вы платите только 4000 ₽, потому что 490 ₽ уже оплачены.</p>
@@ -1551,7 +1564,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
 <div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button><button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button></div>
 <div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
-<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></td></thead><tbody></tbody></table></div>
+<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
 <div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody></table></div>
 </div>
 <script>
@@ -1571,8 +1584,8 @@ funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const
 const ctx=document.getElementById('funnelChart').getContext('2d');
 new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<table>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></table>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
-async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
+async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
 async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
 function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
