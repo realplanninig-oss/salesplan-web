@@ -130,7 +130,8 @@ async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
-    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success", "/start-clients", "/funnel-7-days", "/consultation", "/subscribe"]:
+    # Добавлена новая страница launch-online-school
+    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success", "/start-clients", "/funnel-7-days", "/launch-online-school", "/consultation", "/subscribe"]:
         track_visit(ip=client_ip, user_agent=user_agent)
     if path == "/favicon.ico":
         return await call_next(request)
@@ -766,31 +767,51 @@ def render_premium_waiting_page(user_id: str, amount: int):
 </body>
 </html>"""
 
-# === НОВЫЕ ЛЕНДИНГИ ===
+# === НОВЫЕ ЛЕНДИНГИ В ЕДИНОМ СТИЛЕ ===
+
 @app.get("/start-clients")
 async def start_clients():
     content = '''
 <div class="hero">
-    <h1>Продюсер экспертов с кейсами от 60 000 до 2 000 000 ₽ запустит продажи</h1>
-    <p>Вы получите клиентов в течение 14 дней после внедрения плана.</p>
-    <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_start_clients'); return true;">🔥 Получить план внедрения</a>
+    <h1>Клиенты за 2 недели. Даже без блога. С кейсами от 60 000 до 2 000 000 ₽.</h1>
+    <p style="font-size: 20px; margin-top: 16px;">Вы устали сливать деньги на рекламу, а заявок нет?</p>
+    <div style="margin: 32px 0;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_start_clients_top'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
     </div>
 </div>
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы</h2>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <p><strong>Я запускаю продажи под ключ.</strong> За 7 дней собираю воронку (чат-бот, лендинг, рассылки). Без программистов. Без вашего участия.</p>
+    <p><strong>Технология — вайб-кодинг.</strong> Нейросеть пишет код по моим инструкциям. Всё работает в MAX, VK, Яндексе.</p>
+</div>
+
+<div style="background: #f5f5f7; border-radius: 20px; padding: 24px; margin: 40px 0;">
+    <p style="font-size: 18px; font-weight: 500;">🎁 Что вы получите бесплатно прямо сейчас:</p>
+    <p>✅ Диагностика за 2 минуты — нейросеть найдёт 3 скрытые точки роста.</p>
+    <p>✅ Бонус: 30 минут моего личного разбора после диагностики.</p>
+    <div style="margin-top: 24px;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 14px 28px;" onclick="ym(108348240,'reachGoal','click_start_clients_mid'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
+    </div>
+</div>
+
+<h2 style="text-align: center; margin: 48px 0 24px;">🚀 Дальше — только если захотите</h2>
+<div class="pricing-grid" style="margin-bottom: 40px;">
+    <div class="pricing-card"><h3>📄 План запуска продаж</h3><div class="price">490 ₽</div><p>Через 2 минуты после оплаты</p></div>
+    <div class="pricing-card featured"><h3>🚀 Профи</h3><div class="price">4 900 ₽</div><p>Клиенты за 2 недели с моей личной поддержкой</p></div>
+    <div class="pricing-card"><h3>💎 Внедрение под ключ</h3><div class="price">14 900 ₽</div><p>Я настраиваю всё за вас</p></div>
+</div>
+
+<h2 style="text-align: center; margin-bottom: 30px;">🔥 Реальные кейсы</h2>
 <div class="cases-grid">
     <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">за 2 недели без блога</div></div>
-    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">за 2 недели</div></div>
-    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск при рекламе 30 000 ₽</div></div>
+    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">с одного вебинара</div></div>
+    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">при рекламе 30 000 ₽</div></div>
     <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа коучинга</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">за 3 недели</div></div>
 </div>
-<div style="text-align:center; margin-top: 20px;">
-    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_start_clients_2'); return true;">🚀 Забрать план</a>
-</div>
-<hr style="margin: 40px 0;">
-<div style="background: #e8f0fe; border-radius: 20px; padding: 24px; text-align: center;">
-    <p style="font-size: 16px;">🔍 <strong>Бесплатный аудит за 1 минуту</strong> – узнайте, какие ошибки мешают вам зарабатывать.</p>
-    <a href="/survey" class="btn btn-outline" style="margin-top: 10px;">Пройти аудит</a>
+
+<div style="text-align: center; margin: 48px 0;">
+    <p style="font-size: 16px; margin-bottom: 24px;">Только маркетинг и AI + опыт продюсера экспертов в 50+ нишах.</p>
+    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_start_clients_bottom'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -800,32 +821,92 @@ async def funnel_7_days():
     content = '''
 <div class="hero">
     <h1>Воронка продаж за 7 дней — под ключ</h1>
-    <h2>Запустите автоворонку, которая работает 24/7 без вашего участия</h2>
-    <div style="margin-top: 30px;">
-        <a href="/consultation" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_7'); return true;">🔥 Получить воронку за 7 дней</a>
+    <p style="font-size: 20px;">Запустите автоворонку, которая работает 24/7 без вашего участия</p>
+    <div style="margin: 32px 0;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_top'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
     </div>
 </div>
+
 <div style="background: #f5f5f7; border-radius: 24px; padding: 32px; margin: 40px 0;">
-    <h3 style="text-align: center; margin-bottom: 30px;">Как мы построим вашу воронку за 7 дней</h3>
+    <h3 style="text-align: center; margin-bottom: 30px;">🗓 Как строим за 7 дней</h3>
     <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between;">
-        <div style="flex:1; text-align: center;"><span style="font-size: 32px;">1️⃣</span><br><strong>День 1</strong><br>Анализ ниши и ЦА</div>
-        <div style="flex:1; text-align: center;"><span style="font-size: 32px;">2️⃣-4️⃣</span><br><strong>3 дня</strong><br>Настройка оффера и касаний</div>
-        <div style="flex:1; text-align: center;"><span style="font-size: 32px;">5️⃣-6️⃣</span><br><strong>2 дня</strong><br>Чат-бот и авторассылки</div>
-        <div style="flex:1; text-align: center;"><span style="font-size: 32px;">7️⃣</span><br><strong>Запуск</strong><br>Первые заявки</div>
+        <div style="flex:1; text-align: center;"><strong>День 1</strong><br>Анализ ниши и ЦА</div>
+        <div style="flex:1; text-align: center;"><strong>Дни 2–3</strong><br>Настройка оффера и касаний</div>
+        <div style="flex:1; text-align: center;"><strong>Дни 4–5</strong><br>Чат-бот и авторассылки</div>
+        <div style="flex:1; text-align: center;"><strong>Дни 6–7</strong><br>Запуск и первые заявки</div>
     </div>
 </div>
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Преимущества</h2>
-<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 40px;">
-    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">🤖 <strong>AI на каждом шагу</strong><br>Без программирования</div>
-    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">⚡ <strong>Скорость</strong><br>Воронка за 7 дней</div>
-    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">📱 <strong>Работает в MAX, VK, Яндекс.Директ</strong></div>
-    <div style="flex:1; background: #f8f8fa; border-radius: 20px; padding: 20px; text-align: center;">📧 <strong>Готовая структура писем и касаний</strong></div>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <p><strong>Технология — вайб-кодинг.</strong> Никаких программистов. Нейросеть всё пишет сама. Вы получаете готовые скрипты, письма, ботов. Всё работает в MAX, VK, Яндексе.</p>
+    <p><strong>Что даёт воронка:</strong> заявки 24/7, автоматические прогревы и продажи.</p>
 </div>
-<div style="text-align:center; margin: 20px 0;">
-    <a href="/consultation" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_7_2'); return true;">🚀 Получить воронку</a>
+
+<div style="background: #f5f5f7; border-radius: 20px; padding: 24px; margin: 40px 0;">
+    <p style="font-size: 18px; font-weight: 500;">🎁 Бесплатно прямо сейчас:</p>
+    <p>✅ Диагностика текущей воронки за 2 минуты — найдём, где вы теряете клиентов.</p>
+    <p>✅ Бонус: 30 минут моего разбора после диагностики.</p>
+    <div style="margin-top: 24px;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 14px 28px;" onclick="ym(108348240,'reachGoal','click_funnel_mid'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
+    </div>
 </div>
-<div style="background: #e8f0fe; border-radius: 20px; padding: 24px; text-align: center; margin-top: 30px;">
-    <p style="font-size: 16px;">🎁 <strong>Бонус:</strong> 30-минутный разбор вашей воронки после заполнения анкеты – <a href="/consultation">записаться</a>.</p>
+
+<h2 style="text-align: center; margin: 48px 0 24px;">🚀 Затем выберите</h2>
+<div class="pricing-grid" style="margin-bottom: 40px;">
+    <div class="pricing-card"><h3>📄 План запуска продаж</h3><div class="price">490 ₽</div><p>Через 2 минуты после оплаты</p></div>
+    <div class="pricing-card featured"><h3>🚀 Профи</h3><div class="price">4 900 ₽</div><p>Клиенты за 2 недели с моей личной поддержкой</p></div>
+    <div class="pricing-card"><h3>💎 Внедрение под ключ</h3><div class="price">14 900 ₽</div><p>Я настраиваю воронку за вас</p></div>
+</div>
+
+<div style="text-align: center; margin: 48px 0;">
+    <p style="font-size: 16px; margin-bottom: 24px;">Только маркетинг и AI + опыт продюсера экспертов в 50+ нишах.</p>
+    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_funnel_bottom'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
+</div>
+'''
+    return HTMLResponse(content=render_page(content))
+
+@app.get("/launch-online-school")
+async def launch_online_school():
+    content = '''
+<div class="hero">
+    <h1>Запуск онлайн‑школы под ключ. Первые ученики за 2 недели.</h1>
+    <p style="font-size: 20px;">У вас есть знания, опыт, готовая программа. Но нет учеников? Или они приходят, но не покупают?</p>
+    <div style="margin: 32px 0;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_school_top'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
+    </div>
+</div>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <p><strong>Я запускаю онлайн‑школы с нуля.</strong> Полный цикл: от упаковки до первых денег.</p>
+    <p><strong>Что входит в «под ключ»:</strong> анализ ниши и конкурентов, упаковка оффера, воронка продаж (лендинг, чат-бот, автовебинары, email-рассылки), скрипты продаж, запуск.</p>
+    <p><strong>Технология — вайб-кодинг.</strong> Я не нанимаю программистов. Нейросеть пишет код по моим инструкциям. Всё за 7–14 дней. Всё работает в MAX, VK, Яндексе.</p>
+    <p><strong>Результат:</strong> работающая система, которая приводит учеников 24/7. Без вашего участия в технике.</p>
+</div>
+
+<div style="background: #f5f5f7; border-radius: 20px; padding: 24px; margin: 40px 0;">
+    <p style="font-size: 18px; font-weight: 500;">🎁 Бесплатно прямо сейчас:</p>
+    <p>✅ Диагностика вашей онлайн‑школы за 2 минуты — нейросеть покажет узкие места.</p>
+    <p>✅ Бонус: 30 минут моего разбора после диагностики.</p>
+    <div style="margin-top: 24px;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 14px 28px;" onclick="ym(108348240,'reachGoal','click_school_mid'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
+    </div>
+</div>
+
+<h2 style="text-align: center; margin: 48px 0 24px;">🚀 А дальше — выбор</h2>
+<div class="pricing-grid" style="margin-bottom: 40px;">
+    <div class="pricing-card"><h3>📄 План запуска продаж</h3><div class="price">490 ₽</div><p>Через 2 минуты после оплаты</p></div>
+    <div class="pricing-card featured"><h3>🚀 Профи</h3><div class="price">4 900 ₽</div><p>Клиенты за 2 недели с моей личной поддержкой</p></div>
+    <div class="pricing-card"><h3>💎 Запуск под ключ</h3><div class="price">14 900 ₽</div><p>Я делаю всё сама</p></div>
+</div>
+
+<div class="cases-grid" style="margin: 40px 0;">
+    <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа коучинга</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">за 3 недели</div></div>
+    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">с 1 вебинара</div></div>
+</div>
+
+<div style="text-align: center; margin: 48px 0;">
+    <p style="font-size: 16px; margin-bottom: 24px;">Только маркетинг и AI + опыт продюсера экспертов в 50+ нишах. Результат — ученики и деньги.</p>
+    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_school_bottom'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -835,24 +916,47 @@ async def funnel_7_days():
 async def index():
     content = '''
 <div class="hero">
-    <h1>Первые клиенты за 2 недели. Даже если вы никогда не вели блог.</h1>
-    <h2>AI + продюсер экспертов построят воронку продаж. Никакой команды – только вы.</h2>
-    <div style="margin-top: 30px;">
-        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_plan'); return true;">🔥 Бесплатно: диагностика перед запуском клиентов →</a>
+    <h1>Клиенты за 2 недели. Даже если вы никогда не вели блог.</h1>
+    <p style="font-size: 20px; margin-top: 16px;">Знакомо? Реклама есть, а продаж нет. Вы устали сливать деньги на таргет и копирайтеров.</p>
+    <div style="margin: 32px 0;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_main_top'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
     </div>
-    <p style="margin-top: 20px; font-size: 14px; color: #007aff; font-style: italic;">«Получите бесплатный разбор — а затем план, как превратить точки роста в первых клиентов за 2 недели»</p>
-    <p style="margin-top: 12px; font-size: 12px; color: #8e8e93;">✅ 8 лет продюсирования экспертов, 50+ запусков</p>
 </div>
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <p><strong>Я делаю иначе.</strong> Я собираю воронку продаж под ваш бизнес за 7 дней. Без команды программистов. Без вашего участия в коде.</p>
+    <p><strong>Как? Технология «вайб-кодинг».</strong> Нейросеть пишет код по моим инструкциям. Вы получаете работающую воронку (чат-бот, рассылки, лендинг) быстрее, чем заказываете у веб-студии. Всё работает в MAX, VK, Яндексе.</p>
+</div>
+
+<div style="background: #f5f5f7; border-radius: 20px; padding: 24px; margin: 40px 0;">
+    <p style="font-size: 18px; font-weight: 500;">🎁 Что вы получите бесплатно прямо сейчас:</p>
+    <p>✅ Диагностика за 2 минуты — нейросеть найдёт 3 скрытые точки роста.</p>
+    <p>✅ Бонус: 30 минут моего личного разбора после диагностики.</p>
+    <div style="margin-top: 24px;">
+        <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 14px 28px;" onclick="ym(108348240,'reachGoal','click_main_mid'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
+    </div>
+</div>
+
+<h2 style="text-align: center; margin: 48px 0 24px;">🚀 А дальше вы выбираете</h2>
+<div class="pricing-grid" style="margin-bottom: 40px;">
+    <div class="pricing-card"><h3>📄 План запуска продаж</h3><div class="price">490 ₽</div><p>Через 2 минуты после оплаты</p></div>
+    <div class="pricing-card featured"><h3>🚀 Профи</h3><div class="price">4 900 ₽</div><p>Клиенты за 2 недели с моей личной поддержкой</p></div>
+    <div class="pricing-card"><h3>💎 Всё под ключ</h3><div class="price">14 900 ₽</div><p>Я настраиваю воронку за вас</p></div>
+</div>
+
+<p style="text-align: center; margin: 20px 0;">8 лет продюсирования экспертов, 50+ запусков.</p>
+
+<h2 style="text-align: center; margin: 48px 0 24px;">🔥 Реальные кейсы клиентов</h2>
 <div class="cases-grid">
     <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">без блога, только таргет и бот</div></div>
-    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">запуск продаж онлайн-курса с 1 вебинара</div></div>
-    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск при рекламе 30 000 ₽</div></div>
-    <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа по коучингу</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">марафон в ВК за 2 недели</div></div>
+    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">с 1 вебинара</div></div>
+    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск, бюджет 30 000 ₽</div></div>
+    <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа коучинга</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">за 3 недели</div></div>
 </div>
-<div style="text-align:center">
-    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_get_test'); return true;">🔥 Пройти тест</a>
-    <p style="margin-top: 12px; font-size: 14px; color: #6e6e73;">Честный разбор. Никакой магии. Только маркетинг.</p>
+
+<div style="text-align: center; margin: 48px 0;">
+    <p style="font-size: 16px; margin-bottom: 24px;">Только маркетинг и AI + опыт продюсера экспертов в 50+ нишах. Результат — деньги в кармане.</p>
+    <a href="/survey" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;" onclick="ym(108348240,'reachGoal','click_main_bottom'); return true;">🔥 Бесплатно: диагностика за 2 минуты →</a>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -1045,7 +1149,6 @@ async def payment_page(user_id: str, amount: int, status: str = None):
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
-    # Не проверяем existing_report, так как отчёт генерируется только после оплаты
     if amount == 490:
         plan_name = "Маркетинговый план"
     elif amount == 4900:
@@ -1054,7 +1157,6 @@ async def payment_page(user_id: str, amount: int, status: str = None):
         plan_name = "Внедрение под ключ (полная настройка воронки от продюсера)"
     else:
         plan_name = f"План за {amount} ₽"
-    # Определяем старую цену для отображения скидки
     if amount == 490:
         old_price = 4900
         discount = 4410
@@ -1131,7 +1233,6 @@ async def create_yookassa_payment(
     phone: str = Form(...),
     amount: int = Form(...)
 ):
-    # Чекбокс удалён, согласие считается полученным при нажатии кнопки "Оплатить"
     phone = format_phone(phone)
     logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}, amount={amount}")
     save_user(user_id, phone, None)
@@ -1184,7 +1285,6 @@ async def create_yookassa_payment(
                 save_payment_request(user_id, phone, amount=amount)
                 return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
             save_payment_request(user_id, phone, payment_id, amount, "pending")
-            # НЕ генерируем отчёт здесь, только после подтверждения оплаты в вебхуке
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
@@ -1219,13 +1319,10 @@ async def payment_webhook(request: Request):
             update_payment_status(payment_id, "succeeded")
             if user_id:
                 conn = sqlite3.connect(DB_PATH)
-                # Обновим paid_at для отчёта, если он уже готов (но его может не быть)
                 conn.execute("UPDATE reports SET paid_at = CURRENT_TIMESTAMP WHERE user_id = ? AND report_type = 'premium' AND status = 'ready'", (user_id,))
                 conn.commit()
                 conn.close()
                 logger.info(f"Updated paid_at for user {user_id} after payment")
-                
-                # Генерируем отчёт после успешной оплаты
                 biz = get_business_data(user_id)
                 answers = get_form_data(user_id)
                 if biz and answers and DEEPSEEK_API_KEY:
@@ -1273,29 +1370,23 @@ async def payment_confirm(request: Request):
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 490):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
-    # Проверяем, есть ли успешный платёж для этого пользователя
     conn = sqlite3.connect(DB_PATH)
     payment_row = conn.execute("SELECT status, amount FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
     conn.close()
     if not payment_row:
-        # Нет успешного платежа – перенаправляем на главную
         return RedirectResponse(url="/", status_code=303)
-    # Если сумма в параметре не совпадает с суммой платежа, используем сумму из платежа
     if payment_row[1] and payment_row[1] != amount:
         amount = payment_row[1]
         logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
-    
     user_phone = ""
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if row and row[0]:
         user_phone = row[0]
     conn.close()
-    
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     existing_report = get_report(user_id, "premium")
-    # Ждём готовности отчёта (может генерироваться)
     if existing_report and existing_report["status"] == "generating":
         return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
     if existing_report and existing_report["status"] == "ready":
@@ -1355,7 +1446,7 @@ async def payment_success(user_id: str, amount: int = 490):
     <div style="margin: 32px 0;"><a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a></div>
 </div>
 <script> ym(108348240,'reachGoal','premium_purchase_success'); </script>'''
-            else:  # amount == 14900
+            else:
                 content = f'''
 <div class="hero">
     <h1>🎉 Внедрение под ключ активировано!</h1>
@@ -1374,7 +1465,6 @@ async def payment_success(user_id: str, amount: int = 490):
 <script> ym(108348240,'reachGoal','producer_purchase_success'); </script>'''
             return HTMLResponse(content=render_page(content))
         else:
-            # amount == 490 или что-то другое
             content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1422,10 +1512,8 @@ async def payment_success(user_id: str, amount: int = 490):
 <script> ym(108348240,'reachGoal','basic_purchase_success'); </script>'''
             return HTMLResponse(content=render_page(content))
     else:
-        # Отчёт не готов – показываем страницу ожидания
         return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
 
-# === КОНСУЛЬТАЦИЯ И ПОДПИСКА ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
@@ -1485,7 +1573,6 @@ async def subscribe_page(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ ===
 @app.get("/oferta", response_class=HTMLResponse)
 async def oferta_page():
     return HTMLResponse(content=render_page("<h1>Публичная оферта</h1><p>Текст оферты будет добавлен позже.</p>"))
@@ -1494,7 +1581,6 @@ async def oferta_page():
 async def privacy_page():
     return HTMLResponse(content=render_page("<h1>Политика обработки персональных данных</h1><p>Текст политики будет добавлен позже.</p>"))
 
-# === ДОПОЛНИТЕЛЬНЫЕ ЭНДПОИНТЫ (АДМИНКА, API, СКАЧИВАНИЕ) ===
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
@@ -1517,7 +1603,6 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# === АДМИН-ДАШБОРД ===
 @app.get("/admin/dashboard")
 async def admin_dashboard(auth: bool = Depends(verify_admin)):
     dashboard_html = """<!DOCTYPE html>
@@ -1564,7 +1649,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
 <div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button><button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button></div>
 <div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
-<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
+<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th><tr></thead><tbody></tbody></table></div>
 <div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody></table></div>
 </div>
 <script>
