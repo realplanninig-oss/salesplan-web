@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия с офертой и политикой)
+# File: main.py — веб-приложение Salesplan с админ-дашбордом (финальная версия со всеми правками)
 
 import logging
 import sqlite3
@@ -1045,6 +1045,7 @@ async def payment_page(user_id: str, amount: int, status: str = None):
     error_message = ""
     if status == "cancelled":
         error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
+    # Не проверяем existing_report, так как отчёт генерируется только после оплаты
     if amount == 490:
         plan_name = "Маркетинговый план"
     elif amount == 4900:
@@ -1053,6 +1054,7 @@ async def payment_page(user_id: str, amount: int, status: str = None):
         plan_name = "Внедрение под ключ (полная настройка воронки от продюсера)"
     else:
         plan_name = f"План за {amount} ₽"
+    # Определяем старую цену для отображения скидки
     if amount == 490:
         old_price = 4900
         discount = 4410
@@ -1081,17 +1083,13 @@ async def payment_page(user_id: str, amount: int, status: str = None):
         <input type="hidden" name="user_id" value="{user_id}">
         <input type="hidden" name="amount" value="{amount}">
         <div class="form-group"><label>📞 Телефон (нужен для чека по закону)</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;"><p style="font-size: 12px; color: #8e8e93; margin-top: 6px;">Чек придёт на этот номер. Звонков и рекламы не будет.</p></div>
-        <!-- Чекбокс согласия с офертой и политикой -->
-        <div style="margin: 20px 0;">
-            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                <input type="checkbox" name="legal_consent" required style="width: 18px; margin-top: 2px;">
-                <span style="font-size: 13px; line-height: 1.4;">
-                    Я принимаю условия <a href="/oferta" target="_blank">публичной оферты</a> 
-                    и даю согласие на обработку <a href="/privacy" target="_blank">персональных данных</a>
-                </span>
-            </label>
-        </div>
         <div style="text-align:center;margin:20px 0"><button type="submit" class="btn btn-primary" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">💳 Оплатить {amount} ₽</button></div>
+        <p style="font-size: 12px; text-align: center; margin-top: 12px;">
+            Оплачивая, вы принимаете условия 
+            <a href="/oferta" target="_blank">публичной оферты</a> 
+            и даёте согласие на обработку 
+            <a href="/privacy" target="_blank">персональных данных</a>.
+        </p>
     </form>
     <hr style="margin: 20px 0;">
     <div style="text-align: center; margin-top: 20px;"><p style="font-size: 14px; color: #6e6e73;">✅ Безопасная оплата через ЮKassa — ваши деньги под защитой</p><p style="font-size: 14px; color: #6e6e73; margin-top: 10px;">❓ Не подойдёт? Вернём деньги в течение 3 дней — без вопросов и танцев с бубном</p></div>
@@ -1131,11 +1129,9 @@ async def create_yookassa_payment(
     request: Request,
     user_id: str = Form(...),
     phone: str = Form(...),
-    amount: int = Form(...),
-    legal_consent: bool = Form(False)  # проверка согласия
+    amount: int = Form(...)
 ):
-    if not legal_consent:
-        return HTMLResponse("Для оплаты необходимо ваше согласие на обработку персональных данных и принятие условий публичной оферты", status_code=400)
+    # Чекбокс удалён, согласие считается полученным при нажатии кнопки "Оплатить"
     phone = format_phone(phone)
     logger.info(f"Creating YooKassa payment for user {user_id}, phone {phone}, amount={amount}")
     save_user(user_id, phone, None)
@@ -1188,6 +1184,7 @@ async def create_yookassa_payment(
                 save_payment_request(user_id, phone, amount=amount)
                 return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
             save_payment_request(user_id, phone, payment_id, amount, "pending")
+            # НЕ генерируем отчёт здесь, только после подтверждения оплаты в вебхуке
             return RedirectResponse(url=confirmation_url, status_code=303)
         else:
             logger.error(f"YooKassa error: {response.status_code} - {response.text}")
@@ -1222,10 +1219,13 @@ async def payment_webhook(request: Request):
             update_payment_status(payment_id, "succeeded")
             if user_id:
                 conn = sqlite3.connect(DB_PATH)
+                # Обновим paid_at для отчёта, если он уже готов (но его может не быть)
                 conn.execute("UPDATE reports SET paid_at = CURRENT_TIMESTAMP WHERE user_id = ? AND report_type = 'premium' AND status = 'ready'", (user_id,))
                 conn.commit()
                 conn.close()
                 logger.info(f"Updated paid_at for user {user_id} after payment")
+                
+                # Генерируем отчёт после успешной оплаты
                 biz = get_business_data(user_id)
                 answers = get_form_data(user_id)
                 if biz and answers and DEEPSEEK_API_KEY:
@@ -1273,23 +1273,29 @@ async def payment_confirm(request: Request):
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 490):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
+    # Проверяем, есть ли успешный платёж для этого пользователя
     conn = sqlite3.connect(DB_PATH)
     payment_row = conn.execute("SELECT status, amount FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
     conn.close()
     if not payment_row:
+        # Нет успешного платежа – перенаправляем на главную
         return RedirectResponse(url="/", status_code=303)
+    # Если сумма в параметре не совпадает с суммой платежа, используем сумму из платежа
     if payment_row[1] and payment_row[1] != amount:
         amount = payment_row[1]
         logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
+    
     user_phone = ""
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if row and row[0]:
         user_phone = row[0]
     conn.close()
+    
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
     existing_report = get_report(user_id, "premium")
+    # Ждём готовности отчёта (может генерироваться)
     if existing_report and existing_report["status"] == "generating":
         return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
     if existing_report and existing_report["status"] == "ready":
@@ -1349,7 +1355,7 @@ async def payment_success(user_id: str, amount: int = 490):
     <div style="margin: 32px 0;"><a href="https://vk.ru/topic-164421538_39653658" target="_blank" class="btn btn-outline" style="margin: 10px;">📸 Реальные отзывы моих клиентов (ВКонтакте)</a></div>
 </div>
 <script> ym(108348240,'reachGoal','premium_purchase_success'); </script>'''
-            else:
+            else:  # amount == 14900
                 content = f'''
 <div class="hero">
     <h1>🎉 Внедрение под ключ активировано!</h1>
@@ -1368,6 +1374,7 @@ async def payment_success(user_id: str, amount: int = 490):
 <script> ym(108348240,'reachGoal','producer_purchase_success'); </script>'''
             return HTMLResponse(content=render_page(content))
         else:
+            # amount == 490 или что-то другое
             content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1415,6 +1422,7 @@ async def payment_success(user_id: str, amount: int = 490):
 <script> ym(108348240,'reachGoal','basic_purchase_success'); </script>'''
             return HTMLResponse(content=render_page(content))
     else:
+        # Отчёт не готов – показываем страницу ожидания
         return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
 
 # === КОНСУЛЬТАЦИЯ И ПОДПИСКА ===
@@ -1480,169 +1488,11 @@ async def subscribe_page(user_id: str):
 # === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ ===
 @app.get("/oferta", response_class=HTMLResponse)
 async def oferta_page():
-    oferta_text = """
-<div style="max-width: 800px; margin: 0 auto;">
-<h1>ПУБЛИЧНАЯ ОФЕРТА</h1>
-<p>о заключении договора купли-продажи цифрового товара</p>
-<p>Индивидуальный предприниматель Макаревич Вероника Александровна,<br>
-ИНН 781407988795, зарегистрированная в качестве налогоплательщика<br>
-налога на профессиональный доход (самозанятая),<br>
-размещая настоящий документ на сайте<br>
-realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»),<br>
-предлагает неограниченному кругу лиц (далее — «Покупатель»)<br>
-заключить договор купли-продажи цифрового товара на условиях, изложенных ниже.</p>
-
-<h2>1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h2>
-<p>1.1. Цифровой товар — профессиональный маркетинговый план продаж, сгенерированный с использованием искусственного интеллекта на основе данных, предоставленных Покупателем, предоставляемый в электронном виде в формате текстового файла (.txt) через Сайт.</p>
-<p>1.2. Сайт — интернет-страница, расположенная по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net</p>
-<p>1.3. Продавец — Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795, статус: ИП, применяет налог на профессиональный доход (самозанятая).</p>
-<p>1.4. Покупатель — любое физическое или юридическое лицо, акцептовавшее настоящую оферту.</p>
-
-<h2>2. ПРЕДМЕТ ДОГОВОРА</h2>
-<p>2.1. Продавец обязуется передать в собственность Покупателю Цифровой товар, а Покупатель обязуется оплатить его в порядке и на условиях, предусмотренных настоящей офертой.</p>
-<p>2.2. Цифровой товар передается Покупателю в момент получения доступа к файлу для скачивания после полной оплаты.</p>
-
-<h2>3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h2>
-<p>3.1. Стоимость Цифрового товара составляет 490 (Четыреста девяносто) рублей.</p>
-<p>3.2. Оплата производится через платежную систему ЮKassa (ООО «ЮMoney») с использованием банковской карты или иных доступных способов.</p>
-<p>3.3. Оплата считается произведенной в момент поступления денежных средств на счет Продавца.</p>
-<p>3.4. Продавец не является плательщиком НДС в силу применения налогового режима «Налог на профессиональный доход» (самозанятость).</p>
-
-<h2>4. ПОРЯДОК ПЕРЕДАЧИ ЦИФРОВОГО ТОВАРА</h2>
-<p>4.1. После успешной оплаты Покупателю автоматически открывается доступ к странице с Цифровым товаром для скачивания.</p>
-<p>4.2. Цифровой товар считается переданным надлежащим образом в момент предоставления доступа к файлу для скачивания.</p>
-<p>4.3. Продавец не несет ответственности за невозможность скачать Цифровой товар по техническим причинам на стороне Покупателя (отсутствие интернета, блокировка провайдером и т.п.).</p>
-
-<h2>5. ПОРЯДОК ВОЗВРАТА ДЕНЕЖНЫХ СРЕДСТВ</h2>
-<p>5.1. В соответствии со ст. 26.1 Закона РФ «О защите прав потребителей» цифровой товар надлежащего качества возврату не подлежит.</p>
-<p>5.2. Возврат денежных средств возможен в следующих исключительных случаях:<br>
-— Цифровой товар не может быть открыт / прочитан по техническим причинам;<br>
-— Цифровой товар не соответствует описанию (ошибка в предоставленном файле);<br>
-— Двойная оплата одного и того же заказа.</p>
-<p>5.3. Для возврата Покупатель должен обратиться к Продавцу по контактам, указанным в разделе 10, в течение 3 (трех) дней с момента оплаты.</p>
-<p>5.4. При подтверждении оснований для возврата Продавец обязуется вернуть денежные средства в течение 3 (трех) рабочих дней с момента получения заявления от Покупателя.</p>
-<p>5.5. Возврат осуществляется на ту же банковскую карту или счет, с которого производилась оплата.</p>
-
-<h2>6. ОТВЕТСТВЕННОСТЬ СТОРОН</h2>
-<p>6.1. Цифровой товар предоставляется «как есть» (as is). Продавец не гарантирует достижение Покупателем каких-либо финансовых или бизнес-результатов при использовании Цифрового товара.</p>
-<p>6.2. Продавец не несет ответственности за убытки Покупателя, возникшие в результате использования Цифрового товара.</p>
-
-<h2>7. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ</h2>
-<p>7.1. Цифровой товар является результатом интеллектуальной деятельности Продавца (с использованием нейросетей). Все исключительные права на Цифровой товар принадлежат Продавцу.</p>
-<p>7.2. Покупатель получает право личного некоммерческого использования Цифрового товара. Запрещается: перепродажа Цифрового товара; распространение в открытом доступе; копирование и тиражирование в коммерческих целях; выдача Цифрового товара за свой собственный.</p>
-
-<h2>8. ПЕРСОНАЛЬНЫЕ ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ</h2>
-<p>8.1. Вопросы обработки персональных данных регулируются Политикой обработки персональных данных, размещенной на Сайте по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net/privacy</p>
-<p>8.2. Направляя данные через формы на Сайте, Покупатель дает согласие на их обработку в соответствии с указанной Политикой.</p>
-
-<h2>9. ФОРС-МАЖОР</h2>
-<p>9.1. Стороны освобождаются от ответственности за полное или частичное неисполнение обязательств, если это явилось следствием обстоятельств непреодолимой силы (стихийные бедствия, военные действия, решения органов власти, блокировки интернет-ресурсов и т.п.).</p>
-
-<h2>10. КОНТАКТЫ ПРОДАВЦА</h2>
-<p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
-— ИНН: 781407988795<br>
-— Email: veranikamakarevich@yandex.ru<br>
-— MAX-канал: https://max.ru/id781407988795_biz</p>
-
-<h2>11. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</h2>
-<p>11.1. Акцептом настоящей оферты является совершение Покупателем действий по оплате Цифрового товара и/или проставление галочки в чекбоксе «Я принимаю условия публичной оферты».</p>
-<p>11.2. Продавец вправе изменять условия оферты в одностороннем порядке. Изменения вступают в силу с момента их опубликования на Сайте.</p>
-<p>Дата публикации: «05» мая 2026 г.</p>
-</div>
-"""
-    return HTMLResponse(content=render_page(oferta_text))
+    return HTMLResponse(content=render_page("<h1>Публичная оферта</h1><p>Текст оферты будет добавлен позже.</p>"))
 
 @app.get("/privacy", response_class=HTMLResponse)
 async def privacy_page():
-    privacy_text = """
-<div style="max-width: 800px; margin: 0 auto;">
-<h1>ПОЛИТИКА ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h1>
-<p>Индивидуального предпринимателя Макаревич Вероники Александровны</p>
-
-<h2>1. ОБЩИЕ ПОЛОЖЕНИЯ</h2>
-<p>1.1. Настоящая Политика определяет порядок обработки и защиты персональных данных лиц, использующих сайт realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»).</p>
-<p>1.2. Оператор персональных данных: Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795.</p>
-<p>1.3. Настоящая Политика составлена во исполнение требований Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных» (с изменениями на 2026 год).</p>
-<p>1.4. Используя Сайт и заполняя формы, Пользователь выражает согласие с условиями настоящей Политики.</p>
-
-<h2>2. КАКИЕ ДАННЫЕ СОБИРАЮТСЯ</h2>
-<p>2.1. Оператор собирает следующие персональные данные:<br>
-— Номер телефона (обязательно)<br>
-— Имя (опционально)<br>
-— Название бизнеса и описание бизнеса<br>
-— Ответы на вопросы анкеты (7 вопросов о бизнесе)</p>
-<p>2.2. Технические данные, собираемые автоматически:<br>
-— IP-адрес<br>
-— User-Agent (тип браузера и устройства)<br>
-— Дата и время посещения<br>
-— Страница, с которой совершен переход (Referrer)</p>
-
-<h2>3. ЦЕЛИ ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h2>
-<p>3.1. Основные цели:<br>
-— Предоставление доступа к сервису маркетинговой диагностики<br>
-— Генерация индивидуального маркетингового плана на основе анкеты<br>
-— Обработка платежей через ЮKassa (ООО «ЮMoney»)<br>
-— Направление ссылки на скачивание отчета<br>
-— Направление информации о статусе заказа<br>
-— Улучшение работы Сайта и сервиса<br>
-— Ведение статистики посещений (Яндекс.Метрика)</p>
-<p>3.2. Второстепенные цели (с отдельным согласием Пользователя):<br>
-— Направление информационных и рекламных рассылок (если Пользователь подписался)</p>
-
-<h2>4. ПРАВОВЫЕ ОСНОВАНИЯ ОБРАБОТКИ</h2>
-<p>4.1. Оператор обрабатывает персональные данные на основании:<br>
-— Согласия субъекта персональных данных (отдельный чекбокс на Сайте)<br>
-— Договора (публичной оферты), стороной которого является субъект<br>
-— Исполнения обязательств, предусмотренных законодательством РФ</p>
-
-<h2>5. ПОРЯДОК И УСЛОВИЯ ОБРАБОТКИ</h2>
-<p>5.1. Обработка данных включает: сбор, запись, систематизацию, накопление, хранение, уточнение, извлечение, использование, передачу, блокирование, удаление, уничтожение.</p>
-<p>5.2. Срок хранения персональных данных: 3 (три) года с момента последнего взаимодействия с Пользователем либо до момента отзыва согласия, если отзыв не противоречит законодательству.</p>
-<p>5.3. Хранение данных осуществляется на серверах, расположенных на территории Российской Федерации. Хостинг-провайдер: ООО «ТаймВеб» (Timeweb), Россия, Санкт-Петербург. Сайт хостинга: https://timeweb.cloud/</p>
-<p>5.4. Оператор не передает персональные данные третьим лицам, за исключением:<br>
-— Платежной системы ЮKassa (ООО «ЮMoney») — для проведения платежа<br>
-— Хостинг-провайдера ООО «ТаймВеб» — для обеспечения работы Сайта<br>
-— По запросу уполномоченных государственных органов (в рамках закона)</p>
-<p>5.5. Доступ к персональным данным имеет только Оператор (Макаревич Вероника Александровна). Иные лица к данным доступа не имеют.</p>
-
-<h2>6. ПРАВА ПОЛЬЗОВАТЕЛЯ</h2>
-<p>6.1. Пользователь имеет право:<br>
-— Получить информацию о своих персональных данных, обрабатываемых Оператором<br>
-— Требовать уточнения, блокирования или уничтожения своих данных<br>
-— Отозвать согласие на обработку персональных данных<br>
-— Обжаловать действия Оператора в уполномоченном органе (Роскомнадзор)</p>
-<p>6.2. Для реализации прав необходимо направить запрос на электронную почту: veranikamakarevich@yandex.ru</p>
-<p>6.3. Оператор обязуется рассмотреть запрос и дать ответ в течение 10 (десяти) рабочих дней.</p>
-
-<h2>7. ЗАЩИТА ПЕРСОНАЛЬНЫХ ДАННЫХ</h2>
-<p>7.1. Оператор принимает следующие меры защиты:<br>
-— Парольная защита доступа к базам данных (SQLite с паролем)<br>
-— Использование HTTPS-шифрования (через Timeweb)<br>
-— Регулярное резервное копирование<br>
-— Ограничение круга лиц, имеющих доступ к данным (только Оператор)<br>
-— Антивирусное ПО на рабочем компьютере</p>
-<p>7.2. В случае утечки персональных данных Оператор обязуется в течение 24 часов уведомить Роскомнадзор и пострадавших лиц в порядке, установленном законодательством.</p>
-
-<h2>8. ИСПОЛЬЗОВАНИЕ ФАЙЛОВ COOKIE И МЕТРИК</h2>
-<p>8.1. На Сайте используется Яндекс.Метрика для сбора статистики посещений. Данные собираются в обезличенном виде.</p>
-<p>8.2. Пользователь может отключить cookie в настройках браузера.</p>
-
-<h2>9. ПОРЯДОК ОТЗЫВА СОГЛАСИЯ</h2>
-<p>9.1. Пользователь может отозвать согласие на обработку персональных данных, направив письменное заявление на электронную почту Оператора.</p>
-<p>9.2. В случае отзыва согласия Оператор обязуется прекратить обработку и уничтожить персональные данные в течение 30 дней, если иное не предусмотрено законом.</p>
-
-<h2>10. КОНТАКТЫ ОПЕРАТОРА</h2>
-<p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
-— ИНН: 781407988795<br>
-— Email: veranikamakarevich@yandex.ru<br>
-— MAX-канал: https://max.ru/id781407988795_biz</p>
-
-<h2>11. ИЗМЕНЕНИЕ ПОЛИТИКИ</h2>
-<p>11.1. Оператор вправе изменять настоящую Политику. Новая редакция вступает в силу с момента ее публикации на Сайте.</p>
-<p>Дата публикации: «05» мая 2026 г.</p>
-</div>
-"""
-    return HTMLResponse(content=render_page(privacy_text))
+    return HTMLResponse(content=render_page("<h1>Политика обработки персональных данных</h1><p>Текст политики будет добавлен позже.</p>"))
 
 # === ДОПОЛНИТЕЛЬНЫЕ ЭНДПОИНТЫ (АДМИНКА, API, СКАЧИВАНИЕ) ===
 @app.get("/download/{user_id}/{report_type}")
@@ -1667,6 +1517,7 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# === АДМИН-ДАШБОРД ===
 @app.get("/admin/dashboard")
 async def admin_dashboard(auth: bool = Depends(verify_admin)):
     dashboard_html = """<!DOCTYPE html>
@@ -1714,7 +1565,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
 <div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button><button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button></div>
 <div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
 <div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
-<div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody><tr></div>
+<div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody></table></div>
 </div>
 <script>
 let clientsData=[];
@@ -1733,9 +1584,9 @@ funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const
 const ctx=document.getElementById('funnelChart').getContext('2d');
 new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div></td>`;});}
 async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
-async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<tr>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
+async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
 function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
 function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
