@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с обновлёнными лендингами, подвалом, чекбоксами и стилем Apple+Хакамада)
+# File: main.py — веб-приложение Salesplan (финальная версия с восстановленными стилями анкеты)
 
 import logging
 import sqlite3
@@ -513,7 +513,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
-# === HTML ШАБЛОНЫ (ОБНОВЛЁННЫЙ ПОДВАЛ) ===
+# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS ===
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -553,12 +553,15 @@ HTML_HEAD = """<!DOCTYPE html>
         .social-links{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
         hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
+        /* Стили для карточки формы */
         .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
         input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
         .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
+        .radio-group label:hover{background:#e5e5ea}
+        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer}
         .pricing-grid{display:flex;gap:24px;justify-content:center;margin:32px 0;flex-wrap:wrap}
         .pricing-card{flex:1;min-width:260px;background:#fff;border-radius:24px;padding:24px;box-shadow:0 4px 12px rgba(0,0,0,0.08);position:relative}
         .pricing-card.featured{border:2px solid #ff9f0a;background:linear-gradient(135deg,#fff8e8,#fff)}
@@ -871,11 +874,26 @@ async def funnel_7_days():
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# СТРАНИЦА АНКЕТЫ (с новым заголовком и восстановленными стилями)
+# СТРАНИЦА АНКЕТЫ (стили восстановлены, карточка, тень, радио-кнопки)
 # ========================
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
+    # Используем те же классы, которые есть в глобальном CSS, но для надёжности
+    # добавляем явные стили внутри страницы (перестраховка)
     content = """
+<style>
+    /* Дополнительные стили для анкеты — на случай, если глобальные не подтянулись */
+    .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
+    .form-group{margin-bottom:24px}
+    label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
+    input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
+    .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+    .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
+    .radio-group label:hover{background:#e5e5ea}
+    .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer}
+    .btn-main{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:16px 48px;font-size:20px;font-weight:600;border-radius:48px;box-shadow:0 2px 8px rgba(0,122,255,0.3);transition:transform 0.2s,box-shadow 0.2s;border:none;cursor:pointer}
+    .btn-main:hover{background:#005fc5;transform:scale(1.02);box-shadow:0 4px 12px rgba(0,122,255,0.4)}
+</style>
 <div class="hero">
     <h1>Продаж нет. Давай разбираться. 7 вопросов — и я скажу, где ты теряешь деньги.</h1>
     <p style="font-size: 18px;">«Отвечай честно — это поможет точнее. 2 минуты.»</p>
@@ -911,7 +929,7 @@ async def survey():
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# ОБРАБОТЧИК АНКЕТЫ (без изменений логики)
+# ОБРАБОТЧИК АНКЕТЫ
 # ========================
 @app.post("/survey/submit")
 async def survey_submit(
@@ -960,7 +978,7 @@ async def survey_submit(
     return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
 
 # ========================
-# ВСПОМОГАТЕЛЬНЫЕ ЭНДПОИНТЫ ДЛЯ ПРОВЕРКИ СТАТУСА
+# ВСПОМОГАТЕЛЬНЫЕ ЭНДПОИНТЫ
 # ========================
 @app.get("/check_status")
 async def check_status(user_id: str, report_type: str):
@@ -1083,7 +1101,7 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# ПЛАТЁЖНЫЕ ЭНДПОИНТЫ
+# ПЛАТЁЖНЫЕ ЭНДПОИНТЫ (сокращённо, без изменений)
 # ========================
 @app.post("/payment/create")
 async def payment_create(user_id: str = Form(...), amount: int = Form(...)):
@@ -1544,7 +1562,7 @@ async def subscribe_page(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ
+# СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (полные тексты)
 # ========================
 @app.get("/oferta", response_class=HTMLResponse)
 async def oferta_page():
@@ -1792,7 +1810,7 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
 <div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button><button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button></div>
 <div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
-<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
+<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></table></thead><tbody></tbody></table></div>
 <div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody></table></div>
 </div>
 <script>
@@ -1812,9 +1830,9 @@ funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const
 const ctx=document.getElementById('funnelChart').getContext('2d');
 new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
-async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}</td>`;});}
-async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</td>`;});}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`</tr><tr>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
+async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}<tr>`;});}
+async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</tr>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
 function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
 function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
