@@ -603,7 +603,7 @@ HTML_FOOT = """
 def render_page(content: str):
     return HTML_HEAD + content + HTML_FOOT
 
-# === ОСТАЛЬНЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (render_waiting_page, render_premium_waiting_page) ===
+# === ВСПОМОГАТЕЛЬНЫЕ СТРАНИЦЫ ОЖИДАНИЯ ===
 def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     return f"""<!DOCTYPE html>
 <html lang="ru">
@@ -758,7 +758,7 @@ def render_premium_waiting_page(user_id: str, amount: int):
 </html>"""
 
 # ========================
-# ГЛАВНАЯ СТРАНИЦА (обновлённый дизайн, без FAQ)
+# ГЛАВНАЯ СТРАНИЦА
 # ========================
 @app.get("/")
 async def index():
@@ -871,13 +871,13 @@ async def funnel_7_days():
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# СТРАНИЦА АНКЕТЫ (survey) — без ссылок в чекбоксе
+# СТРАНИЦА АНКЕТЫ (с новым заголовком и восстановленными стилями)
 # ========================
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
 <div class="hero">
-    <h1>Честный разбор от продюсера экспертов. Узнай 3 скрытые точки роста за 2 минуты.</h1>
+    <h1>Продаж нет. Давай разбираться. 7 вопросов — и я скажу, где ты теряешь деньги.</h1>
     <p style="font-size: 18px;">«Отвечай честно — это поможет точнее. 2 минуты.»</p>
 </div>
 <div class="form-card">
@@ -897,7 +897,7 @@ async def survey():
             </label>
         </div>
         
-        <div style="text-align:center"><p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ты просто отвечаешь на 7 вопросов. Я нахожу, где ты теряешь клиентов, и даю готовую воронку под MAX, VK, Telegram, Яндекс.Директ. Бесплатно. Честно.</p><button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Отправить и получить разбор</button></div>
+        <div style="text-align:center; margin-top: 20px;"><p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ты просто отвечаешь на 7 вопросов. Я нахожу, где ты теряешь клиентов, и даю готовую воронку под MAX, VK, Telegram, Яндекс.Директ. Бесплатно. Честно.</p><button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Отправить и получить разбор</button></div>
     </form>
 </div>
 <script>
@@ -911,7 +911,7 @@ async def survey():
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# ОБРАБОТЧИК АНКЕТЫ (без изменений логики, только добавил сохранение согласия)
+# ОБРАБОТЧИК АНКЕТЫ (без изменений логики)
 # ========================
 @app.post("/survey/submit")
 async def survey_submit(
@@ -977,7 +977,7 @@ async def check_premium_status(user_id: str):
     return {"ready": row and row[0] == 'ready'}
 
 # ========================
-# СТРАНИЦА ДИАГНОСТИКИ (с блоком "Взгляд на ситуацию", убрана ссылка на отзывы)
+# СТРАНИЦА ДИАГНОСТИКИ
 # ========================
 @app.get("/diagnostic", response_class=HTMLResponse)
 async def diagnostic(user_id: str):
@@ -1083,7 +1083,7 @@ async def diagnostic(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# ПЛАТЁЖНЫЕ ЭНДПОИНТЫ (с чекбоксом без ссылок)
+# ПЛАТЁЖНЫЕ ЭНДПОИНТЫ
 # ========================
 @app.post("/payment/create")
 async def payment_create(user_id: str = Form(...), amount: int = Form(...)):
@@ -1421,7 +1421,6 @@ async def payment_success(user_id: str, amount: int = 490):
 <script> ym(108348240,'reachGoal','producer_purchase_success'); </script>'''
         return HTMLResponse(content=render_page(content))
     else:
-        # amount == 490
         content = f'''
 <div class="hero">
     <h1>🎉 Спасибо за покупку!</h1>
@@ -1472,7 +1471,7 @@ async def payment_success(user_id: str, amount: int = 490):
         return HTMLResponse(content=render_page(content))
 
 # ========================
-# КОНСУЛЬТАЦИЯ И ПОДПИСКА (с чекбоксом без ссылок)
+# КОНСУЛЬТАЦИЯ И ПОДПИСКА
 # ========================
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
@@ -1545,7 +1544,7 @@ async def subscribe_page(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (полные тексты из документов)
+# СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ
 # ========================
 @app.get("/oferta", response_class=HTMLResponse)
 async def oferta_page():
@@ -1723,7 +1722,7 @@ async def privacy_page():
     return HTMLResponse(content=render_page(content))
 
 # ========================
-# АДМИН-ДАШБОРД И ДОПОЛНИТЕЛЬНЫЕ ЭНДПОИНТЫ
+# ЗАГРУЗКА ОТЧЁТОВ И АДМИНКА
 # ========================
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
@@ -1747,9 +1746,6 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ========================
-# АДМИН-ДАШБОРД (без изменений)
-# ========================
 @app.get("/admin/dashboard")
 async def admin_dashboard(auth: bool = Depends(verify_admin)):
     dashboard_html = """<!DOCTYPE html>
