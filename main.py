@@ -1,6 +1,6 @@
 # File: main.py — веб-приложение Salesplan (финальная версия)
 # Все согласованные изменения:
-# - Главная без кейсов, с прогревающим текстом и компактной ссылкой MAX
+# - Главная страница в стиле Apple: воздух, убраны преимущества, текст с галочками, кнопка, компактный MAX
 # - Кейсы перенесены на страницу оплаты
 # - Трёхступенчатая воронка: лид-магнит → бесплатный план → апсейл на расширенный план за 2500 ₽
 # - Генерация расширенного плана только после оплаты и по запросу пользователя
@@ -673,16 +673,98 @@ setTimeout(checkStatus,1000);
 <body><div class="spinner"></div><h1>⏳ Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
 </html>"""
 
-# === ГЛАВНАЯ СТРАНИЦА (без кейсов) ===
+# === ГЛАВНАЯ СТРАНИЦА (Apple-стиль, без преимуществ, с галочками) ===
 @app.get("/")
 async def index():
     content = '''
-<div class="hero">
+<style>
+    /* Локальные стили для главной страницы — Apple-подход */
+    .apple-hero {
+        text-align: center;
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+    .apple-hero h1 {
+        font-size: 56px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin-bottom: 16px;
+        color: #1d1d1f;
+    }
+    .apple-hero .subtitle {
+        font-size: 24px;
+        font-weight: 400;
+        color: #6e6e73;
+        max-width: 700px;
+        margin: 0 auto 32px;
+        line-height: 1.4;
+    }
+    .apple-text-block {
+        background: #f9f9fb;
+        border-radius: 28px;
+        padding: 40px 48px;
+        margin: 32px auto;
+        text-align: left;
+        font-size: 18px;
+        line-height: 1.6;
+        color: #1d1d1f;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    .apple-text-block p {
+        margin-bottom: 16px;
+    }
+    .apple-text-block strong {
+        font-weight: 600;
+        color: #1d1d1f;
+    }
+    .apple-list {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0 24px;
+    }
+    .apple-list li {
+        padding: 8px 0 8px 36px;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%2334c759" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>') left center no-repeat;
+        background-size: 20px;
+        margin-bottom: 4px;
+        font-size: 17px;
+    }
+    .apple-divider {
+        border: none;
+        border-top: 1px solid #e5e5ea;
+        margin: 28px 0;
+    }
+    .apple-cta {
+        margin: 40px 0 24px;
+    }
+    .apple-footer-link {
+        font-size: 15px;
+        color: #8e8e93;
+        margin-top: 32px;
+    }
+    .apple-footer-link a {
+        color: #007aff;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .apple-footer-link a:hover {
+        text-decoration: underline;
+    }
+    @media (max-width: 700px) {
+        .apple-hero h1 { font-size: 36px; }
+        .apple-hero .subtitle { font-size: 20px; }
+        .apple-text-block { padding: 24px 20px; }
+        .apple-list li { font-size: 16px; padding-left: 30px; }
+    }
+</style>
+
+<div class="apple-hero">
     <h1>Хватит гадать. Получите маркетинговый план под вашу нишу – бесплатно.</h1>
-    <p style="font-size:20px; max-width:700px; margin:0 auto 20px;">ИИ проанализирует вашу нишу, конкурентов и аудиторию. За 2 минуты вы узнаете, где теряете деньги и с чего начать.</p>
-    
-    <!-- Прогревающий текст -->
-    <div style="background:#f8f8fa; border-radius:24px; padding:24px 32px; margin:30px auto; max-width:800px; text-align:left; font-size:17px; line-height:1.6; color:#1d1d1f;">
+    <p class="subtitle">ИИ проанализирует вашу нишу, конкурентов и аудиторию. За 2 минуты вы узнаете, где теряете деньги и с чего начать.</p>
+
+    <div class="apple-text-block">
         <p><strong>Вы – эксперт.</strong> Но маркетинг съедает бюджет, а клиенты уходят к конкурентам.<br>
         Я не верю в волшебные кнопки. Я верю в систему.</p>
         <p>Мы обучили нейросеть на реальных кейсах – она видит вашу нишу изнутри и выдаёт готовый план: каналы, оффер, бюджет, первые шаги.<br>
@@ -691,31 +773,25 @@ async def index():
         Потому что план строится не на догадках, а на данных – по вашей нише, вашей аудитории, вашим целям.<br>
         Вы получаете не «советы», а дорожную карту, которую можно внедрять уже завтра.</p>
         <p><strong>Что вы узнаете:</strong></p>
-        <ul style="list-style:none; padding-left:0;">
-            <li style="margin-bottom:8px;">✅ какие 3 канала принесут вам клиентов уже в первую неделю;</li>
-            <li style="margin-bottom:8px;">✅ какой оффер заставит сказать «да» даже скептиков;</li>
-            <li style="margin-bottom:8px;">✅ сколько денег реально нужно на старте и где их взять;</li>
-            <li style="margin-bottom:8px;">✅ какую ошибку вы совершаете каждый день, теряя прибыль.</li>
+        <ul class="apple-list">
+            <li>какие 3 канала принесут вам клиентов уже в первую неделю</li>
+            <li>какой оффер заставит сказать «да» даже скептиков</li>
+            <li>сколько денег реально нужно на старте и где их взять</li>
+            <li>какую ошибку вы совершаете каждый день, теряя прибыль</li>
         </ul>
-        <p style="margin-top:16px;">Я не обещаю чудес. Я даю инструмент.<br>
+        <hr class="apple-divider">
+        <p style="font-size: 19px; font-weight: 500;">Я не обещаю чудес. Я даю инструмент.<br>
         Дальше – ваш выбор: использовать его или оставить пылиться.</p>
         <p><strong>Первый шаг – пройти диагностику.</strong> Это займёт 2 минуты. Никаких обязательств – только польза.</p>
     </div>
-</div>
 
-<div class="benefits-grid">
-    <div class="benefit-item"><div class="benefit-icon">🔍</div><div class="benefit-title">Где именно сливаются ваши клиенты</div></div>
-    <div class="benefit-item"><div class="benefit-icon">🎯</div><div class="benefit-title">3 точки роста для первых денег</div></div>
-    <div class="benefit-item"><div class="benefit-icon">🤖</div><div class="benefit-title">Как настроить автоворонку без программистов</div></div>
-</div>
+    <div class="apple-cta">
+        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">🔍 Пройти диагностику</a>
+    </div>
 
-<div style="text-align:center; margin:40px 0;">
-    <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">🔍 Пройти диагностику</a>
-</div>
-
-<!-- Компактный блок с MAX -->
-<div style="text-align:center; margin:40px 0 20px; font-size:14px; color:#6e6e73;">
-    <span>💬 Есть вопросы? <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a></span>
+    <div class="apple-footer-link">
+        💬 Есть вопросы? <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank">Напишите мне в MAX</a>
+    </div>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -1371,7 +1447,7 @@ async def launch_online_school_redirect():
 async def funnel_7_days_redirect():
     return RedirectResponse(url="/", status_code=301)
 
-# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (сокращённо) ===
+# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (сокращённо, можно оставить полные) ===
 @app.get("/oferta", response_class=HTMLResponse)
 async def oferta_page():
     content = """
@@ -1384,7 +1460,7 @@ async def oferta_page():
     realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»),<br>
     предлагает неограниченному кругу лиц (далее — «Покупатель»)<br>
     заключить договор купли-продажи цифрового товара на условиях, изложенных ниже.</p>
-    <!-- ... остальной текст оферты (полный) ... -->
+    <!-- ... полный текст оферты (здесь можно оставить как в предыдущих версиях) ... -->
     <p>Дата публикации: «05» мая 2026 г.</p>
 </div>
 """
@@ -1397,7 +1473,7 @@ async def privacy_page():
 <div class="form-card" style="text-align:left;max-width:800px;">
     <h3>1. ОБЩИЕ ПОЛОЖЕНИЯ</h3>
     <p>1.1. Настоящая Политика определяет порядок обработки и защиты персональных данных лиц, использующих сайт realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»).</p>
-    <!-- ... остальной текст политики (полный) ... -->
+    <!-- ... полный текст политики (можно оставить как в предыдущих версиях) ... -->
     <p>Дата публикации: «05» мая 2026 г.</p>
 </div>
 """
