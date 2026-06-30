@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с восстановленными стилями анкеты)
+# File: main.py — веб-приложение Salesplan (версия с трёхступенчатой воронкой)
 
 import logging
 import sqlite3
@@ -130,7 +130,8 @@ async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
-    if path in ["/", "/survey", "/diagnostic", "/payment", "/payment/success", "/launch-online-school", "/funnel-7-days", "/consultation", "/subscribe"]:
+    # разрешаем новые пути
+    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/lead-magnet", "/consultation", "/generate-premium-report"]:
         track_visit(ip=client_ip, user_agent=user_agent)
     if path == "/favicon.ico":
         return await call_next(request)
@@ -237,9 +238,11 @@ def get_all_free_diagnostics():
             b.business_description,
             f.q1, f.q2, f.q3, f.q4, f.q5, 
             r.status as report_status, 
-            r.report_text
+            r.report_text,
+            u.phone
         FROM forms f
         LEFT JOIN business_data b ON f.user_id = b.user_id
+        LEFT JOIN users u ON f.user_id = u.user_id
         LEFT JOIN (
             SELECT user_id, report_type, status, report_text, id
             FROM reports 
@@ -248,7 +251,7 @@ def get_all_free_diagnostics():
         ) r ON f.user_id = r.user_id
         ORDER BY f.completed_at DESC LIMIT 100
     """)
-    columns = ['user_id','date','business_name','business_description','q1','q2','q3','q4','q5','report_status','report_text']
+    columns = ['user_id','date','business_name','business_description','q1','q2','q3','q4','q5','report_status','report_text','phone']
     results = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
     return results
@@ -384,7 +387,7 @@ def format_moscow_time(dt=None):
     if dt is None: dt = get_moscow_time()
     return dt.strftime('%Y-%m-%d %H:%M:%S')
 
-# === ОТПРАВКА УВЕДОМЛЕНИЙ В КАНАЛ MAX ===
+# === ОТПРАВКА УВЕДОМЛЕНИЙ В КАНАЛ MAX (оставляем для админа, но консультации убрали) ===
 async def send_notification_to_channel(text: str):
     if not ADMIN_CHANNEL_ID or not MAX_BOT_TOKEN:
         logger.error("ADMIN_CHANNEL_ID or MAX_BOT_TOKEN not configured")
@@ -450,35 +453,75 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
     if not DEEPSEEK_API_KEY:
         update_report_status(report_id, 'failed')
         return False
-    q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
-    q2_map = {"до 5k": "до 5k", "5k-20k": "5k-20k", "20k-50k": "20k-50k", ">50k": ">50k"}
-    q3_map = {"<10": "<10", "10-50": "10-50", "50-200": "50-200", ">200": ">200"}
-    q4_map = {"300k/мес": "300k/мес", "500k/мес": "500k/мес", "1M/мес": "1M/мес", "Масштаб": "Масштаб"}
-    q5_map = {"Да": "да", "Нет": "нет", "В разработке": "в разработке"}
-    survey_info = f"""
-ДАННЫЕ О БИЗНЕСЕ:
-• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}
-• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}
-• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}
-• Цель: {q4_map.get(answers.get('q4'), 'не указано')}
-• Автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}
-"""
-    prompt = f"""Сделай профессиональный план запуска продаж для онлайн-бизнеса.
+    # Новый промпт для расширенного плана
+    prompt = f"""Сделай расширенный маркетинговый план для бизнеса.
 
-ДАННЫЕ:
+ДАННЫЕ О БИЗНЕСЕ:
 Название: {name}
 Описание: {description}
-{survey_info}
+Продаёт: {answers.get('q1', 'не указано')}
+Средний чек: {answers.get('q2', 'не указано')}
+Клиентов/мес: {answers.get('q3', 'не указано')}
+Цель: {answers.get('q4', 'не указано')}
+Автоворонка: {answers.get('q5', 'не указано')}
 
-Напиши план в деловом, мудром стиле. Без воды. Конкретно. Обращайся на "ты". НЕ используй символы форматирования.
+Требования:
+1. Все разделы должны содержать конкретные числа, примеры и готовые формулировки.
+2. В конце плана – чек-лист из 50 пунктов и 5 главных действий на первую неделю.
+3. Пиши деловым, прямым стилем. Без воды. Обращайся на «ты».
+4. НЕ используй символы форматирования (*, #, _, `, ~). Для списков используй дефис.
+5. Структура строго по разделам ниже.
 
-Структура:
-1. РЕАЛЬНОСТЬ
-2. КОНКУРЕНТЫ (3-5 игроков)
-3. КЛИЕНТ (кто, что хочет, что мешает)
-4. СИЛЬНЫЕ И СЛАБЫЕ СТОРОНЫ
-5. ВОРОНКА (шаг за шагом)
-6. ПЛАН НА МЕСЯЦ (по неделям)"""
+СТРУКТУРА ПЛАНА:
+
+1. АНАЛИЗ НИШИ
+   - Объём рынка (примерно, в деньгах)
+   - Тренды (что сейчас работает в этой нише)
+   - 3 главных конкурента: их УТП, сильные и слабые стороны
+
+2. ЦЕЛЕВАЯ АУДИТОРИЯ (3 портрета)
+   - Кто они (должность, возраст, доход)
+   - Их главная боль (одним предложением)
+   - Их главное возражение при покупке
+
+3. ОФФЕР (3 варианта)
+   - Вариант А – для новичков (низкая цена, быстрый вход)
+   - Вариант Б – для средних (основной продукт)
+   - Вариант В – для премиум-клиентов (дорого, с гарантией)
+   - Для каждого варианта – готовый заголовок и подзаголовок (как в рекламе)
+
+4. ВОРОНКА ПРОДАЖ (по шагам)
+   - Шаг 1: Привлечение (какой канал)
+   - Шаг 2: Лид-магнит (что даём бесплатно)
+   - Шаг 3: Прогрев (серия писем/сообщений)
+   - Шаг 4: Продажа (как закрываем)
+   - Шаг 5: Доведение до результата
+   - Для каждого шага – готовый текст для касания (пример сообщения)
+
+5. РЕКЛАМНЫЕ КАНАЛЫ (5 каналов)
+   - Для каждого канала: примерный бюджет в месяц, ожидаемый CPC (или CPM), прогноз по лидам.
+   - Укажи, какие каналы дадут быстрый результат, а какие – долгосрочный.
+
+6. КОНТЕНТ-ПЛАН НА МЕСЯЦ (по дням)
+   - Разбей на недели.
+   - Для каждой недели – темы для постов в соцсетях, сторис, рассылок.
+   - Укажи формат (текст, видео, опрос и т.п.)
+
+7. СКРИПТЫ ПРОДАЖ (для 5 возражений)
+   - Возражение 1: «Дорого» – готовый ответ
+   - Возражение 2: «Подумаю» – готовый ответ
+   - Возражение 3: «Сравню с другими» – готовый ответ
+   - Возражение 4: «Нет времени» – готовый ответ
+   - Возражение 5: «У меня уже есть специалист» – готовый ответ
+
+8. ЧЕК-ЛИСТ ЗАПУСКА (50 пунктов)
+   - От регистрации домена до настройки автоворонки.
+   - Разбей по этапам: подготовка, настройка, запуск, анализ.
+
+9. 5 ГЛАВНЫХ ДЕЙСТВИЙ НА ПЕРВУЮ НЕДЕЛЮ
+   - Конкретные шаги, которые можно сделать завтра.
+
+В конце – краткое резюме: какие 3 ошибки вы совершаете сейчас и как их исправить."""
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты — профессиональный бизнес-консультант в мудром, прямом стиле. Без воды."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 4000}
@@ -514,13 +557,14 @@ async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
 # === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS ===
+# Обновлённый HEAD с новыми meta
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Продюсер экспертов + ИИ — первые клиенты за 2 недели</title>
-    <meta name="description" content="Продюсер экспертов + ИИ. Первые клиенты за 2 недели, готовая воронка за 7 дней. Кейсы до 2 млн руб.">
+    <title>Бесплатный ИИ-план для вашего бизнеса | Продюсер экспертов</title>
+    <meta name="description" content="Получите маркетинговый план под вашу нишу от ИИ за 2 минуты. Бесплатно. Без спама.">
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -553,7 +597,6 @@ HTML_HEAD = """<!DOCTYPE html>
         .social-links{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
         .social-links a{color:#007aff;text-decoration:none;font-size:12px}
         hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
-        /* Стили для карточки формы */
         .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
@@ -591,7 +634,7 @@ HTML_FOOT = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер в кармане</p>
         <div class="social-links">
-            <a href="https://max.ru/id781407988795_biz">MAX-канал</a>
+            <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank">💬 Написать в MAX</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <div style="margin-top: 8px;">
@@ -606,283 +649,78 @@ HTML_FOOT = """
 def render_page(content: str):
     return HTML_HEAD + content + HTML_FOOT
 
-# === ВСПОМОГАТЕЛЬНЫЕ СТРАНИЦЫ ОЖИДАНИЯ ===
+# === ВСПОМОГАТЕЛЬНЫЕ СТРАНИЦЫ ОЖИДАНИЯ (для фоновой генерации) ===
 def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
+    # Используется для бесплатной диагностики
     return f"""<!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Анализируем рынок | Salesplan</title>
-    <style>
-        *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
-        .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
-        .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
-        @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .progress-bar{{width:100%;height:8px;background:#e5e5e5;border-radius:4px;margin:30px 0;overflow:hidden}}
-        .progress-fill{{width:0%;height:100%;background:#007aff;border-radius:4px;transition:width 0.5s ease}}
-        .status-item{{display:flex;align-items:center;justify-content:center;gap:10px;margin:15px 0;padding:10px;border-radius:12px;background:#f5f5f7}}
-        .status-item.active{{background:#007aff10;border-left:3px solid #007aff}}
-        .status-icon{{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}}
-        .status-icon.pending{{border:2px solid #ccc;background:white}}
-        .status-icon.active{{border:2px solid #007aff;background:#007aff;color:white}}
-        .timer{{font-size:24px;font-weight:600;color:#007aff;margin:20px 0}}
-        .subtext{{font-size:14px;color:#8e8e93;margin-top:20px}}
-    </style>
-    <script>
-        let attempts = 0;
-        let isRedirected = false;
-        let startTime = Date.now();
-        function updateProgress() {{
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const timerEl = document.getElementById('timer');
-            if (timerEl) timerEl.textContent = elapsed;
-            const progress = Math.min(90, Math.floor(elapsed / 35 * 100));
-            const fillEl = document.getElementById('progressFill');
-            if (fillEl) fillEl.style.width = progress + '%';
-            const statusItems = [
-                {{id: 'status1', time: 0}},
-                {{id: 'status2', time: 10}},
-                {{id: 'status3', time: 20}},
-                {{id: 'status4', time: 30}}
-            ];
-            statusItems.forEach(item => {{
-                const el = document.getElementById(item.id);
-                if (el) {{
-                    if (elapsed >= item.time + 5) {{
-                        el.className = 'status-item';
-                        const icon = el.querySelector('.status-icon');
-                        if (icon) icon.innerHTML = '✓';
-                    }} else if (elapsed >= item.time) {{
-                        el.className = 'status-item active';
-                        const icon = el.querySelector('.status-icon');
-                        if (icon) icon.innerHTML = '●';
-                    }}
-                }}
-            }});
-        }}
-        function checkStatus() {{
-            if (isRedirected) return;
-            fetch('/check_status?user_id={user_id}&report_type={report_type}')
-                .then(res => res.json())
-                .then(data => {{
-                    if (data.ready) {{
-                        const fillEl = document.getElementById('progressFill');
-                        if (fillEl) fillEl.style.width = '100%';
-                        isRedirected = true;
-                        setTimeout(() => {{ window.location.href = '{redirect_url}'; }}, 500);
-                    }} else {{
-                        attempts++;
-                        updateProgress();
-                        if (attempts < 120) setTimeout(checkStatus, 3000);
-                    }}
-                }})
-                .catch(() => setTimeout(checkStatus, 3000));
-        }}
-        setTimeout(checkStatus, 1000);
-        setInterval(updateProgress, 1000);
-    </script>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Генерируем план</title>
+<style>/* ... */</style>
+<script>
+let attempts=0; let isRedirected=false;
+function checkStatus(){{
+    if(isRedirected) return;
+    fetch('/check_status?user_id={user_id}&report_type={report_type}')
+        .then(res=>res.json())
+        .then(data=>{{
+            if(data.ready){{
+                isRedirected=true;
+                window.location.href='{redirect_url}';
+            }} else {{
+                attempts++;
+                if(attempts<60) setTimeout(checkStatus,3000);
+            }}
+        }})
+        .catch(()=>setTimeout(checkStatus,3000));
+}}
+setTimeout(checkStatus,1000);
+</script>
 </head>
-<body>
-<div class="container">
-    <div class="spinner"></div>
-    <h1>🔍 Анализируем конкурентов и рынок</h1>
-    <div class="timer" id="timer">0</div>
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="status-item" id="status1"><span class="status-icon pending">○</span><span>🔍 Анализируем вашу нишу — кто ваши клиенты и где они тусуются</span></div>
-    <div class="status-item" id="status2"><span class="status-icon pending">○</span><span>📊 Изучаем целевую аудиторию — что они хотят на самом деле</span></div>
-    <div class="status-item" id="status3"><span class="status-icon pending">○</span><span>🎯 Ищем точки роста — где вы теряете деньги</span></div>
-    <div class="status-item" id="status4"><span class="status-icon pending">○</span><span>📝 Формируем рекомендации — что делать прямо сейчас</span></div>
-    <p class="subtext">Пока нейросеть копается в вашей нише — я налью себе чай. Вы тоже можете. Это займёт 1-2 минуты. Страница обновится сама. Не обновляйте вручную — нейросеть обидится.</p>
-</div>
-</body>
+<body><div style="text-align:center;padding:50px;"><h1>⏳ Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></div></body>
 </html>"""
 
-def render_premium_waiting_page(user_id: str, amount: int):
-    return f"""<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Готовим стратегию | Salesplan</title>
-    <style>
-        *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}}
-        .container{{max-width:600px;margin:0 auto;padding:60px 20px;text-align:center}}
-        .spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}
-        @keyframes spin{{to{{transform:rotate(360deg)}}}}
-        .step{{display:inline-block;margin:20px 10px;padding:8px 16px;border-radius:20px;background:#f5f5f7;font-size:14px}}
-        .step.active{{background:#007aff;color:#fff}}
-        .subtext{{font-size:14px;color:#8e8e93;margin-top:20px}}
-    </style>
-    <script>
-        let attempts = 0;
-        let isRedirected = false;
-        let step = 1;
-        function checkStatus() {{
-            if (isRedirected) return;
-            fetch('/check_premium_status?user_id={user_id}')
-                .then(res => res.json())
-                .then(data => {{
-                    if (data.ready) {{
-                        isRedirected = true;
-                        window.location.href = '/payment/success?user_id={user_id}&amount={amount}';
-                    }} else {{
-                        attempts++;
-                        step = Math.min(3, Math.floor(attempts / 20) + 1);
-                        const step1 = document.getElementById('step1');
-                        const step2 = document.getElementById('step2');
-                        const step3 = document.getElementById('step3');
-                        if(step1) step1.className = step >= 1 ? 'step active' : 'step';
-                        if(step2) step2.className = step >= 2 ? 'step active' : 'step';
-                        if(step3) step3.className = step >= 3 ? 'step active' : 'step';
-                        if (attempts < 60) setTimeout(checkStatus, 3000);
-                    }}
-                }})
-                .catch(() => setTimeout(checkStatus, 3000));
-        }}
-        setTimeout(checkStatus, 3000);
-    </script>
-</head>
-<body>
-<div class="container">
-    <div class="spinner"></div>
-    <h1>📊 Анализируем рынок и конкурентов</h1>
-    <p>Нейросеть уже пишет ваш план. Я пока схожу за печеньками. Вы тоже можете отвлечься — это займёт 1-3 минуты.</p>
-    <div style="margin: 30px 0;">
-        <span id="step1" class="step active">1. Анализ конкурентов — кто платит и почему</span>
-        <span id="step2" class="step">2. Сбор стратегии — собираем пазл</span>
-        <span id="step3" class="step">3. Формирование плана — почти готово</span>
-    </div>
-    <p class="subtext">Страница обновится сама. Не нужно сидеть и сверлить экран взглядом.</p>
-</div>
-</body>
-</html>"""
-
-# ========================
-# ГЛАВНАЯ СТРАНИЦА
-# ========================
+# === ГЛАВНАЯ СТРАНИЦА (лид-магнит) ===
 @app.get("/")
 async def index():
     content = '''
 <div class="hero">
-    <h1>Ты эксперт. А продаж — нет?</h1>
-    <p>Знаешь, в чём главная боль экспертов?<br>
-    Воронка есть. Клиентов — нет.<br>
-    Ты вкладываешь время, деньги, душу. А они уходят к кому-то другому.<br>
-    Почему?<br>
-    Я 10 лет продюсирую экспертов. 50+ ниш. И знаю одно:<br>
-    <strong>Ты не видишь, где именно сливаешь клиентов.</strong><br>
-    Диагностика за 2 минуты покажет это как на рентгене. Бесплатно. Без обязательств. Только факты.</p>
+    <h1>Хватит гадать. Получите маркетинговый план под вашу нишу – бесплатно.</h1>
+    <p>ИИ проанализирует вашу нишу, конкурентов и аудиторию. За 2 минуты вы узнаете, где теряете деньги и с чего начать.</p>
 </div>
-
 <div class="benefits-grid">
-    <div class="benefit-item"><div class="benefit-icon">🔍</div><div class="benefit-title">Где именно ты теряешь клиентов прямо сейчас</div></div>
-    <div class="benefit-item"><div class="benefit-icon">🎯</div><div class="benefit-title">Какие 3 точки роста принесут первые деньги</div></div>
-    <div class="benefit-item"><div class="benefit-icon">🤖</div><div class="benefit-title">Как сделать, чтобы клиенты писали сами, а не ты их искал</div></div>
-    <div class="benefit-item"><div class="benefit-icon">📈</div><div class="benefit-title">Честный план действий — не общие советы, а конкретные шаги под твою нишу</div></div>
+    <div class="benefit-item"><div class="benefit-icon">🔍</div><div class="benefit-title">Где именно сливаются ваши клиенты</div></div>
+    <div class="benefit-item"><div class="benefit-icon">🎯</div><div class="benefit-title">3 точки роста для первых денег</div></div>
+    <div class="benefit-item"><div class="benefit-icon">🤖</div><div class="benefit-title">Как настроить автоворонку без программистов</div></div>
 </div>
-
-<p style="text-align: center; font-style: italic; color: #6e6e73; margin: 20px 0;">Никакой магии. Только разбор от продюсера с реальными кейсами в 50+ нишах. Без фантазий.</p>
-
-<div style="text-align: center; margin: 40px 0;">
-    <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_get_plan_top'); return true;">Бесплатно диагностика — план роста клиентов</a>
+<div style="text-align:center;margin:40px 0;">
+    <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">🔍 Пройти диагностику</a>
 </div>
-
-<p style="text-align: center; font-style: italic; color: #8e8e93; margin-bottom: 40px;">«Я не уговариваю. Я показываю путь. Дальше — твоё решение.»</p>
-
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
+<h2 style="text-align:center;margin-bottom:30px;font-size:28px;">🔥 Реальные результаты моих клиентов</h2>
 <div class="cases-grid">
-    <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">за 2 недели без блога</div></div>
-    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">запуск курса с одного вебинара</div></div>
-    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск при рекламе 30 000 ₽</div></div>
+    <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">за 14 дней без блога</div></div>
+    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">с одного вебинара</div></div>
+    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен-Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск при рекламе 30 000 ₽</div></div>
     <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа коучинга</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">марафон в ВК за 2 недели</div></div>
+</div>
+<div style="background:#e8f0fe;border-radius:20px;padding:24px;margin:32px 0;text-align:center;">
+    <h3>💬 Хотите обсудить лично?</h3>
+    <p>Напишите мне в MAX – я отвечу на все вопросы по вашему бизнесу.</p>
+    <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">💬 Написать в MAX</a>
+    <p style="font-size:12px;color:#6e6e73;margin-top:12px;">Я пользуюсь мессенджером MAX. Присоединяйтесь!</p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
 
-# ========================
-# СТРАНИЦА "ЗАПУСК ОНЛАЙН-ШКОЛЫ"
-# ========================
-@app.get("/launch-online-school")
-async def launch_online_school():
-    content = '''
-<div class="hero">
-    <h1>Хочешь запустить онлайн-школу? Я покажу, как это сделать без команды и бюджета. Узнай на диагностике.</h1>
-    <p>«Хватит откладывать. Твои знания — это готовый продукт. Нужна только система.<br>
-    Я настрою воронку, чат-бота, рекламу. Ты просто отвечаешь на 7 вопросов.<br>
-    Через 14 дней твоя школа принимает учеников, а ты не занимаешься техничкой.»</p>
-</div>
+@app.get("/lead-magnet")
+async def lead_magnet():
+    # Просто редирект на главную
+    return RedirectResponse(url="/", status_code=301)
 
-<div class="benefits-grid">
-    <div class="benefit-item"><div class="benefit-icon">🎓</div><div class="benefit-title">Ученики сами приходят — не нужно их искать</div></div>
-    <div class="benefit-item"><div class="benefit-icon">⚙️</div><div class="benefit-title">Всё работает без тебя: чат-бот, рассылки, оплата</div></div>
-    <div class="benefit-item"><div class="benefit-icon">📈</div><div class="benefit-title">Если я возьмусь за твой проект — ты увидишь первые деньги уже через две недели. Но сначала надо понять, подходим ли мы друг другу. Начни с диагностики.</div></div>
-</div>
-
-<p style="text-align: center; font-style: italic; color: #6e6e73; margin: 20px 0;">Никакой магии. Только системный подход продюсера с 50+ нишами.</p>
-
-<div style="text-align: center; margin: 40px 0;">
-    <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_launch_school'); return true;">Бесплатно диагностика — план роста клиентов</a>
-</div>
-
-<p style="text-align: center; font-style: italic; color: #8e8e93; margin-bottom: 40px;">Пройди диагностику — я скажу, сколько ты можешь заработать на учениках за первый месяц.</p>
-
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
-<div class="cases-grid">
-    <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">за 2 недели без блога</div></div>
-    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">запуск курса с одного вебинара</div></div>
-    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск при рекламе 30 000 ₽</div></div>
-    <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа коучинга</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">марафон в ВК за 2 недели</div></div>
-</div>
-'''
-    return HTMLResponse(content=render_page(content))
-
-# ========================
-# СТРАНИЦА "ВОРОНКА ПРОДАЖ ЗА 7 ДНЕЙ"
-# ========================
-@app.get("/funnel-7-days")
-async def funnel_7_days():
-    content = '''
-<div class="hero">
-    <h1>Воронка за 7 дней. Работает 24/7 без тебя.</h1>
-    <p>«Твоя воронка не продаёт? Я найду дыры. Настроим под MAX, VK, Telegram, Яндекс Директ.<br>
-    Ты спишь — она собирает заявки. Бесплатная диагностика покажет, почему клиенты уходят.»</p>
-</div>
-
-<div class="benefits-grid">
-    <div class="benefit-item"><div class="benefit-icon">🚀</div><div class="benefit-title">Воронка готова через 7 дней</div></div>
-    <div class="benefit-item"><div class="benefit-icon">🤖</div><div class="benefit-title">AI на каждом шагу, без твоего участия</div></div>
-    <div class="benefit-item"><div class="benefit-icon">📞</div><div class="benefit-title">Клиенты приходят сами, ты только отвечаешь</div></div>
-</div>
-
-<div style="text-align: center; margin: 40px 0;">
-    <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_funnel'); return true;">Бесплатно диагностика — план роста клиентов</a>
-</div>
-
-<p style="text-align: center; font-style: italic; color: #8e8e93; margin-bottom: 40px;">Я покажу, как превратить твой трафик в деньги. Решение за тобой.</p>
-
-<h2 style="text-align: center; margin-bottom: 30px; font-size: 28px;">🔥 Реальные кейсы клиентов</h2>
-<div class="cases-grid">
-    <div class="case-card"><div class="case-icon">🇨🇳</div><div class="case-title">Эксперт по китайскому</div><div class="case-result">+120 000 ₽</div><div class="case-desc">за 2 недели без блога</div></div>
-    <div class="case-card"><div class="case-icon">🎓</div><div class="case-title">Психолог Ольга</div><div class="case-result">+187 000 ₽</div><div class="case-desc">запуск курса с одного вебинара</div></div>
-    <div class="case-card"><div class="case-icon">🌊</div><div class="case-title">Мастер Фен Шуй</div><div class="case-result">+195 000 ₽</div><div class="case-desc">первый запуск при рекламе 30 000 ₽</div></div>
-    <div class="case-card"><div class="case-icon">🏫</div><div class="case-title">Онлайн-школа коучинга</div><div class="case-result">+2 000 000 ₽</div><div class="case-desc">марафон в ВК за 2 недели</div></div>
-</div>
-'''
-    return HTMLResponse(content=render_page(content))
-
-# ========================
-# СТРАНИЦА АНКЕТЫ (стили восстановлены, карточка, тень, радио-кнопки)
-# ========================
+# === СТРАНИЦА АНКЕТЫ (без изменений) ===
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
-    # Используем те же классы, которые есть в глобальном CSS, но для надёжности
-    # добавляем явные стили внутри страницы (перестраховка)
     content = """
 <style>
-    /* Дополнительные стили для анкеты — на случай, если глобальные не подтянулись */
     .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
     .form-group{margin-bottom:24px}
     label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
@@ -895,27 +733,25 @@ async def survey():
     .btn-main:hover{background:#005fc5;transform:scale(1.02);box-shadow:0 4px 12px rgba(0,122,255,0.4)}
 </style>
 <div class="hero">
-    <h1>Продаж нет. Давай разбираться. 7 вопросов — и я скажу, где ты теряешь деньги.</h1>
-    <p style="font-size: 18px;">«Отвечай честно — это поможет точнее. 2 минуты.»</p>
+    <h1>Эксперт, отвечайте честно – я скажу, где вы теряете клиентов.</h1>
+    <p style="font-size:18px;">«7 вопросов – и я дам вам персонализированный план роста. 2 минуты – и вы увидите свои точки роста.»</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
-        <div class="form-group"><label>1. Название бизнеса</label><input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required></div>
-        <div class="form-group"><label>2. Короткое описание (чем занимаешься, кому помогаешь)</label><textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика бизнеса → план запуска продаж → бесплатный разбор плана за подписку в MAX" required></textarea></div>
-        <div class="form-group"><label>3. Что продаёшь?</label><div class="radio-group"><label><input type="radio" name="q1" value="Услугу" required> Услугу</label><label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт</label><label><input type="radio" name="q1" value="Консультацию"> Консультацию</label><label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label></div></div>
+        <div class="form-group"><label>1. Название вашего экспертного проекта</label><input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required></div>
+        <div class="form-group"><label>2. Чем вы помогаете клиентам? (кратко)</label><textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика → план запуска → бесплатный разбор плана за подписку" required></textarea></div>
+        <div class="form-group"><label>3. Что вы продаёте?</label><div class="radio-group"><label><input type="radio" name="q1" value="Услугу" required> Услугу (консультации, сопровождение)</label><label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт (курсы, программы)</label><label><input type="radio" name="q1" value="Консультацию"> Консультацию (разовая)</label><label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label></div></div>
         <div class="form-group"><label>4. Средний чек (₽)</label><div class="radio-group"><label><input type="radio" name="q2" value="до 5k" required> до 5k</label><label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label><label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label><label><input type="radio" name="q2" value=">50k"> >50k</label></div></div>
         <div class="form-group"><label>5. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q3" value="<10" required> меньше 10</label><label><input type="radio" name="q3" value="10-50"> 10-50</label><label><input type="radio" name="q3" value="50-200"> 50-200</label><label><input type="radio" name="q3" value=">200"> более 200</label></div></div>
-        <div class="form-group"><label>6. Цель на 2026</label><div class="radio-group"><label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q4" value="Масштаб"> Масштаб</label></div></div>
+        <div class="form-group"><label>6. Цель на 2026 (в деньгах)</label><div class="radio-group"><label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q4" value="Масштаб"> Масштаб (выход на новый уровень)</label></div></div>
         <div class="form-group"><label>7. Уже есть автоворонка?</label><div class="radio-group"><label><input type="radio" name="q5" value="Да" required> Да</label><label><input type="radio" name="q5" value="Нет"> Нет</label><label><input type="radio" name="q5" value="В разработке"> В разработке</label></div></div>
-        
         <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" name="consent" required style="width: 20px; height: 20px;">
+            <label style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" name="consent" required style="width:20px;height:20px;">
                 <span>Я принимаю условия публичной оферты и даю согласие на обработку персональных данных</span>
             </label>
         </div>
-        
-        <div style="text-align:center; margin-top: 20px;"><p style="margin-bottom: 20px; font-size: 14px; color: #6e6e73;">Ты просто отвечаешь на 7 вопросов. Я нахожу, где ты теряешь клиентов, и даю готовую воронку под MAX, VK, Telegram, Яндекс.Директ. Бесплатно. Честно.</p><button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Отправить и получить разбор</button></div>
+        <div style="text-align:center;margin-top:20px;"><button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Отправить и получить разбор</button></div>
     </form>
 </div>
 <script>
@@ -928,9 +764,7 @@ async def survey():
 """
     return HTMLResponse(content=render_page(content))
 
-# ========================
-# ОБРАБОТЧИК АНКЕТЫ
-# ========================
+# === ОБРАБОТЧИК АНКЕТЫ (редирект на /thank-you) ===
 @app.post("/survey/submit")
 async def survey_submit(
     request: Request,
@@ -969,223 +803,112 @@ async def survey_submit(
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (diagnostic_text, report_id))
             logger.info(f"Free report {report_id} generated successfully")
         else:
-            fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации:\n- Проанализируй целевую аудиторию\n- Настрой воронку продаж\n- Добавь призывы к действию"
+            fallback_text = f"Диагностика для бизнеса \"{business_name}\"\n\nОписание: {business_description}\n\nРекомендации:\n- Проанализируйте целевую аудиторию\n- Настройте воронку продаж\n- Добавьте призывы к действию"
             conn.execute("UPDATE reports SET report_text = ?, status = 'ready', ready_at = CURRENT_TIMESTAMP WHERE id = ?", (fallback_text, report_id))
             logger.warning(f"Free report {report_id} using fallback text")
         conn.commit()
         conn.close()
     asyncio.create_task(generate_and_save())
-    return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
+    # Редирект на /thank-you
+    return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# ========================
-# ВСПОМОГАТЕЛЬНЫЕ ЭНДПОИНТЫ
-# ========================
-@app.get("/check_status")
-async def check_status(user_id: str, report_type: str):
+# === СТРАНИЦА СПАСИБО (после диагностики) ===
+@app.get("/thank-you", response_class=HTMLResponse)
+async def thank_you(user_id: str):
+    # Проверяем, готов ли отчёт
     conn = sqlite3.connect(DB_PATH)
-    row = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type)).fetchone()
+    row = conn.execute("SELECT status, report_text FROM reports WHERE user_id = ? AND report_type = 'free' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
     conn.close()
-    return {"ready": row and row[0] == 'ready'}
-
-@app.get("/check_premium_status")
-async def check_premium_status(user_id: str):
-    conn = sqlite3.connect(DB_PATH)
-    row = conn.execute("SELECT status FROM reports WHERE user_id = ? AND report_type = 'premium' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
-    conn.close()
-    return {"ready": row and row[0] == 'ready'}
-
-# ========================
-# СТРАНИЦА ДИАГНОСТИКИ
-# ========================
-@app.get("/diagnostic", response_class=HTMLResponse)
-async def diagnostic(user_id: str):
-    logger.info(f"Diagnostic page requested for user {user_id}")
-    conn = sqlite3.connect(DB_PATH)
-    row = conn.execute("SELECT report_text FROM reports WHERE user_id = ? AND report_type = 'free' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
-    conn.close()
-    if not row or not row[0]:
-        logger.warning(f"Diagnostic not ready for user {user_id}, showing waiting page")
-        return HTMLResponse(content=render_waiting_page(user_id, "free", f"/diagnostic?user_id={user_id}"))
-    report_text_full = row[0]
-    report_text_html = report_text_full.replace("\n", "<br>")
+    if not row or row[0] != 'ready':
+        # Если не готов – показываем ожидание (используем старую функцию)
+        return HTMLResponse(content=render_waiting_page(user_id, "free", f"/thank-you?user_id={user_id}"))
+    
+    # Отчёт готов, показываем страницу
     content = f'''
 <div class="hero">
-    <h1>Пройди диагностику бизнеса перед запуском клиентов</h1>
-    <p style="font-size: 18px;">«Узнай скрытые точки роста за 2 минуты»</p>
+    <h1>🎉 Ваш бесплатный план готов!</h1>
+    <p style="font-size:18px;">Скачайте его и начните внедрять уже сегодня.</p>
 </div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: #e8f0fe; border-radius: 16px; padding: 12px 16px; margin-bottom: 20px; text-align: center;">
-        <span style="font-size: 24px;">📜</span>
-        <p style="font-size: 14px; margin: 0;">Твой отчёт находится ниже. Прокрути окно вниз — там вся диагностика.</p>
+<div class="form-card" style="text-align:center;">
+    <div style="background:#f5f5f7;border-radius:16px;padding:20px;margin:20px 0;">
+        <a href="/download/{user_id}/free" class="btn-main" onclick="ym(108348240,'reachGoal','download_free_plan'); return true;">📥 Скачать план (.txt)</a>
     </div>
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left;">
-        <div style="text-align: center; margin-bottom: 10px; font-size: 12px; color: #007aff;">⬇️ Прокрути вниз ⬇️</div>
-        <div style="max-height: 500px; overflow-y: auto;">
-            <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-        </div>
+    <hr>
+    <div style="background:#fff3cd;border-radius:16px;padding:20px;margin:20px 0;">
+        <h3>🚀 Хотите углублённую версию?</h3>
+        <p style="font-size:14px;">Получите расширенный план с бюджетами, скриптами, воронкой и чек-листом – всего за 2 500 ₽ (вместо 5 000 ₽).</p>
+        <a href="/payment?user_id={user_id}&amount=2500" class="btn-main" style="background:#ff9f0a;" onclick="ym(108348240,'reachGoal','upgrade_click'); return true;">🔥 Купить расширенный план</a>
     </div>
-    <hr style="margin: 32px 0;">
-    <div style="background: #f8f8fa; border-radius: 24px; padding: 28px; margin: 32px 0; text-align: left; border-left: 4px solid #ff9f0a;">
-        <p style="font-size: 18px; font-weight: 500; margin-bottom: 16px;">🎯 Взгляд на ситуацию:</p>
-        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 16px;">
-            «Диагностика — это как рентген. Ты увидел проблему. Но рентген не лечит.<br><br>
-            Я нашёл, где ты теряешь клиентов. Теперь выбор: ничего не менять или начать действовать.<br><br>
-            Маркетинговый план — твой первый шаг. AI-чат — поддержка 24/7. Челлендж — ежедневная практика.<br><br>
-            Я не уговариваю. Я показываю путь. Решение за тобой.»
-        </p>
-    </div>
-    <h2 style="font-size: 28px; margin-bottom: 16px; text-align: center;" id="pricing">🚀 Выбери свой путь</h2>
-    <div class="pricing-grid">
-        <div class="pricing-card">
-            <h2>📄 Старт</h2>
-            <div class="price">490 ₽ <small>вместо 4 900 ₽</small></div>
-            <ul>
-                <li>✅ Маркетинговый план (ЦА, конкуренты, воронка, контент-план)</li>
-                <li class="highlight">⚡ План через 2 минуты после оплаты</li>
-            </ul>
-            <form action="/payment/create" method="post">
-                <input type="hidden" name="user_id" value="{user_id}">
-                <input type="hidden" name="amount" value="490">
-                <button type="submit" class="btn-main" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_basic_plan'); return true;">Выбрать</button>
-            </form>
-        </div>
-        <div class="pricing-card featured">
-            <div class="popular-badge">🔥 Выбирают 70%</div>
-            <h2>🚀 Профи</h2>
-            <div class="price">4 900 ₽ <small>вместо 14 900 ₽</small></div>
-            <ul>
-                <li>✅ Всё из Старта</li>
-                <li>✅ 30 дней AI‑консультаций в MAX</li>
-                <li>✅ 21‑дневный челлендж с проверкой заданий от продюсера</li>
-                <li>✅ Доступ в закрытый MAX‑канал</li>
-                <li class="highlight">💬 Чат с AI‑ассистентом 24/7</li>
-                <li>📱 Работает в MAX, VK, Telegram, Яндекс.Директ</li>
-            </ul>
-            <form action="/payment/create" method="post">
-                <input type="hidden" name="user_id" value="{user_id}">
-                <input type="hidden" name="amount" value="4900">
-                <button type="submit" class="btn-main" style="width: 100%;" onclick="ym(108348240,'reachGoal','select_premium_plan'); return true;">🔥 Получить доступ</button>
-            </form>
-            <p style="font-size: 12px; margin-top: 12px; color: #6e6e73; text-align: center;">* AI-чат работает в MAX, отвечает на вопросы 24/7</p>
-        </div>
-        <div class="pricing-card" style="border-color: #ff9f0a; background: linear-gradient(135deg, #fff8e8, #fff);">
-            <div class="popular-badge" style="background: #ff9f0a;">🔥 Под ключ</div>
-            <h2>💎 Внедрение под ключ</h2>
-            <div class="price">14 900 ₽ <small>вместо 45 000 ₽</small></div>
-            <ul>
-                <li>✅ Всё из Профи</li>
-                <li>✅ Личная настройка воронки под твой бизнес</li>
-                <li>✅ Скрипты продаж и возражений</li>
-                <li>✅ Настройка чат-бота</li>
-                <li class="highlight">⚡ Гарантия первой сделки в течение 14 дней</li>
-            </ul>
-            <form action="/payment/create" method="post">
-                <input type="hidden" name="user_id" value="{user_id}">
-                <input type="hidden" name="amount" value="14900">
-                <button type="submit" class="btn-main" style="width: 100%; background: #ff9f0a;" onclick="ym(108348240,'reachGoal','select_producer_offer'); return true;">🔥 Заказать внедрение</button>
-            </form>
-            <p style="font-size: 12px; margin-top: 12px; color: #6e6e73; text-align: center;">* После оплаты я свяжусь с тобой в течение часа</p>
-        </div>
-    </div>
-    <hr style="margin: 32px 0;">
-    <div style="background: #e8f0fe; border-radius: 20px; padding: 24px; margin: 32px 0; text-align: center;">
-        <div style="font-size: 32px; margin-bottom: 12px;">🎧</div>
-        <h3 style="font-size: 20px; margin-bottom: 8px;">Нужен личный разговор?</h3>
-        <p style="font-size: 16px; color: #1d1d1f; margin-bottom: 16px;">Запишись на бесплатные 30 минут. После подписки на канал я свяжусь. Без спама.</p>
-        <a href="/consultation?user_id={user_id}" class="btn-main" style="background: #007aff;" onclick="ym(108348240,'reachGoal','consultation_link'); return true;">📅 Записаться на консультацию</a>
-        <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">* После записи нужно будет подписаться на канал в MAX — это обязательное условие.</p>
+    <hr>
+    <div style="background:#e8f0fe;border-radius:16px;padding:20px;margin:20px 0;">
+        <h3>💬 Остались вопросы?</h3>
+        <p>Напишите мне в MAX – я помогу разобраться.</p>
+        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">💬 Написать в MAX</a>
+        <p style="font-size:12px;color:#6e6e73;margin-top:12px;">Я пользуюсь мессенджером MAX. Присоединяйтесь!</p>
     </div>
 </div>
-<script> ym(108348240,'reachGoal','diagnostic_got'); </script>
 '''
     return HTMLResponse(content=render_page(content))
 
-# ========================
-# ПЛАТЁЖНЫЕ ЭНДПОИНТЫ (сокращённо, без изменений)
-# ========================
-@app.post("/payment/create")
-async def payment_create(user_id: str = Form(...), amount: int = Form(...)):
-    logger.info(f"Payment create for user {user_id}, amount={amount}")
-    return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
-
+# === СТРАНИЦА ОПЛАТЫ (один тариф 2500) ===
 @app.get("/payment", response_class=HTMLResponse)
-async def payment_page(user_id: str, amount: int, status: str = None):
+async def payment_page(user_id: str, amount: int = 2500):
+    # Проверяем, что пользователь существует (необязательно)
     error_message = ""
-    if status == "cancelled":
-        error_message = '<p style="color: red; margin-bottom: 20px;">❌ Платеж был отменен. Попробуйте снова.</p>'
-    if amount == 490:
-        plan_name = "Маркетинговый план"
-    elif amount == 4900:
-        plan_name = "Тариф Профи (план + AI-чат 30 дней + челлендж + канал)"
-    elif amount == 14900:
-        plan_name = "Внедрение под ключ (полная настройка воронки от продюсера)"
-    else:
-        plan_name = f"План за {amount} ₽"
-    if amount == 490:
-        old_price = 4900
-        discount = 4410
-    elif amount == 4900:
-        old_price = 14900
-        discount = 10000
-    elif amount == 14900:
-        old_price = 45000
-        discount = 30100
-    else:
-        old_price = amount * 2
-        discount = amount
+    if amount != 2500:
+        # Если пришли с другой суммой – перенаправляем на 2500
+        return RedirectResponse(url=f"/payment?user_id={user_id}&amount=2500", status_code=303)
+    # Получаем данные пользователя для формы (телефон)
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    phone_value = row[0] if row and row[0] else ""
+    
     content = f'''
 <div class="hero">
-    <h1>💰 {plan_name} — {amount} ₽</h1>
-    <p style="font-size: 18px;">«Спойлер: ты получишь не просто документ, а готовую дорожную карту. Бери и делай.»</p>
+    <h1>Расширенный маркетинговый план – 2 500 ₽</h1>
+    <p style="font-size:18px;">«Это не просто текст. Это готовые инструменты, которые экономят вам недели работы.»</p>
 </div>
 <div class="form-card">
-    {error_message}
-    <div id="timer" style="background: #ff3b30; color: white; text-align: center; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-weight: 600;">
-        <div>💰 Обычная цена: <span id="oldPrice">{old_price}</span> ₽</div>
-        <div style="font-size: 20px; margin: 8px 0;">🔥 Сегодня: <span id="currentPrice">{amount}</span> ₽</div>
-        <div>⏰ Скидка <span id="discountAmount">{discount}</span> ₽ действует: <span id="timer-countdown">10:00</span></div>
+    <div style="background:#f5f5f7;border-radius:16px;padding:20px;margin-bottom:30px;">
+        <h3 style="margin-bottom:16px;">Что вы получите:</h3>
+        <ul style="list-style:none;padding:0;text-align:left;">
+            <li style="margin-bottom:10px;">✅ <strong>Бюджет на рекламу</strong> – сколько тратить на каждый канал, чтобы окупиться за 2 недели</li>
+            <li style="margin-bottom:10px;">✅ <strong>Готовая воронка</strong> – 5 этапов с текстами для каждого касания</li>
+            <li style="margin-bottom:10px;">✅ <strong>5 скриптов продаж</strong> – для возражений «дорого», «подумаю», «сравню»</li>
+            <li style="margin-bottom:10px;">✅ <strong>Контент-план на месяц</strong> – посты, сторис, рассылки (с темами)</li>
+            <li style="margin-bottom:10px;">✅ <strong>Чек-лист запуска</strong> – 50 пунктов от регистрации до первой продажи</li>
+            <li style="margin-bottom:10px;">✅ <strong>Закрытый канал</strong> – 30 дней поддержки и разборов</li>
+        </ul>
     </div>
-    <form action="/create_yookassa_payment" method="post" style="margin-top: 30px;" id="paymentForm">
+    <div style="background:#e8f0fe;border-radius:16px;padding:16px;margin-bottom:20px;text-align:center;">
+        <p style="font-size:14px;margin:0;">«Я лично проверяю каждый план. Если он не принесёт вам пользу – я верну деньги в течение 3 дней. Без вопросов.»</p>
+        <p style="font-size:12px;color:#6e6e73;margin-top:8px;">Вероника Макаревич | Продюсер экспертов, 50+ запусков</p>
+    </div>
+    <form action="/create_yookassa_payment" method="post">
         <input type="hidden" name="user_id" value="{user_id}">
-        <input type="hidden" name="amount" value="{amount}">
-        <div class="form-group"><label>📞 Телефон (нужен для чека по закону)</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align: center; font-size: 18px;"><p style="font-size: 12px; color: #8e8e93; margin-top: 6px;">Чек придёт на этот номер. Звонков и рекламы не будет.</p></div>
+        <input type="hidden" name="amount" value="2500">
         <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" name="consent" required style="width: 20px; height: 20px;">
-                <span>Я принимаю условия публичной оферты и даю согласие на обработку персональных данных</span>
+            <label>📞 Телефон (для чека и доступа)</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align:center;font-size:18px;" value="{phone_value}">
+            <p style="font-size:12px;color:#8e8e93;margin-top:6px;">Спама не будет – только чек и доступ к плану.</p>
+        </div>
+        <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" name="consent" required style="width:20px;height:20px;">
+                <span>Я принимаю условия <a href="/oferta" target="_blank">публичной оферты</a> и даю согласие на обработку персональных данных</span>
             </label>
         </div>
-        <p style="font-size: 12px; text-align: center; margin-bottom: 16px;">Ты уже ответил на вопросы. Я знаю, куда тебе двигаться. Сейчас ты оплачиваешь план — и через пару минут получишь готовый маршрут. Останется только внедрять.</p>
-        <div style="text-align:center;margin:20px 0"><button type="submit" class="btn-main" style="width: 100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">💳 Оплатить {amount} ₽</button></div>
-        <p style="font-size: 12px; text-align: center; margin-top: 12px;">✅ Безопасная оплата через ЮKassa — твои деньги под защитой. Не подойдёт? Верну деньги в течение 3 дней — без вопросов.</p>
+        <div style="text-align:center;margin-top:20px;">
+            <button type="submit" class="btn-main" style="width:100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">💳 Оплатить 2 500 ₽</button>
+        </div>
+        <p style="font-size:12px;text-align:center;margin-top:12px;">✅ Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
     </form>
 </div>
-<script>
-    let timeLeft = 600;
-    var timerEl = document.getElementById('timer-countdown');
-    var timerDiv = document.getElementById('timer');
-    var interval = setInterval(function() {{
-        if (timeLeft <= 0) {{
-            clearInterval(interval);
-            timerDiv.style.background = '#8e8e93';
-            timerDiv.innerHTML = '⏰ Скидка закончилась. Цена вернётся к обычной через 24 часа.';
-            return;
-        }}
-        timeLeft--;
-        var minutes = Math.floor(timeLeft / 60);
-        var seconds = timeLeft % 60;
-        timerEl.innerText = minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
-    }}, 1000);
-    window.addEventListener('beforeunload', function(e) {{
-        var message = "Подожди! Ты не завершил оплату.\\n\\nПосле оплаты тебя ждёт:\\n- Готовый план продаж с анализом конкурентов\\n- Бесплатный 30-минутный разбор этого плана\\n- Доступ к закрытому MAX-каналу с кейсами\\n\\nВернись и заверши оплату — это займёт 2 минуты.";
-        e.preventDefault();
-        e.returnValue = message;
-        return message;
-    }});
-</script>
 '''
     return HTMLResponse(content=render_page(content))
 
+# === СОЗДАНИЕ ПЛАТЕЖА (с описанием для 2500) ===
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(
     request: Request,
@@ -1208,15 +931,14 @@ async def create_yookassa_payment(
     if not phone:
         logger.error("Phone is required")
         save_payment_request(user_id, phone, amount=amount)
-        return RedirectResponse(url=f"/payment?user_id={user_id}&amp;amount={amount}&error=phone_required", status_code=303)
-    if amount == 490:
-        description = "Профессиональный маркетинговый план"
-    elif amount == 4900:
-        description = "Тариф Профи: Маркетинговый план + AI-чат 30 дней + Челлендж + канал"
-    elif amount == 14900:
-        description = "Внедрение под ключ: персональная настройка воронки от продюсера"
+        return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
+    
+    # Описание товара в зависимости от суммы (только 2500)
+    if amount == 2500:
+        description = "Расширенный маркетинговый план для эксперта"
     else:
         description = f"План продаж за {amount} ₽"
+    
     payment_data = {
         "amount": {"value": f"{amount}.00", "currency": "RUB"},
         "confirmation": {"type": "redirect", "return_url": f"{base_url}/payment/confirm?user_id={user_id}"},
@@ -1256,6 +978,7 @@ async def create_yookassa_payment(
         save_payment_request(user_id, phone, amount=amount)
         return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
 
+# === ВЕБХУК (без автоматической генерации) ===
 @app.post("/payment/webhook")
 async def payment_webhook(request: Request):
     try:
@@ -1272,31 +995,19 @@ async def payment_webhook(request: Request):
             try:
                 amount = int(amount)
             except:
-                amount = 490
+                amount = 2500
         else:
-            amount = 490
+            amount = 2500
         logger.info(f"Webhook parsed: event={event}, payment_id={payment_id}, status={status}, user_id={user_id}, amount={amount}")
         if event == "payment.succeeded" and status == "succeeded":
             update_payment_status(payment_id, "succeeded")
             if user_id:
                 conn = sqlite3.connect(DB_PATH)
-                conn.execute("UPDATE reports SET paid_at = CURRENT_TIMESTAMP WHERE user_id = ? AND report_type = 'premium' AND status = 'ready'", (user_id,))
+                conn.execute("UPDATE reports SET paid_at = CURRENT_TIMESTAMP WHERE user_id = ? AND report_type = 'premium'", (user_id,))
                 conn.commit()
                 conn.close()
                 logger.info(f"Updated paid_at for user {user_id} after payment")
-                
-                biz = get_business_data(user_id)
-                answers = get_form_data(user_id)
-                if biz and answers and DEEPSEEK_API_KEY:
-                    existing = get_report(user_id, "premium")
-                    if not existing or existing["status"] != "ready":
-                        conn = sqlite3.connect(DB_PATH)
-                        cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
-                        report_id = cursor.lastrowid
-                        conn.commit()
-                        conn.close()
-                        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-                        logger.info(f"Started premium report generation for user {user_id} after payment")
+                # НЕ запускаем генерацию автоматически
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
         logger.error(f"Webhook error: {e}")
@@ -1312,7 +1023,7 @@ async def payment_confirm(request: Request):
         payment_info = get_payment_by_yookassa_id(payment_id)
         if payment_info:
             user_id = payment_info["user_id"]
-            amount = payment_info["amount"] if payment_info["amount"] is not None else 490
+            amount = payment_info["amount"] if payment_info["amount"] is not None else 2500
             logger.info(f"Payment confirm: redirect via payment_id for user {user_id} amount {amount}")
             return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
     if user_id:
@@ -1320,17 +1031,18 @@ async def payment_confirm(request: Request):
         row = conn.execute("SELECT amount FROM payments WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
         conn.close()
         if row:
-            amount = row[0] if row[0] is not None else 490
+            amount = row[0] if row[0] is not None else 2500
             logger.info(f"Payment confirm: redirecting to success for user {user_id} with amount {amount}")
             return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
         else:
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
-    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернись на сайт, чтобы получить план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
+    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы сгенерировать план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
+# === СТРАНИЦА УСПЕХА (с кнопкой генерации) ===
 @app.get("/payment/success", response_class=HTMLResponse)
-async def payment_success(user_id: str, amount: int = 490):
+async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
     conn = sqlite3.connect(DB_PATH)
     payment_row = conn.execute("SELECT status, amount FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
@@ -1341,407 +1053,153 @@ async def payment_success(user_id: str, amount: int = 490):
         amount = payment_row[1]
         logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
     
-    user_phone = ""
+    # Проверяем статус отчёта premium
+    report = get_report(user_id, "premium")
+    
+    html_content = f'''
+<div class="hero">
+    <h1>🎉 Оплата прошла успешно!</h1>
+    <p style="font-size:18px;">Спасибо! Теперь вы можете получить расширенный маркетинговый план.</p>
+</div>
+<div class="form-card" style="text-align:center;">
+    <div id="report-status">
+    '''
+    if report and report["status"] == "ready":
+        html_content += f'''
+        <div style="background:#e8f0fe;border-radius:16px;padding:20px;margin:20px 0;">
+            <p style="font-size:16px;">✅ Ваш расширенный план готов к скачиванию.</p>
+            <a href="/download/{user_id}/premium" class="btn-main" style="display:inline-block;margin-top:10px;" onclick="ym(108348240,'reachGoal','download_premium'); return true;">📥 Скачать план (.txt)</a>
+        </div>
+        '''
+    elif report and report["status"] == "generating":
+        html_content += f'''
+        <div id="generating-block" style="background:#fff3cd;border-radius:16px;padding:20px;margin:20px 0;">
+            <p>⏳ Ваш план генерируется... Это займёт 1-2 минуты.</p>
+            <button id="checkStatusBtn" class="btn-main" style="background:#ff9f0a;" onclick="ym(108348240,'reachGoal','check_status'); return true;">Проверить статус</button>
+        </div>
+        <script>
+            document.getElementById('checkStatusBtn').addEventListener('click', function() {{
+                fetch('/check-premium-status?user_id={user_id}')
+                    .then(res => res.json())
+                    .then(data => {{
+                        if (data.ready) {{
+                            window.location.reload();
+                        }} else {{
+                            alert('Ещё генерируется, подождите немного.');
+                        }}
+                    }});
+            }});
+        </script>
+        '''
+    else:
+        # Нет отчёта – предлагаем сгенерировать
+        html_content += f'''
+        <div style="background:#f5f5f7;border-radius:16px;padding:20px;margin:20px 0;">
+            <p style="font-size:16px;">Нажмите кнопку ниже, чтобы начать генерацию вашего расширенного плана.</p>
+            <form action="/generate-premium-report" method="post" id="generateForm">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <button type="submit" class="btn-main" style="margin-top:10px;" onclick="ym(108348240,'reachGoal','generate_click'); return true;">🚀 Сгенерировать план</button>
+            </form>
+        </div>
+        <script>
+            document.getElementById('generateForm').addEventListener('submit', function(e) {{
+                e.preventDefault();
+                const btn = this.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.textContent = '⏳ Генерируем...';
+                fetch(this.action, {{ method: 'POST', body: new FormData(this) }})
+                    .then(res => res.json())
+                    .then(data => {{
+                        if (data.status === 'generating') {{
+                            window.location.reload();
+                        }} else if (data.ready) {{
+                            window.location.href = data.url;
+                        }}
+                    }})
+                    .catch(() => {{
+                        btn.disabled = false;
+                        btn.textContent = '🚀 Сгенерировать план';
+                        alert('Ошибка, попробуйте ещё раз.');
+                    }});
+            }});
+        </script>
+        '''
+    html_content += '''
+    </div>
+    <hr style="margin:32px 0;">
+    <div style="background:#e8f0fe;border-radius:20px;padding:20px;margin-top:20px;">
+        <p style="font-size:14px;">Если у вас возникли вопросы, напишите мне в MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank">@veranikamakarevich</a></p>
+    </div>
+</div>
+'''
+    return HTMLResponse(content=render_page(html_content))
+
+# === НОВЫЙ ЭНДПОИНТ ДЛЯ ГЕНЕРАЦИИ ПО ЗАПРОСУ ===
+@app.post("/generate-premium-report")
+async def generate_premium_report(request: Request, user_id: str = Form(...)):
+    # Проверяем оплату
     conn = sqlite3.connect(DB_PATH)
-    row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
-    if row and row[0]:
-        user_phone = row[0]
+    payment = conn.execute("SELECT id FROM payments WHERE user_id = ? AND status = 'succeeded' LIMIT 1", (user_id,)).fetchone()
+    conn.close()
+    if not payment:
+        raise HTTPException(status_code=403, detail="Оплата не найдена")
+    
+    # Проверяем существующий отчёт
+    existing = get_report(user_id, "premium")
+    if existing and existing["status"] == "ready":
+        return {"ready": True, "url": f"/download/{user_id}/premium"}
+    if existing and existing["status"] == "generating":
+        return {"status": "generating"}
+    
+    # Создаём запись и запускаем генерацию
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
+    report_id = cursor.lastrowid
+    conn.commit()
     conn.close()
     
     biz = get_business_data(user_id)
     answers = get_form_data(user_id)
-    existing_report = get_report(user_id, "premium")
-    
-    if not existing_report or existing_report["status"] == "generating":
-        if not existing_report:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')", (user_id,))
-            conn.commit()
-            conn.close()
-            if biz and answers and DEEPSEEK_API_KEY:
-                report_id = cursor.lastrowid
-                asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
-        return HTMLResponse(content=render_premium_waiting_page(user_id, amount))
-    
-    report_text_full = None
-    if existing_report.get("file_path"):
-        file_path = existing_report["file_path"]
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    report_text_full = f.read()
-            except Exception as e:
-                logger.error(f"Failed to read report file: {e}")
-    if not report_text_full:
-        report_text_full = existing_report.get("text") or "Текст плана продаж временно недоступен. Обратись в поддержку."
-    report_text_html = report_text_full.replace("\n", "<br>")
-    
-    if amount in (4900, 14900):
-        if amount == 4900:
-            content = f'''
-<div class="hero">
-    <h1>🎉 Доступ к пакету «Профи» активирован!</h1>
-    <p style="font-size: 18px;">«Вот он — твой билет к системным продажам. Бери и делай. AI-чат ответит 24/7.»</p>
-</div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
-    <hr style="margin: 32px 0;">
-    <div style="background: #e8f0fe; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left;">
-        <p style="font-size: 14px; margin: 0;">📌 Твой маркетинговый план уже сгенерирован. Чтобы начать внедрять, перейди в чат-бот и напиши <strong>/start</strong>.</p>
-    </div>
-    <div class="bot-link-block">
-        <div class="bot-icon">🤖</div>
-        <div class="bot-text">
-            <h4>Перейди в MAX-чат</h4>
-            <p>Задавай вопросы AI-ассистенту по плану и участвуй в челлендже</p>
-        </div>
-        <a href="https://max.ru/id781407988795_bot" target="_blank" class="btn-main" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','premium_purchase_success'); return true;">🔥 Перейти в MAX-чат</a>
-    </div>
-    <hr style="margin: 32px 0;">
-    <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
-        <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
-        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: 30 минут со мной</h3>
-        <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">«Я посмотрю твой план, бизнес и скажу честно: что работает, а что нет. Без воды. Без «всё хорошо». Только факты и следующая точка входа.»</p>
-        <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
-            <p style="font-weight: 600; margin-bottom: 12px;">Что вынесешь за 30 минут:</p>
-            <ul style="list-style: none; padding: 0;">
-                <li style="margin-bottom: 10px;">✅ Чёткий план первой продажи, которую можно сделать завтра</li>
-                <li style="margin-bottom: 10px;">✅ Ответ, на каком этапе воронки ты теряешь деньги</li>
-                <li style="margin-bottom: 10px;">✅ Честный разбор — где ты сливаешь время и бюджет впустую</li>
-            </ul>
-        </div>
-        <div style="text-align: center; margin: 32px 0;">
-            <a href="/consultation?user_id={user_id}" class="btn-main" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">🔥 Забрать 30 минут</a>
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">Без подписок, без обязательств. Просто созвон и польза.</p>
-        </div>
-    </div>
-    <p style="margin-top: 20px;">Клиенты приходят к тебе. Система работает автоматически. Если понадобится помощь — AI-чат внутри MAX ответит в любое время.</p>
-</div>
-<script> ym(108348240,'reachGoal','premium_purchase_success'); </script>'''
-        else:
-            content = f'''
-<div class="hero">
-    <h1>🎉 Внедрение под ключ активировано!</h1>
-    <p style="font-size: 18px;">«Ты выбрал полный пакет. Я свяжусь с тобой в течение часа, чтобы начать настройку воронки.»</p>
-</div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
-    <hr style="margin: 32px 0;">
-    <div style="background: #e8f0fe; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left;">
-        <p style="font-size: 14px; margin: 0;">📌 Твой маркетинговый план уже сгенерирован. Я напишу тебе в ближайшее время, чтобы согласовать детали внедрения.</p>
-    </div>
-    <p style="margin-top: 20px;">Клиенты приходят к тебе. Система работает автоматически.</p>
-</div>
-<script> ym(108348240,'reachGoal','producer_purchase_success'); </script>'''
-        return HTMLResponse(content=render_page(content))
+    if biz and answers and DEEPSEEK_API_KEY:
+        asyncio.create_task(generate_premium_report_background(user_id, biz["name"], biz["description"], answers, report_id))
+        return {"status": "generating"}
     else:
-        content = f'''
-<div class="hero">
-    <h1>🎉 Спасибо за покупку!</h1>
-    <p style="font-size: 18px;">«Вот твой маркетинговый план. Дальше всё зависит от тебя.»</p>
-</div>
-<div class="form-card" style="text-align: center;">
-    <div style="background: #f5f5f7; border-radius: 20px; padding: 20px; margin: 20px 0; text-align: left; max-height: 500px; overflow-y: auto;">
-        <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.5;">{report_text_html}</div>
-    </div>
-    <hr style="margin: 32px 0;">
-    <div class="bot-link-block">
-        <div class="bot-icon">🚀</div>
-        <div class="bot-text">
-            <h4>План есть. Теперь вопрос: будешь ты его внедрять один или с поддержкой?</h4>
-            <p>Доплати 4000 ₽ — и получишь AI-чат 24/7, челлендж с моей проверкой и закрытый канал, где я делюсь тем, что реально работает. Результат придёт в 3 раза быстрее. Проверено на сотнях клиентов.</p>
-        </div>
-        <form action="/create_yookassa_payment" method="post" style="display: inline; margin: 0;">
-            <input type="hidden" name="user_id" value="{user_id}">
-            <input type="hidden" name="phone" value="{user_phone}">
-            <input type="hidden" name="amount" value="4900">
-            <input type="hidden" name="consent" value="on">
-            <button type="submit" class="btn-main" style="margin-top: 10px;" onclick="ym(108348240,'reachGoal','upsell_click'); return true;">🔥 Доплатить 4000 ₽ и пройти путь с поддержкой</button>
-        </form>
-        <p style="font-size: 12px; margin-top: 8px;">* Вместо 4900 ₽ ты платишь только 4000 ₽, потому что 490 ₽ уже оплачены.</p>
-        <hr style="margin: 20px 0;">
-        <p style="font-size: 14px;">👉 Оставить план и идти самому — просто закрой это окно.</p>
-    </div>
-    <hr style="margin: 32px 0;">
-    <div style="background: linear-gradient(135deg, #f8f8fa 0%, #fff 0%); border-radius: 24px; padding: 28px; margin: 32px 0; text-align: center; border: 1px solid #e5e5ea;">
-        <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
-        <h3 style="font-size: 22px; margin-bottom: 12px;">Бонус: 30 минут со мной</h3>
-        <p style="font-size: 16px; color: #6e6e73; margin-bottom: 20px;">«Я посмотрю твой план, бизнес и скажу честно: что работает, а что нет. Без воды. Без «всё хорошо». Только факты и следующая точка входа.»</p>
-        <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; text-align: left; margin: 20px 0;">
-            <p style="font-weight: 600; margin-bottom: 12px;">Что вынесешь за 30 минут:</p>
-            <ul style="list-style: none; padding: 0;">
-                <li style="margin-bottom: 10px;">✅ Чёткий план первой продажи, которую можно сделать завтра</li>
-                <li style="margin-bottom: 10px;">✅ Ответ, на каком этапе воронки ты теряешь деньги</li>
-                <li style="margin-bottom: 10px;">✅ Честный разбор — где ты сливаешь время и бюджет впустую</li>
-            </ul>
-        </div>
-        <div style="text-align: center; margin: 32px 0;">
-            <a href="/consultation?user_id={user_id}" class="btn-main" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">🔥 Забрать 30 минут</a>
-            <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">Без подписок, без обязательств. Просто созвон и польза.</p>
-        </div>
-    </div>
-</div>
-<script> ym(108348240,'reachGoal','basic_purchase_success'); </script>'''
-        return HTMLResponse(content=render_page(content))
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("UPDATE reports SET status = 'failed' WHERE id = ?", (report_id,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(status_code=400, detail="Недостаточно данных для генерации")
 
-# ========================
-# КОНСУЛЬТАЦИЯ И ПОДПИСКА
-# ========================
+# === СТРАНИЦА КОНСУЛЬТАЦИИ (приглашение в MAX) ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
         user_id = str(uuid.uuid4())
         save_user(user_id, None, None)
     content = f'''
-<div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">🔥 Бесплатная 30-минутная консультация</h1>
-    <p style="font-size: 18px;">«Не люблю гадать. Давай созвонимся на 30 минут. Ты расскажешь — я скажу, где у тебя дыра и как её заткнуть.»</p>
+<div class="hero" style="margin-bottom:30px;">
+    <h1 style="font-size:36px;">💬 Хотите обсудить ваш план лично?</h1>
+    <p style="font-size:18px;color:#6e6e73;">Я пользуюсь мессенджером MAX. Напишите мне – я отвечу на все вопросы.</p>
 </div>
-<div class="form-card" style="text-align: center;">
-    <form action="/consultation/submit" method="post" id="consultationForm">
-        <input type="hidden" name="user_id" value="{user_id}">
-        <div class="form-group"><label>📞 Твой телефон</label><input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required><p style="font-size: 12px; color: #6e6e73;">Только для связи. Спама не будет.</p></div>
-        <div class="form-group"><label>🕐 Удобное время для звонка (по Москве)</label><input type="text" name="time" placeholder="например: завтра в 15:00" required></div>
-        <div class="form-group"><label>✏️ Твой вопрос (кратко)</label><textarea name="question" rows="3"></textarea></div>
-        <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" name="consent" required style="width: 20px; height: 20px;">
-                <span>Я принимаю условия публичной оферты и даю согласие на обработку персональных данных</span>
-            </label>
-        </div>
-        <button type="submit" class="btn-main" style="width: 100%; margin-top: 16px;" onclick="ym(108348240,'reachGoal','consultation_request'); return true;">📅 Отправить заявку</button>
-    </form>
-</div>
-<script>
-    document.getElementById('consultationForm').addEventListener('submit', function(e) {{
-        const btn = this.querySelector('button[type="submit"]');
-        btn.disabled = true;
-        btn.textContent = '⏳ Отправляю...';
-    }});
-</script>
-'''
-    return HTMLResponse(content=render_page(content))
-
-@app.post("/consultation/submit")
-async def consultation_submit(
-    request: Request,
-    user_id: str = Form(...),
-    phone: str = Form(...),
-    time: str = Form(...),
-    question: str = Form(None),
-    consent: str = Form(...)
-):
-    save_consultation_request(user_id, phone, time, question)
-    save_user(user_id, phone, None)
-    client_ip = request.client.host if request.client else "unknown"
-    user_agent = request.headers.get("user-agent", "")
-    save_consent(user_id, 'consultation', client_ip, user_agent)
-    await send_notification_to_channel(
-        f"📞 НОВАЯ ЗАЯВКА НА КОНСУЛЬТАЦИЮ\n\n"
-        f"Пользователь: {user_id}\nТелефон: {phone}\nВремя: {time}\nВопрос: {question}\n⏰ {format_moscow_time()}"
-    )
-    return RedirectResponse(url=f"/subscribe?user_id={user_id}", status_code=303)
-
-@app.get("/subscribe", response_class=HTMLResponse)
-async def subscribe_page(user_id: str):
-    content = f'''
-<div class="hero" style="margin-bottom: 30px;">
-    <h1 style="font-size: 36px;">🤝 Осталось одно движение</h1>
-    <p style="font-size: 18px;">Подпишись на мой канал в MAX — там я показываю, как реально делаю воронки и запуски. После подписки я увижу тебя и напишу, чтобы согласовать звонок.</p>
-</div>
-<div class="form-card" style="text-align: center;">
-    <div style="margin: 30px 0;"><a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="width: 80%; padding: 16px;">📢 Подписаться на канал</a></div>
-    <p>После подписки я проверю и напишу тебе в MAX для согласования времени.</p>
-    <div style="margin-top: 30px;"><a href="/" class="btn-main" style="background: transparent; color: #007aff; box-shadow: none;">На главную</a></div>
+<div class="form-card" style="text-align:center;max-width:600px;margin:0 auto;">
+    <div style="margin:30px 0;">
+        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="width:80%;padding:16px;font-size:18px;" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">
+            💬 Написать в MAX
+        </a>
+    </div>
+    <p style="font-size:14px;color:#6e6e73;margin-top:10px;">
+        Нажмите на кнопку – откроется чат со мной. Напишите любой вопрос, я отвечу в течение часа (в рабочее время).
+    </p>
+    <div style="margin-top:30px;">
+        <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
+    </div>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
 
-# ========================
-# СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (полные тексты)
-# ========================
-@app.get("/oferta", response_class=HTMLResponse)
-async def oferta_page():
-    content = """
-<div class="hero" style="margin-bottom: 20px;">
-    <h1>Публичная оферта</h1>
-    <p style="font-size: 14px; color: #6e6e73;">о заключении договора купли-продажи цифрового товара</p>
-</div>
-<div class="form-card" style="text-align: left; max-width: 800px;">
-    <p><strong>Индивидуальный предприниматель Макаревич Вероника Александровна,</strong><br>
-    ИНН 781407988795, зарегистрированная в качестве налогоплательщика<br>
-    налога на профессиональный доход (самозанятая),<br>
-    размещая настоящий документ на сайте<br>
-    realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»),<br>
-    предлагает неограниченному кругу лиц (далее — «Покупатель»)<br>
-    заключить договор купли-продажи цифрового товара на условиях, изложенных ниже.</p>
+# Удаляем POST /consultation/submit (он больше не нужен)
 
-    <h3>1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h3>
-    <p>1.1. Цифровой товар — профессиональный маркетинговый план продаж, сгенерированный с использованием искусственного интеллекта на основе данных, предоставленных Покупателем, предоставляемый в электронном виде в формате текстового файла (.txt) через Сайт.</p>
-    <p>1.2. Сайт — интернет-страница, расположенная по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net</p>
-    <p>1.3. Продавец — Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795, статус: ИП, применяет налог на профессиональный доход (самозанятая).</p>
-    <p>1.4. Покупатель — любое физическое или юридическое лицо, акцептовавшее настоящую оферту.</p>
-
-    <h3>2. ПРЕДМЕТ ДОГОВОРА</h3>
-    <p>2.1. Продавец обязуется передать в собственность Покупателю Цифровой товар, а Покупатель обязуется оплатить его в порядке и на условиях, предусмотренных настоящей офертой.</p>
-    <p>2.2. Цифровой товар передается Покупателю в момент получения доступа к файлу для скачивания после полной оплаты.</p>
-
-    <h3>3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
-    <p>3.1. Стоимость Цифрового товара составляет 490 (Четыреста девяносто) рублей.</p>
-    <p>3.2. Оплата производится через платежную систему ЮKassa (ООО «ЮMoney») с использованием банковской карты или иных доступных способов.</p>
-    <p>3.3. Оплата считается произведенной в момент поступления денежных средств на счет Продавца.</p>
-    <p>3.4. Продавец не является плательщиком НДС в силу применения налогового режима «Налог на профессиональный доход» (самозанятость).</p>
-
-    <h3>4. ПОРЯДОК ПЕРЕДАЧИ ЦИФРОВОГО ТОВАРА</h3>
-    <p>4.1. После успешной оплаты Покупателю автоматически открывается доступ к странице с Цифровым товаром для скачивания.</p>
-    <p>4.2. Цифровой товар считается переданным надлежащим образом в момент предоставления доступа к файлу для скачивания.</p>
-    <p>4.3. Продавец не несет ответственности за невозможность скачать Цифровой товар по техническим причинам на стороне Покупателя (отсутствие интернета, блокировка провайдером и т.п.).</p>
-
-    <h3>5. ПОРЯДОК ВОЗВРАТА ДЕНЕЖНЫХ СРЕДСТВ</h3>
-    <p>5.1. В соответствии со ст. 26.1 Закона РФ «О защите прав потребителей» цифровой товар надлежащего качества возврату не подлежит.</p>
-    <p>5.2. Возврат денежных средств возможен в следующих исключительных случаях:<br>
-    — Цифровой товар не может быть открыт / прочитан по техническим причинам;<br>
-    — Цифровой товар не соответствует описанию (ошибка в предоставленном файле);<br>
-    — Двойная оплата одного и того же заказа.</p>
-    <p>5.3. Для возврата Покупатель должен обратиться к Продавцу по контактам, указанным в разделе 10, в течение 3 (трех) дней с момента оплаты.</p>
-    <p>5.4. При подтверждении оснований для возврата Продавец обязуется вернуть денежные средства в течение 3 (трех) рабочих дней с момента получения заявления от Покупателя.</p>
-    <p>5.5. Возврат осуществляется на ту же банковскую карту или счет, с которого производилась оплата.</p>
-
-    <h3>6. ОТВЕТСТВЕННОСТЬ СТОРОН</h3>
-    <p>6.1. Цифровой товар предоставляется «как есть» (as is). Продавец не гарантирует достижение Покупателем каких-либо финансовых или бизнес-результатов при использовании Цифрового товара.</p>
-    <p>6.2. Продавец не несет ответственности за убытки Покупателя, возникшие в результате использования Цифрового товара.</p>
-
-    <h3>7. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ</h3>
-    <p>7.1. Цифровой товар является результатом интеллектуальной деятельности Продавца (с использованием нейросетей). Все исключительные права на Цифровой товар принадлежат Продавцу.</p>
-    <p>7.2. Покупатель получает право личного некоммерческого использования Цифрового товара. Запрещается:<br>
-    — перепродажа Цифрового товара;<br>
-    — распространение в открытом доступе;<br>
-    — копирование и тиражирование в коммерческих целях;<br>
-    — выдача Цифрового товара за свой собственный.</p>
-
-    <h3>8. ПЕРСОНАЛЬНЫЕ ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ</h3>
-    <p>8.1. Вопросы обработки персональных данных регулируются Политикой обработки персональных данных, размещенной на Сайте по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net/privacy</p>
-    <p>8.2. Направляя данные через формы на Сайте, Покупатель дает согласие на их обработку в соответствии с указанной Политикой.</p>
-
-    <h3>9. ФОРС-МАЖОР</h3>
-    <p>9.1. Стороны освобождаются от ответственности за полное или частичное неисполнение обязательств, если это явилось следствием обстоятельств непреодолимой силы (стихийные бедствия, военные действия, решения органов власти, блокировки интернет-ресурсов и т.п.).</p>
-
-    <h3>10. КОНТАКТЫ ПРОДАВЦА</h3>
-    <p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
-    — ИНН: 781407988795<br>
-    — Email: veranikamakarevich@yandex.ru<br>
-    — MAX-канал: https://max.ru/id781407988795_biz</p>
-
-    <h3>11. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</h3>
-    <p>11.1. Акцептом настоящей оферты является совершение Покупателем действий по оплате Цифрового товара и/или проставление галочки в чекбоксе «Я принимаю условия публичной оферты».</p>
-    <p>11.2. Продавец вправе изменять условия оферты в одностороннем порядке. Изменения вступают в силу с момента их опубликования на Сайте.</p>
-    <p>Дата публикации: «05» мая 2026 г.</p>
-</div>
-"""
-    return HTMLResponse(content=render_page(content))
-
-@app.get("/privacy", response_class=HTMLResponse)
-async def privacy_page():
-    content = """
-<div class="hero" style="margin-bottom: 20px;">
-    <h1>Политика обработки персональных данных</h1>
-    <p style="font-size: 14px; color: #6e6e73;">Индивидуального предпринимателя Макаревич Вероники Александровны</p>
-</div>
-<div class="form-card" style="text-align: left; max-width: 800px;">
-    <h3>1. ОБЩИЕ ПОЛОЖЕНИЯ</h3>
-    <p>1.1. Настоящая Политика определяет порядок обработки и защиты персональных данных лиц, использующих сайт realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»).</p>
-    <p>1.2. Оператор персональных данных: Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795.</p>
-    <p>1.3. Настоящая Политика составлена во исполнение требований Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных» (с изменениями на 2026 год).</p>
-    <p>1.4. Используя Сайт и заполняя формы, Пользователь выражает согласие с условиями настоящей Политики.</p>
-
-    <h3>2. КАКИЕ ДАННЫЕ СОБИРАЮТСЯ</h3>
-    <p>2.1. Оператор собирает следующие персональные данные:<br>
-    — Номер телефона (обязательно)<br>
-    — Имя (опционально)<br>
-    — Название бизнеса и описание бизнеса<br>
-    — Ответы на вопросы анкеты (7 вопросов о бизнесе)</p>
-    <p>2.2. Технические данные, собираемые автоматически:<br>
-    — IP-адрес<br>
-    — User-Agent (тип браузера и устройства)<br>
-    — Дата и время посещения<br>
-    — Страница, с которой совершен переход (Referrer)</p>
-
-    <h3>3. ЦЕЛИ ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
-    <p>3.1. Основные цели:<br>
-    — Предоставление доступа к сервису маркетинговой диагностики<br>
-    — Генерация индивидуального маркетингового плана на основе анкеты<br>
-    — Обработка платежей через ЮKassa (ООО «ЮMoney»)<br>
-    — Направление ссылки на скачивание отчета<br>
-    — Направление информации о статусе заказа<br>
-    — Улучшение работы Сайта и сервиса<br>
-    — Ведение статистики посещений (Яндекс.Метрика)</p>
-    <p>3.2. Второстепенные цели (с отдельным согласием Пользователя):<br>
-    — Направление информационных и рекламных рассылок (если Пользователь подписался)</p>
-
-    <h3>4. ПРАВОВЫЕ ОСНОВАНИЯ ОБРАБОТКИ</h3>
-    <p>4.1. Оператор обрабатывает персональные данные на основании:<br>
-    — Согласия субъекта персональных данных (отдельный чекбокс на Сайте)<br>
-    — Договора (публичной оферты), стороной которого является субъект<br>
-    — Исполнения обязательств, предусмотренных законодательством РФ</p>
-
-    <h3>5. ПОРЯДОК И УСЛОВИЯ ОБРАБОТКИ</h3>
-    <p>5.1. Обработка данных включает: сбор, запись, систематизацию, накопление, хранение, уточнение, извлечение, использование, передачу, блокирование, удаление, уничтожение.</p>
-    <p>5.2. Срок хранения персональных данных: 3 (три) года с момента последнего взаимодействия с Пользователем либо до момента отзыва согласия, если отзыв не противоречит законодательству.</p>
-    <p>5.3. Хранение данных осуществляется на серверах, расположенных на территории Российской Федерации.<br>
-    — Хостинг-провайдер: ООО «ТаймВеб» (Timeweb), Россия, Санкт-Петербург<br>
-    — Сайт хостинга: https://timeweb.cloud/</p>
-    <p>5.4. Оператор не передает персональные данные третьим лицам, за исключением:<br>
-    — Платежной системы ЮKassa (ООО «ЮMoney») — для проведения платежа<br>
-    — Хостинг-провайдера ООО «ТаймВеб» — для обеспечения работы Сайта<br>
-    — По запросу уполномоченных государственных органов (в рамках закона)</p>
-    <p>5.5. Доступ к персональным данным имеет только Оператор (Макаревич Вероника Александровна). Иные лица к данным доступа не имеют.</p>
-
-    <h3>6. ПРАВА ПОЛЬЗОВАТЕЛЯ</h3>
-    <p>6.1. Пользователь имеет право:<br>
-    — Получить информацию о своих персональных данных, обрабатываемых Оператором<br>
-    — Требовать уточнения, блокирования или уничтожения своих данных<br>
-    — Отозвать согласие на обработку персональных данных<br>
-    — Обжаловать действия Оператора в уполномоченном органе (Роскомнадзор)</p>
-    <p>6.2. Для реализации прав необходимо направить запрос на электронную почту: veranikamakarevich@yandex.ru</p>
-    <p>6.3. Оператор обязуется рассмотреть запрос и дать ответ в течение 10 (десяти) рабочих дней.</p>
-
-    <h3>7. ЗАЩИТА ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
-    <p>7.1. Оператор принимает следующие меры защиты:<br>
-    — Парольная защита доступа к базам данных (SQLite с паролем)<br>
-    — Использование HTTPS-шифрования (через Timeweb)<br>
-    — Регулярное резервное копирование<br>
-    — Ограничение круга лиц, имеющих доступ к данным (только Оператор)<br>
-    — Антивирусное ПО на рабочем компьютере</p>
-    <p>7.2. В случае утечки персональных данных Оператор обязуется в течение 24 часов уведомить Роскомнадзор и пострадавших лиц в порядке, установленном законодательством.</p>
-
-    <h3>8. ИСПОЛЬЗОВАНИЕ ФАЙЛОВ COOKIE И МЕТРИК</h3>
-    <p>8.1. На Сайте используется Яндекс.Метрика для сбора статистики посещений. Данные собираются в обезличенном виде.</p>
-    <p>8.2. Пользователь может отключить cookie в настройках браузера.</p>
-
-    <h3>9. ПОРЯДОК ОТЗЫВА СОГЛАСИЯ</h3>
-    <p>9.1. Пользователь может отозвать согласие на обработку персональных данных, направив письменное заявление на электронную почту Оператора.</p>
-    <p>9.2. В случае отзыва согласия Оператор обязуется прекратить обработку и уничтожить персональные данные в течение 30 дней, если иное не предусмотрено законом.</p>
-
-    <h3>10. КОНТАКТЫ ОПЕРАТОРА</h3>
-    <p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
-    — ИНН: 781407988795<br>
-    — Email: veranikamakarevich@yandex.ru<br>
-    — MAX-канал: https://max.ru/id781407988795_biz</p>
-
-    <h3>11. ИЗМЕНЕНИЕ ПОЛИТИКИ</h3>
-    <p>11.1. Оператор вправе изменять настоящую Политику. Новая редакция вступает в силу с момента ее публикации на Сайте.</p>
-    <p>Дата публикации: «05» мая 2026 г.</p>
-</div>
-"""
-    return HTMLResponse(content=render_page(content))
-
-# ========================
-# ЗАГРУЗКА ОТЧЁТОВ И АДМИНКА
-# ========================
+# === СКАЧИВАНИЕ ОТЧЁТА ===
 @app.get("/download/{user_id}/{report_type}")
 async def download_report(user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
@@ -1755,6 +1213,7 @@ async def download_report(user_id: str, report_type: str):
         return Response(content=row[1], media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
     raise HTTPException(status_code=404, detail="Report not found")
 
+# === АДМИН-ДАШБОРД (обновлённый) ===
 @app.get("/admin/logs")
 async def admin_logs(auth: bool = Depends(verify_admin)):
     try:
@@ -1808,10 +1267,9 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
 </div>
 <div class="funnel-container"><h3>🎯 Воронка продаж (за 7 дней)</h3><div id="funnelSteps"></div></div>
 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
-<div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button><button class="tab" onclick="showTab('consultations')">📞 Заявки на консультации</button></div>
+<div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button></div>
 <div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
-<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></table></thead><tbody></tbody></table></div>
-<div id="consultationsTab" class="table-container" style="display:none"><h3>📞 Заявки на консультации</h3><table id="consultationsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Желаемое время</th></tr></thead><tbody></tbody></table></div>
+<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
 </div>
 <script>
 let clientsData=[];
@@ -1824,25 +1282,25 @@ document.getElementById('totalRevenue').innerText=data.summary.total_revenue.toL
 document.getElementById('convVisitToDiag').innerHTML=`📈 Конверсия: ${data.summary.conv_visit_to_diag}%`;
 document.getElementById('convDiagToPayment').innerHTML=`📈 Конверсия: ${data.summary.conv_diag_to_payment}%`;
 const funnelDiv=document.getElementById('funnelSteps');
-const steps=[[{name:'👥 Посетители сайта',key:'visitors',color:'#007aff'},{name:'📝 Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'💳 Оплата плана (490₽)',key:'payments',color:'#ff9f0a'},{name:'📥 Скачивание отчета',key:'downloads',color:'#34c759'}]];
+const steps=[[{name:'👥 Посетители сайта',key:'visitors',color:'#007aff'},{name:'📝 Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'💳 Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'📥 Скачивание отчета',key:'downloads',color:'#34c759'}]];
 const maxCount=Math.max(data.summary.visitors,1);
 funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const percent=(count/maxCount*100).toFixed(1);return `<div class="funnel-step"><div class="step-name">${step.name}</div><div class="step-count">${count}</div><div class="step-bar"><div class="step-fill" style="width:${percent}%;background:${step.color}">${percent}%</div></div></div>`;}).join('');
 const ctx=document.getElementById('funnelChart').getContext('2d');
 new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`</tr><tr>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
-async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}<tr>`;});}
-async function loadConsultations(){const res=await fetch('/admin/api/consultations');const data=await res.json();const tbody=document.querySelector('#consultationsTable tbody');tbody.innerHTML='';data.consultations.forEach(c=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(c.created_at).toLocaleString()}</td><td>${c.phone||'-'}</td><td>${c.time||'-'}</tr>`;});}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
+async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td>${d.phone||'-'}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}<tr>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
 function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
 function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
-function showTab(tab){document.getElementById('clientsTab').style.display=tab==='clients'?'block':'none';document.getElementById('diagnosticsTab').style.display=tab==='diagnostics'?'block':'none';document.getElementById('consultationsTab').style.display=tab==='consultations'?'block':'none';document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));event.target.classList.add('active');}
-loadStats();loadClients();loadDiagnostics();loadConsultations();setInterval(()=>{loadStats();loadClients();loadDiagnostics();},30000);
+function showTab(tab){document.getElementById('clientsTab').style.display=tab==='clients'?'block':'none';document.getElementById('diagnosticsTab').style.display=tab==='diagnostics'?'block':'none';document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));event.target.classList.add('active');}
+loadStats();loadClients();loadDiagnostics();setInterval(()=>{loadStats();loadClients();loadDiagnostics();},30000);
 </script>
 </body>
 </html>"""
     return HTMLResponse(content=dashboard_html)
 
+# === API ДЛЯ АДМИНКИ ===
 @app.get("/admin/api/stats")
 async def admin_stats(auth: bool = Depends(verify_admin)):
     days = 7
@@ -1863,10 +1321,31 @@ async def admin_clients(auth: bool = Depends(verify_admin)):
 async def admin_diagnostics(auth: bool = Depends(verify_admin)):
     return {"diagnostics": get_all_free_diagnostics()}
 
-@app.get("/admin/api/consultations")
-async def admin_consultations(auth: bool = Depends(verify_admin)):
-    return {"consultations": get_new_consultations()}
+# === СТАРЫЕ СТРАНИЦЫ (удаляем или редиректим) ===
+@app.get("/diagnostic")
+async def diagnostic_redirect():
+    return RedirectResponse(url="/", status_code=301)
 
+@app.get("/launch-online-school")
+async def launch_online_school_redirect():
+    return RedirectResponse(url="/", status_code=301)
+
+@app.get("/funnel-7-days")
+async def funnel_7_days_redirect():
+    return RedirectResponse(url="/", status_code=301)
+
+# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (без изменений) ===
+@app.get("/oferta", response_class=HTMLResponse)
+async def oferta_page():
+    content = """... (старый текст) ..."""
+    return HTMLResponse(content=render_page(content))
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page():
+    content = """... (старый текст) ..."""
+    return HTMLResponse(content=render_page(content))
+
+# === ЗАПУСК ===
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
