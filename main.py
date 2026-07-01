@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия со всеми изменениями)
+# File: main.py — веб-приложение Salesplan (финальная версия с исправлениями)
 
 import logging
 import sqlite3
@@ -130,7 +130,7 @@ async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
-    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/lead-magnet", "/consultation", "/generate-premium-report"]:
+    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/lead-magnet", "/consultation", "/generate-premium-report", "/implementation"]:
         track_visit(ip=client_ip, user_agent=user_agent)
     if path == "/favicon.ico":
         return await call_next(request)
@@ -1024,7 +1024,8 @@ async def thank_you(user_id: str):
 
 <!-- СНАЧАЛА БЕСПЛАТНЫЙ ПЛАН -->
 <div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
-    <p style="font-size:14px; color:#6e6e73;">Ваш бесплатный план уже готов. Прокрутите, чтобы увидеть его.</p>
+    <h1 style="font-size:32px; margin-bottom:8px;">Ваш план готов!</h1>
+    <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">Прокрутите, чтобы увидеть полный разбор.</p>
     <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
     </div>
@@ -1398,16 +1399,16 @@ async def payment_success(user_id: str, amount: int = 2500):
     <hr style="margin:32px 0;">
     <div style="background: #e8f0fe; border-radius:20px; padding:20px; text-align:center;">
         <p style="font-size:16px; font-weight:500; margin-bottom:8px;">🚀 В плане вы увидели канал в соцсетях. Хотите узнать, как запустить его за 3 дня без бюджета?</p>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px;">Напишите мне слово <strong>ЗАПУСК</strong> в чат MAX — я пришлю видео.</p>
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="background:#007aff; display:inline-block; font-size:18px; padding:14px 40px;" onclick="ym(108348240,'reachGoal','launch_word_click'); return true;">
-            💬 Написать в MAX
+        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px;">Напишите мне слово <strong>ЗАПУСК</strong> в личный чат MAX — я пришлю видео.</p>
+        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="background:#007aff; display:inline-block; font-size:18px; padding:14px 40px;" onclick="ym(108348240,'reachGoal','launch_word_click'); return true;">
+            💬 Написать в личный чат MAX
         </a>
-        <p style="font-size:12px; color:#6e6e73; margin-top:10px;">Нажмите, чтобы открыть канал в MAX. Напишите слово «ЗАПУСК» – и я пришлю видео в личные сообщения.</p>
+        <p style="font-size:12px; color:#6e6e73; margin-top:10px;">Нажмите, чтобы открыть чат. Напишите слово «ЗАПУСК» – и я пришлю видео в личные сообщения.</p>
     </div>
 
     <hr style="margin:32px 0;">
     <div style="background:#e8f0fe;border-radius:20px;padding:20px;margin-top:20px;">
-        <p style="font-size:14px;">Если у вас возникли вопросы, напишите мне в MAX: <a href="https://max.ru/id781407988795_biz" target="_blank">@veranikamakarevich</a></p>
+        <p style="font-size:14px;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank">открыть чат</a></p>
     </div>
 </div>
 '''
@@ -1446,7 +1447,7 @@ async def generate_premium_report(request: Request, user_id: str = Form(...)):
         conn.close()
         raise HTTPException(status_code=400, detail="Недостаточно данных для генерации")
 
-# === СТРАНИЦА КОНСУЛЬТАЦИИ (только кнопка MAX с прогревающим текстом) ===
+# === СТРАНИЦА КОНСУЛЬТАЦИИ (ссылка на личный чат MAX) ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
@@ -1471,18 +1472,52 @@ async def consultation_page(user_id: str = None):
         </p>
     </div>
     <p style="font-size:15px;color:#1d1d1f;margin-bottom:16px;">
-        Чтобы записаться, просто напишите мне в MAX – я согласую время и проведу разбор.
+        Чтобы записаться, просто напишите мне в личный чат MAX – я согласую время и проведу разбор.
     </p>
     <div style="margin:20px 0;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="width:80%;padding:16px;font-size:18px;" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">
-            💬 Написать в MAX
+        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="width:80%;padding:16px;font-size:18px;" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">
+            💬 Написать в личный чат MAX
         </a>
     </div>
     <p style="font-size:14px;color:#6e6e73;margin-top:10px;">
-        Нажмите на кнопку – откроется мой канал. Напишите «Разбор плана» – и я отвечу в течение часа (в рабочее время).
+        Напишите слово <strong>«Разбор плана»</strong> – я отвечу в течение часа (в рабочее время).
     </p>
     <div style="margin-top:30px;">
         <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
+    </div>
+</div>
+'''
+    return HTMLResponse(content=render_page(content))
+
+# === СТРАНИЦА ВНЕДРЕНИЯ ПОД КЛЮЧ ===
+@app.get("/implementation", response_class=HTMLResponse)
+async def implementation_page(user_id: str = None):
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        save_user(user_id, None, None)
+    content = f'''
+<div class="hero">
+    <h1>Внедрение под ключ – ваш бизнес с системой за 14 дней</h1>
+    <p style="font-size:20px;">Я лично настрою воронку, чат-бота и скрипты. Вы получаете не просто отчёт, а работающий механизм.</p>
+</div>
+<div class="form-card" style="max-width:700px; text-align:left;">
+    <h3>Что входит:</h3>
+    <ul style="list-style:none; padding:0;">
+        <li style="margin:10px 0;">✅ Аудит текущего маркетинга и воронки</li>
+        <li style="margin:10px 0;">✅ Настройка автоворонки в MAX (Telegram, VK, GetCourse)</li>
+        <li style="margin:10px 0;">✅ Готовые скрипты продаж и возражений</li>
+        <li style="margin:10px 0;">✅ 2 недели поддержки в чате</li>
+        <li style="margin:10px 0;">✅ 1 час личной стратегической сессии</li>
+    </ul>
+    <div style="background:#e8f0fe; border-radius:16px; padding:16px; margin:24px 0;">
+        <p style="font-size:18px; font-weight:600; text-align:center;">Цена: от 15 000 ₽</p>
+        <p style="font-size:14px; text-align:center; color:#6e6e73;">Индивидуальный расчёт после созвона</p>
+    </div>
+    <div style="background:#fff3cd; border-radius:16px; padding:16px; margin-bottom:24px;">
+        <p style="font-size:14px; margin:0;">🔒 <strong>Гарантия:</strong> если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
+    </div>
+    <div style="text-align:center;">
+        <a href="/consultation?user_id={user_id}" class="btn-main">📅 Записаться на внедрение</a>
     </div>
 </div>
 '''
@@ -1505,17 +1540,18 @@ async def check_status(user_id: str, report_type: str):
 
 # === СКАЧИВАНИЕ ОТЧЁТА ===
 @app.get("/download/{user_id}/{report_type}")
-async def download_report(user_id: str, report_type: str):
+async def download_report(request: Request, user_id: str, report_type: str):
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute("SELECT file_path, report_text FROM reports WHERE user_id = ? AND report_type = ? ORDER BY id DESC LIMIT 1", (user_id, report_type)).fetchone()
     conn.close()
+    base_url = str(request.base_url).rstrip('/')
+    return_link = f"\n\n---\nВернуться на страницу плана: {base_url}/payment/success?user_id={user_id}"
+    
     if row and row[0] and os.path.exists(row[0]):
         with open(row[0], "r", encoding="utf-8") as f:
             content = f.read()
-        return_link = f"\n\n---\nВернуться на страницу плана: /payment/success?user_id={user_id}"
         return Response(content=content + return_link, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
     if row and row[1]:
-        return_link = f"\n\n---\nВернуться на страницу плана: /payment/success?user_id={user_id}"
         return Response(content=row[1] + return_link, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
     raise HTTPException(status_code=404, detail="Report not found")
 
