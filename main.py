@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с добавлением Яндекс Директ в отчёты)
+# File: main.py — веб-приложение Salesplan (финальная версия с точечными изменениями)
 
 import logging
 import sqlite3
@@ -528,6 +528,19 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
         response = requests.post(url, headers=headers, json=data, timeout=300)
         if response.status_code == 200:
             report_text = response.json()["choices"][0]["message"]["content"]
+            
+            # Добавляем призыв в конец отчёта (ЗАПУСК)
+            launch_text = f"""
+
+
+---
+🚀 В этом плане вы увидели канал в соцсетях. Хотите узнать, как запустить его за 3 дня без бюджета?
+
+Напишите слово «ЗАПУСК» в личный чат MAX – и я пришлю видео.
+Ссылка на чат: https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8
+"""
+            report_text += launch_text
+            
             filename = f"premium_{user_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
             filepath = REPORTS_DIR / filename
             with open(filepath, "w", encoding="utf-8") as f:
@@ -890,7 +903,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА СПАСИБО (апсейл с кейсами и минимальной ссылкой MAX) ===
+# === СТРАНИЦА СПАСИБО (апсейл с кейсами, сравнением и минимальной ссылкой MAX) ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -1045,6 +1058,31 @@ async def thank_you(user_id: str):
         <div class="item">Чек-лист запуска из 50 пунктов</div>
     </div>
 
+    <!-- БЛОК СРАВНЕНИЯ ПЛАНОВ -->
+    <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; margin: 24px 0; text-align: left;">
+        <h4 style="text-align: center; margin-bottom: 16px;">Что вы получите?</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 15px;">
+            <div style="background: #fff; border-radius: 12px; padding: 16px;">
+                <p style="font-weight: 600; color: #6e6e73;">📄 Бесплатный план</p>
+                <ul style="list-style: none; padding: 0; margin: 8px 0;">
+                    <li>✅ Анализ ниши и ЦА</li>
+                    <li>✅ 3 точки роста</li>
+                    <li>✅ Первые 3 шага</li>
+                </ul>
+            </div>
+            <div style="background: #fff; border-radius: 12px; padding: 16px; border: 2px solid #007aff;">
+                <p style="font-weight: 600; color: #007aff;">🚀 Расширенный план</p>
+                <ul style="list-style: none; padding: 0; margin: 8px 0;">
+                    <li>✅ Бюджет на рекламу с расчётами</li>
+                    <li>✅ 5 скриптов продаж</li>
+                    <li>✅ Готовая воронка из 5 этапов</li>
+                    <li>✅ Чек-лист из 50 пунктов</li>
+                    <li>✅ Закрытый канал на 30 дней</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <!-- БЛОК С КЛЮЧЕВОЙ ФРАЗОЙ -->
     <div style="background: #e8f0fe; border-radius: 16px; padding: 16px; margin: 24px 0; font-size: 20px; font-weight: 600; color: #1d1d1f;">
         ✅ Вы получите готовый план действий, который заменит месяц консультаций.
@@ -1096,7 +1134,7 @@ async def thank_you(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ОПЛАТЫ (без кейсов, минимальная ссылка MAX) ===
+# === СТРАНИЦА ОПЛАТЫ (без блока аудита, с отзывом) ===
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
     if amount != 2500:
@@ -1123,9 +1161,12 @@ async def payment_page(user_id: str, amount: int = 2500):
         </ul>
     </div>
 
-    <div style="background:#e8f0fe;border-radius:16px;padding:16px;margin-bottom:20px;text-align:center;">
-        <p style="font-size:14px;margin:0;">Если вы хотите, чтобы я лично проверила план, пришлите мне в чат MAX ссылку на вашу продающую страницу. Я проведу аудит и проверю корректность плана от ИИ.</p>
-        <p style="font-size:12px;color:#6e6e73;margin-top:8px;">Вероника Макаревич | Продюсер экспертов, 50+ запусков</p>
+    <!-- ОТЗЫВ -->
+    <div style="background: #f8f8fa; border-radius: 16px; padding: 16px; margin: 16px 0; text-align: left;">
+        <p style="font-size: 14px; font-style: italic; margin: 0;">
+            «Я получил расширенный план и был приятно удивлён – всё разложено по полочкам, даже бюджет расписан. Запустил рекламу в Яндекс Директ, окупил план за 3 дня. Спасибо!»
+        </p>
+        <p style="font-size: 12px; color: #6e6e73; margin: 4px 0 0; text-align: right;">— Алексей, онлайн-школа английского</p>
     </div>
 
     <hr style="margin: 20px 0;">
@@ -1289,7 +1330,7 @@ async def payment_confirm(request: Request):
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы сгенерировать план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА (с блоком бесплатного разбора и новым призывом) ===
+# === СТРАНИЦА УСПЕХА (с автогенерацией, без блока ЗАПУСК) ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1350,34 +1391,51 @@ async def payment_success(user_id: str, amount: int = 2500):
     else:
         html_content += f'''
         <div style="background:#f5f5f7;border-radius:16px;padding:20px;margin:20px 0;">
-            <p style="font-size:16px;">Нажмите кнопку ниже, чтобы начать генерацию вашего расширенного плана.</p>
-            <form action="/generate-premium-report" method="post" id="generateForm">
-                <input type="hidden" name="user_id" value="{user_id}">
-                <button type="submit" class="btn-main" style="margin-top:10px;" onclick="ym(108348240,'reachGoal','generate_click'); return true;">🚀 Сгенерировать план</button>
-            </form>
+            <p style="font-size:16px;">⏳ Ваш план генерируется... Это займёт 1-2 минуты.</p>
+            <div style="width:30px; height:30px; border:4px solid #e5e5e5; border-top-color:#007aff; border-radius:50%; animation:spin 1s linear infinite; margin: 10px auto;"></div>
+            <p style="font-size:14px; color:#6e6e73;">Страница обновится автоматически, когда план будет готов.</p>
         </div>
+        <style>@keyframes spin {{ to {{ transform: rotate(360deg); }} }}</style>
         <script>
-            document.getElementById('generateForm').addEventListener('submit', function(e) {{
-                e.preventDefault();
-                const btn = this.querySelector('button[type="submit"]');
-                btn.disabled = true;
-                btn.textContent = '⏳ Генерируем...';
-                fetch(this.action, {{ method: 'POST', body: new FormData(this) }})
-                    .then(res => res.json())
-                    .then(data => {{
-                        if (data.status === 'generating') {{
-                            window.location.reload();
-                        }} else if (data.ready) {{
-                            window.location.href = data.url;
-                        }}
-                    }})
-                    .catch(() => {{
-                        btn.disabled = false;
-                        btn.textContent = '🚀 Сгенерировать план';
-                        alert('Ошибка, попробуйте ещё раз.');
-                    }});
+            // Автоматически запускаем генерацию
+            fetch('/generate-premium-report', {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
+                body: 'user_id={user_id}'
+            }})
+            .then(res => res.json())
+            .then(data => {{
+                if (data.status === 'generating') {{
+                    // Начинаем проверку статуса
+                    let checkCount = 0;
+                    function checkStatus() {{
+                        fetch('/check-premium-status?user_id={user_id}')
+                            .then(res => res.json())
+                            .then(data => {{
+                                if (data.ready) {{
+                                    window.location.reload();
+                                }} else {{
+                                    checkCount++;
+                                    if (checkCount < 40) setTimeout(checkStatus, 3000);
+                                }}
+                            }})
+                            .catch(() => setTimeout(checkStatus, 3000));
+                    }}
+                    setTimeout(checkStatus, 3000);
+                }}
+            }})
+            .catch(() => {{
+                // Если ошибка, показать кнопку для ручного запуска
+                document.getElementById('manual-generate').style.display = 'block';
             }});
         </script>
+        <div id="manual-generate" style="display: none; margin-top: 20px;">
+            <p style="font-size:14px; color:#ff3b30;">Что-то пошло не так. Нажмите кнопку, чтобы запустить генерацию вручную.</p>
+            <form action="/generate-premium-report" method="post" style="display: inline;">
+                <input type="hidden" name="user_id" value="{user_id}">
+                <button type="submit" class="btn-main" style="margin-top:10px;">🚀 Сгенерировать план</button>
+            </form>
+        </div>
         '''
     html_content += '''
     </div>
@@ -1393,17 +1451,6 @@ async def payment_success(user_id: str, amount: int = 2500):
         <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; display:inline-block;" onclick="ym(108348240,'reachGoal','free_review_click'); return true;">
             📅 Записаться на бесплатный разбор
         </a>
-    </div>
-
-    <!-- НОВЫЙ БЛОК с призывом написать в MAX -->
-    <hr style="margin:32px 0;">
-    <div style="background: #e8f0fe; border-radius:20px; padding:20px; text-align:center;">
-        <p style="font-size:16px; font-weight:500; margin-bottom:8px;">🚀 В плане вы увидели канал в соцсетях. Хотите узнать, как запустить его за 3 дня без бюджета?</p>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px;">Напишите мне слово <strong>ЗАПУСК</strong> в личный чат MAX — я пришлю видео.</p>
-        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="background:#007aff; display:inline-block; font-size:18px; padding:14px 40px;" onclick="ym(108348240,'reachGoal','launch_word_click'); return true;">
-            💬 Написать в личный чат MAX
-        </a>
-        <p style="font-size:12px; color:#6e6e73; margin-top:10px;">Нажмите, чтобы открыть чат. Напишите слово «ЗАПУСК» – и я пришлю видео в личные сообщения.</p>
     </div>
 
     <hr style="margin:32px 0;">
@@ -1447,7 +1494,7 @@ async def generate_premium_report(request: Request, user_id: str = Form(...)):
         conn.close()
         raise HTTPException(status_code=400, detail="Недостаточно данных для генерации")
 
-# === СТРАНИЦА КОНСУЛЬТАЦИИ (ссылка на личный чат MAX) ===
+# === СТРАНИЦА КОНСУЛЬТАЦИИ (ссылка на личный чат MAX, с текстом "цифру 1") ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
@@ -1480,7 +1527,7 @@ async def consultation_page(user_id: str = None):
         </a>
     </div>
     <p style="font-size:14px;color:#6e6e73;margin-top:10px;">
-        Напишите слово <strong>«Разбор плана»</strong> – я отвечу в течение часа (в рабочее время).
+        Напишите цифру <strong>1</strong> в чат – и я вышлю вам разбор.
     </p>
     <div style="margin-top:30px;">
         <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
