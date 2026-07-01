@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия со всеми исправлениями)
+# File: main.py — веб-приложение Salesplan (финальная версия, исправлена ошибка в payment_confirm)
 
 import logging
 import sqlite3
@@ -523,7 +523,7 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
 В конце – краткое резюме: какие 3 ошибки вы совершаете сейчас и как их исправить."""
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты — профессиональный бизнес-консультант в мудром, прямом стиле. Без воды."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 8000}  # увеличен лимит
+    data = {"model": "deepseek-chat", "messages": [{"role": "system", "content": "Ты — профессиональный бизнес-консультант в мудром, прямом стиле. Без воды."}, {"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 8000}
     try:
         response = requests.post(url, headers=headers, json=data, timeout=300)
         if response.status_code == 200:
@@ -666,7 +666,7 @@ setTimeout(checkStatus,1000);
 <body><div class="spinner"></div><h1>⏳ Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
 </html>"""
 
-# === ГЛАВНАЯ СТРАНИЦА (с кнопкой "Получить план") ===
+# === ГЛАВНАЯ СТРАНИЦА ===
 @app.get("/")
 async def index():
     content = '''
@@ -791,7 +791,7 @@ async def index():
 async def lead_magnet():
     return RedirectResponse(url="/", status_code=301)
 
-# === СТРАНИЦА АНКЕТЫ (новый заголовок) ===
+# === СТРАНИЦА АНКЕТЫ ===
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
@@ -886,7 +886,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА СПАСИБО (прогрев, без кнопки скачивания) ===
+# === СТРАНИЦА СПАСИБО ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -982,13 +982,11 @@ async def payment_page(user_id: str, amount: int = 2500):
         </ul>
     </div>
     
-    <!-- Новый блок гарантии -->
     <div style="background:#e8f0fe;border-radius:16px;padding:16px;margin-bottom:20px;text-align:center;">
         <p style="font-size:14px;margin:0;">Если вы хотите, чтобы я лично проверила план, пришлите мне в чат MAX ссылку на вашу продающую страницу. Я проведу аудит и проверю корректность плана от ИИ.</p>
         <p style="font-size:12px;color:#6e6e73;margin-top:8px;">Вероника Макаревич | Продюсер экспертов, 50+ запусков</p>
     </div>
 
-    <!-- Кейсы -->
     <hr style="margin: 30px 0;">
     <h3 style="text-align:center; margin-bottom:20px; font-size:20px;">🔥 Реальные результаты моих клиентов</h3>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:30px;">
@@ -1145,6 +1143,7 @@ async def payment_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
         return JSONResponse(content={"status": "error"}, status_code=500)
 
+# === ПОДТВЕРЖДЕНИЕ ОПЛАТЫ (ИСПРАВЛЕНА ОШИБКА) ===
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
     params = dict(request.query_params)
@@ -1165,14 +1164,15 @@ async def payment_confirm(request: Request):
         if row:
             amount = row[0] if row[0] is not None else 2500
             logger.info(f"Payment confirm: redirecting to success for user {user_id} with amount {amount}")
-            return RedirectResponse(url=f="/payment/success?user_id={user_id}&amount={amount}", status_code=303)
+            # ИСПРАВЛЕНО: убран лишний знак '=' после f
+            return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
         else:
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы сгенерировать план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА (с анимацией и автоматическим обновлением) ===
+# === СТРАНИЦА УСПЕХА ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1271,7 +1271,6 @@ async def payment_success(user_id: str, amount: int = 2500):
         <p style="font-size:14px;">Если вы хотите, чтобы я лично проверила корректность плана, напишите мне в MAX.</p>
         <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="display:inline-block; margin-top:10px;">💬 Написать в MAX</a>
     </div>
-    <!-- Бонус: консультация и подписка -->
     <hr style="margin:20px 0;">
     <div style="background:#f8f8fa; border-radius:20px; padding:20px; margin-top:20px;">
         <h3 style="font-size:18px;">🎁 Бонус для первых покупателей</h3>
@@ -1367,7 +1366,6 @@ async def download_report(user_id: str, report_type: str):
     if row and row[0] and os.path.exists(row[0]):
         with open(row[0], "r", encoding="utf-8") as f:
             content = f.read()
-        # В тексте отчёта добавим ссылку для возврата
         return_link = f"\n\n---\nВернуться на страницу плана: /payment/success?user_id={user_id}"
         return Response(content=content + return_link, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
     if row and row[1]:
@@ -1496,7 +1494,7 @@ async def launch_online_school_redirect():
 async def funnel_7_days_redirect():
     return RedirectResponse(url="/", status_code=301)
 
-# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (полные, без упоминания самозанятого) ===
+# === СТРАНИЦЫ ОФЕРТЫ И ПОЛИТИКИ (полные) ===
 @app.get("/oferta", response_class=HTMLResponse)
 async def oferta_page():
     content = """
