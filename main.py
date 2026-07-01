@@ -826,7 +826,11 @@ async def survey():
                 <span>Я принимаю условия публичной оферты и даю согласие на обработку персональных данных</span>
             </label>
         </div>
-        <div style="text-align:center;margin-top:20px;"><button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">Отправить и получить разбор</button></div>
+        <div style="text-align:center;margin-top:20px;">
+            <button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">
+                Отправить и получить план
+            </button>
+        </div>
     </form>
 </div>
 <script>
@@ -1018,9 +1022,20 @@ async def thank_you(user_id: str):
     }}
 </style>
 
+<!-- СНАЧАЛА БЕСПЛАТНЫЙ ПЛАН -->
+<div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
+    <p style="font-size:14px; color:#6e6e73;">Ваш бесплатный план уже готов. Прокрутите, чтобы увидеть его.</p>
+    <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
+        <div style="white-space:pre-wrap;">{report_text_html}</div>
+    </div>
+</div>
+
+<hr style="margin: 40px 0;">
+
+<!-- ПОТОМ АПСЕЙЛ -->
 <div class="apple-upsale">
     <h1>Ваш план готов. Хотите превратить его в готовую стратегию?</h1>
-    <p class="sub">Расширенная версия: бюджеты, скрипты, воронка и чек-лист – то, что экономит вам 20 часов работы.</p>
+    <p class="sub">Расширенная версия: бюджеты, скрипты, воронка и чек-лист – то, что экономит вам <strong>20 дней</strong> работы.</p>
 
     <div class="benefits-grid">
         <div class="item">Бюджет на рекламу с расчётами под вашу нишу</div>
@@ -1029,7 +1044,12 @@ async def thank_you(user_id: str):
         <div class="item">Чек-лист запуска из 50 пунктов</div>
     </div>
 
-    <!-- Кейсы (перенесены со страницы оплаты) -->
+    <!-- БЛОК С КЛЮЧЕВОЙ ФРАЗОЙ -->
+    <div style="background: #e8f0fe; border-radius: 16px; padding: 16px; margin: 24px 0; font-size: 20px; font-weight: 600; color: #1d1d1f;">
+        ✅ Вы получите готовый план действий, который заменит месяц консультаций.
+    </div>
+
+    <!-- Кейсы -->
     <h3 style="font-size:20px; margin: 32px 0 16px;">🔥 Реальные результаты моих клиентов</h3>
     <div class="cases-grid">
         <div class="case-card">
@@ -1064,22 +1084,12 @@ async def thank_you(user_id: str):
         <span class="discount">−50%</span>
     </div>
 
-    <a href="/payment?user_id={user_id}&amount=2500" class="btn-primary" onclick="ym(108348240,'reachGoal','upgrade_click'); return true;">🔥 Получить расширенный план</a>
+    <a href="/payment?user_id={user_id}&amount=2500" class="btn-primary" onclick="ym(108348240,'reachGoal','upgrade_click'); return true;">🔥 Получить стратегию</a>
     <div class="guarantee">✅ Вернём деньги, если план не принесёт пользы в течение 3 дней</div>
 
     <!-- Минимальная ссылка на MAX -->
     <div class="max-link">
         💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
-    </div>
-</div>
-
-<hr style="margin: 40px 0;">
-
-<!-- Блок с бесплатным планом (показываем ниже, чтобы не отвлекать) -->
-<div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
-    <p style="font-size:14px; color:#6e6e73;">Ваш бесплатный план уже готов. Прокрутите, чтобы увидеть его.</p>
-    <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
-        <div style="white-space:pre-wrap;">{report_text_html}</div>
     </div>
 </div>
 '''
@@ -1278,7 +1288,7 @@ async def payment_confirm(request: Request):
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы сгенерировать план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА (с блоком бесплатного разбора) ===
+# === СТРАНИЦА УСПЕХА (с блоком бесплатного разбора и новым призывом) ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1371,7 +1381,7 @@ async def payment_success(user_id: str, amount: int = 2500):
     html_content += '''
     </div>
 
-    <!-- Блок бесплатного разбора (добавлен) -->
+    <!-- Блок бесплатного разбора -->
     <hr style="margin:32px 0;">
     <div style="background:#f8f8fa; border-radius:24px; padding:24px; text-align:center;">
         <h3 style="font-size:22px; margin-bottom:12px;">🎁 Бесплатный разбор плана от продюсера</h3>
@@ -1382,6 +1392,17 @@ async def payment_success(user_id: str, amount: int = 2500):
         <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; display:inline-block;" onclick="ym(108348240,'reachGoal','free_review_click'); return true;">
             📅 Записаться на бесплатный разбор
         </a>
+    </div>
+
+    <!-- НОВЫЙ БЛОК с призывом написать в MAX -->
+    <hr style="margin:32px 0;">
+    <div style="background: #e8f0fe; border-radius:20px; padding:20px; text-align:center;">
+        <p style="font-size:16px; font-weight:500; margin-bottom:8px;">🚀 В плане вы увидели канал в соцсетях. Хотите узнать, как запустить его за 3 дня без бюджета?</p>
+        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px;">Напишите мне слово <strong>ЗАПУСК</strong> в чат MAX — я пришлю видео.</p>
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="background:#007aff; display:inline-block; font-size:18px; padding:14px 40px;" onclick="ym(108348240,'reachGoal','launch_word_click'); return true;">
+            💬 Написать в MAX
+        </a>
+        <p style="font-size:12px; color:#6e6e73; margin-top:10px;">Нажмите, чтобы открыть канал в MAX. Напишите слово «ЗАПУСК» – и я пришлю видео в личные сообщения.</p>
     </div>
 
     <hr style="margin:32px 0;">
