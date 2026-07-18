@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с точечными изменениями)
+# File: main.py — веб-приложение Salesplan (финальная версия с обновлёнными целями)
 
 import logging
 import sqlite3
@@ -574,8 +574,8 @@ HTML_HEAD = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Бесплатный ИИ-план для вашего бизнеса | Продюсер экспертов</title>
-    <meta name="description" content="Получите маркетинговый план под вашу нишу от ИИ за 2 минуты. Бесплатно. Без спама.">
+    <title>Бесплатный аудит для экспертов | Продюсер экспертов</title>
+    <meta name="description" content="Бесплатный аудит бизнеса от ИИ. Узнайте за 2 минуты, почему ваш бизнес теряет 70% клиентов.">
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -766,31 +766,23 @@ async def index():
 </style>
 
 <div class="apple-hero">
-    <h1>Хватит гадать. Получите маркетинговый план под вашу нишу – бесплатно.</h1>
-    <p class="subtitle">ИИ проанализирует вашу нишу, конкурентов и аудиторию. За 2 минуты вы узнаете, где теряете деньги и с чего начать.</p>
+    <h1>Ты теряешь 70% клиентов. И не знаешь где. Бесплатный аудит за 2 минуты покажет точки утечки.</h1>
+    <p class="subtitle">AI прощупает твою нишу, конкурентов и аудиторию. Ты получишь рентген-снимок бизнеса: где утекают деньги и как это заткнуть.</p>
 
     <div class="apple-text-block">
-        <p><strong>Вы – эксперт.</strong> Но маркетинг съедает бюджет, а клиенты уходят к конкурентам.<br>
-        Я не верю в волшебные кнопки. Я верю в систему.</p>
-        <p>Мы обучили нейросеть на реальных кейсах – она видит вашу нишу изнутри и выдаёт готовый план: каналы, оффер, бюджет, первые шаги.<br>
-        Без воды, без общих фраз – только конкретика под ваш бизнес.</p>
-        <p><strong>Почему это работает?</strong><br>
-        Потому что план строится не на догадках, а на данных – по вашей нише, вашей аудитории, вашим целям.<br>
-        Вы получаете не «советы», а дорожную карту, которую можно внедрять уже завтра.</p>
-        <p><strong>Что вы узнаете:</strong></p>
+        <p><strong>Ты вкладываешь в рекламу. Клиенты уходят. Потому что нет системы.</strong><br>
+        Мы обучили нейросеть на 50+ нишах. Она видит твои слабые места за 2 минуты.</p>
         <ul class="apple-list">
-            <li>какие 3 канала принесут вам клиентов уже в первую неделю</li>
+            <li>какие 3 канала принесут клиентов уже на этой неделе</li>
             <li>какой оффер заставит сказать «да» даже скептиков</li>
-            <li>сколько денег реально нужно на старте и где их взять</li>
-            <li>какую ошибку вы совершаете каждый день, теряя прибыль</li>
+            <li>сколько денег ты сливаешь каждый день из-за ошибок в воронке</li>
         </ul>
         <hr class="apple-divider">
-        <p style="font-size: 19px; font-weight: 500;">Я не обещаю чудес. Я даю инструмент.<br>
-        Дальше – ваш выбор: использовать его или оставить пылиться.</p>
+        <p style="font-size: 19px; font-weight: 500;">Это не гадание. Это диагноз. Без воды, без «всё хорошо». Только факты и путь.</p>
     </div>
 
     <div class="apple-cta">
-        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">🔍 Получить план</a>
+        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">🔍 Пройти бесплатный аудит</a>
     </div>
 
     <div class="apple-footer-link">
@@ -821,8 +813,8 @@ async def survey():
     .btn-main:hover{background:#005fc5;transform:scale(1.02);box-shadow:0 4px 12px rgba(0,122,255,0.4)}
 </style>
 <div class="hero">
-    <h1>Вы уже готовы узнать свой план?</h1>
-    <p style="font-size:18px;">Отвечайте на 7 вопросов – и я дам вам персонализированную дорожную карту.<br>Это займёт 2 минуты.</p>
+    <h1>Отвечай честно. Я найду, где ты теряешь деньги.</h1>
+    <p style="font-size:18px;">7 вопросов. 2 минуты. Ты получишь персональный отчёт с 3 точками роста.</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -841,7 +833,7 @@ async def survey():
         </div>
         <div style="text-align:center;margin-top:20px;">
             <button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">
-                Отправить и получить план
+                Отправить и получить аудит
             </button>
         </div>
     </form>
@@ -903,7 +895,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА СПАСИБО (апсейл с кейсами, сравнением и минимальной ссылкой MAX) ===
+# === СТРАНИЦА СПАСИБО ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -913,6 +905,10 @@ async def thank_you(user_id: str):
         return HTMLResponse(content=render_waiting_page(user_id, "free", f"/thank-you?user_id={user_id}"))
 
     report_text_html = row[1].replace("\n", "<br>") if row[1] else ""
+
+    # Генерация ссылки для бота (диплинк)
+    bot_name = os.getenv("MAX_BOT_NAME", "MySalesBot")
+    bot_link = f"https://max.ru/{bot_name}?start=get_free_premium_{user_id}"
 
     content = f'''
 <style>
@@ -1035,9 +1031,9 @@ async def thank_you(user_id: str):
     }}
 </style>
 
-<!-- СНАЧАЛА БЕСПЛАТНЫЙ ПЛАН -->
+<!-- БЕСПЛАТНЫЙ ПЛАН -->
 <div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
-    <h1 style="font-size:32px; margin-bottom:8px;">Ваш план готов!</h1>
+    <h1 style="font-size:32px; margin-bottom:8px;">Твой аудит готов!</h1>
     <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">Прокрутите, чтобы увидеть полный разбор.</p>
     <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
@@ -1046,7 +1042,29 @@ async def thank_you(user_id: str):
 
 <hr style="margin: 40px 0;">
 
-<!-- ПОТОМ АПСЕЙЛ -->
+<!-- БОНУС ЗА ПОДПИСКУ: расширенный план бесплатно -->
+<div style="background: #fff3cd; border-radius: 16px; padding: 20px; margin: 24px 0; border: 2px solid #ff9f0a; text-align: center;">
+    <h3 style="font-size: 20px; margin-bottom: 8px;">🎁 Бонус для первых подписчиков</h3>
+    <p style="font-size: 16px; margin-bottom: 12px;">
+        Ты получил только вершину айсберга.<br>
+        <strong>Подпишись на мой канал в MAX</strong> и я проверю твой план – адаптирую под твой бизнес с учётом анализа продающих аккаунтов.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="background: #ff9f0a; box-shadow: 0 2px 8px rgba(255,159,10,0.3);">
+            🔔 Подписаться на канал
+        </a>
+        <a href="{bot_link}" target="_blank" class="btn-main" style="background: #007aff; box-shadow: 0 2px 8px rgba(0,122,255,0.3);">
+            📥 Получить расширенный план
+        </a>
+    </div>
+    <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">
+        После подписки перейдите по ссылке на бота из описания канала — бот проверит подписку и отправит расширенный план.
+    </p>
+</div>
+
+<hr style="margin: 40px 0;">
+
+<!-- АПСЕЙЛ: покупка расширенного плана -->
 <div class="apple-upsale">
     <h1>Ваш план готов. Хотите превратить его в готовую стратегию?</h1>
     <p class="sub">Расширенная версия: бюджеты, скрипты, воронка и чек-лист – то, что экономит вам <strong>20 дней</strong> работы.</p>
@@ -1134,7 +1152,7 @@ async def thank_you(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ОПЛАТЫ (без блока аудита, с отзывом) ===
+# === СТРАНИЦА ОПЛАТЫ ===
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
     if amount != 2500:
@@ -1143,6 +1161,7 @@ async def payment_page(user_id: str, amount: int = 2500):
     row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
     conn.close()
     phone_value = row[0] if row and row[0] else ""
+    
     content = f'''
 <div class="hero">
     <h1>Расширенный маркетинговый план – 2 500 ₽</h1>
@@ -1330,7 +1349,7 @@ async def payment_confirm(request: Request):
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы сгенерировать план</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА (с автогенерацией, без блока ЗАПУСК) ===
+# === СТРАНИЦА УСПЕХА ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
