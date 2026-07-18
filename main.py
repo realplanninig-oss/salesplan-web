@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с новыми страницами)
+# File: main.py — веб-приложение Salesplan (финальная версия с исправленной страницей выбора)
 
 import logging
 import sqlite3
@@ -930,52 +930,58 @@ async def thank_you(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ ===
+# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ (исправлена, с ссылкой на канал) ===
 @app.get("/choose-plan", response_class=HTMLResponse)
 async def choose_plan(user_id: str):
-    bot_name = os.getenv("MAX_BOT_NAME", "MySalesBot")
-    bot_link = f"https://max.ru/{bot_name}?start=get_free_premium_{user_id}"
+    channel_link = "https://max.ru/id781407988795_biz"
     payment_link = f"/payment?user_id={user_id}&amount=2500"
 
     content = f'''
-<div style="max-width:700px; margin:0 auto; text-align:center; padding:20px 0;">
-    <h1 style="font-size:36px; font-weight:700;">Выберите свой путь к стратегии</h1>
-    <p style="font-size:18px; color:#6e6e73; margin:16px 0 32px;">
+<div style="max-width:600px; margin:0 auto; padding:20px 16px;">
+    <h1 style="font-size:28px; font-weight:700; text-align:center; margin-bottom:8px;">Выберите свой путь к стратегии</h1>
+    <p style="font-size:16px; color:#6e6e73; text-align:center; margin-bottom:32px;">
         Вы уже получили аудит. Теперь решите, как получить расширенный план.
     </p>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:24px 0;">
-        <!-- Вариант 1: Бесплатно -->
-        <div style="background:#f5f5f7; border-radius:24px; padding:24px; border: 2px solid #e5e5ea;">
-            <h2 style="font-size:22px; margin-bottom:8px;">🎁 Бесплатно</h2>
-            <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-                Подпишитесь на мой канал в MAX и я лично проверю ваш план – адаптирую под ваш бизнес с учётом анализа продающих аккаунтов.
-            </p>
-            <p style="font-size:13px; color:#6e6e73; margin-bottom:20px;">
-                <strong>Что получите:</strong> разбор от продюсера, коррекция оффера, рекомендации по каналам.
-            </p>
-            <a href="{bot_link}" target="_blank" class="btn-main" style="background:#ff9f0a; box-shadow: 0 2px 8px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
-                🔔 Подписаться и получить
-            </a>
+    <!-- Вариант 1: Бесплатно -->
+    <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #e5e5ea; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <span style="font-size:28px;">🎁</span>
+            <h2 style="font-size:22px; font-weight:600; margin:0;">Бесплатно</h2>
         </div>
-
-        <!-- Вариант 2: Купить -->
-        <div style="background:#f5f5f7; border-radius:24px; padding:24px; border: 2px solid #007aff;">
-            <h2 style="font-size:22px; margin-bottom:8px;">💰 Купить план</h2>
-            <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-                Получите полную стратегию: бюджеты, скрипты, воронку, чек-лист и закрытый канал. Готово к внедрению через 20 дней.
-            </p>
-            <p style="font-size:13px; color:#6e6e73; margin-bottom:20px;">
-                <strong>Цена:</strong> 2 500 ₽ <s style="color:#8e8e93;">5 000 ₽</s> (скидка 50%)
-            </p>
-            <a href="{payment_link}" class="btn-main" style="background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3);" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
-                💳 Купить за 2 500 ₽
-            </a>
-        </div>
+        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
+            Подпишитесь на мой канал в MAX и я лично проверю ваш план – адаптирую под ваш бизнес с учётом анализа продающих аккаунтов.
+        </p>
+        <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
+            <strong>Что получите:</strong> разбор от продюсера, коррекция оффера, рекомендации по каналам.
+        </p>
+        <a href="{channel_link}" target="_blank" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
+            🔔 Подписаться и получить
+        </a>
+        <p style="font-size:13px; color:#6e6e73; text-align:center; margin-top:12px;">
+            После подписки напишите мне в личные сообщения «Разбор плана»
+        </p>
     </div>
 
-    <p style="font-size:14px; color:#6e6e73; margin-top:24px;">
-        💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
+    <!-- Вариант 2: Купить -->
+    <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #007aff; box-shadow:0 2px 8px rgba(0,122,255,0.08);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <span style="font-size:28px;">💰</span>
+            <h2 style="font-size:22px; font-weight:600; margin:0;">Купить план</h2>
+        </div>
+        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
+            Получите полную стратегию: бюджеты, скрипты, воронку, чек-лист и закрытый канал. Готово к внедрению через 20 дней.
+        </p>
+        <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
+            <strong>Цена:</strong> 2 500 ₽ <s style="color:#8e8e93;">5 000 ₽</s> (скидка 50%)
+        </p>
+        <a href="{payment_link}" class="btn-main" style="display:block; text-align:center; background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
+            💳 Купить за 2 500 ₽
+        </a>
+    </div>
+
+    <p style="font-size:14px; color:#6e6e73; text-align:center; margin-top:24px;">
+        💬 Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
     </p>
 </div>
 '''
