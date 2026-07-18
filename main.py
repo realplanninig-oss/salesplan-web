@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с обновлёнными целями)
+# File: main.py — веб-приложение Salesplan (финальная версия с новыми страницами)
 
 import logging
 import sqlite3
@@ -130,7 +130,7 @@ async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
-    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/lead-magnet", "/consultation", "/generate-premium-report", "/implementation"]:
+    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/choose-plan", "/lead-magnet", "/consultation", "/generate-premium-report", "/implementation"]:
         track_visit(ip=client_ip, user_agent=user_agent)
     if path == "/favicon.ico":
         return await call_next(request)
@@ -895,7 +895,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА СПАСИБО ===
+# === СТРАНИЦА СПАСИБО (только аудит + кнопка перехода) ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -906,132 +906,7 @@ async def thank_you(user_id: str):
 
     report_text_html = row[1].replace("\n", "<br>") if row[1] else ""
 
-    # Генерация ссылки для бота (диплинк)
-    bot_name = os.getenv("MAX_BOT_NAME", "MySalesBot")
-    bot_link = f"https://max.ru/{bot_name}?start=get_free_premium_{user_id}"
-
     content = f'''
-<style>
-    .apple-upsale {{
-        max-width: 820px;
-        margin: 0 auto;
-        padding: 20px 0;
-        text-align: center;
-    }}
-    .apple-upsale h1 {{
-        font-size: 38px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        margin-bottom: 8px;
-        color: #1d1d1f;
-    }}
-    .apple-upsale .sub {{
-        font-size: 20px;
-        color: #6e6e73;
-        margin-bottom: 32px;
-    }}
-    .benefits-grid {{
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        text-align: left;
-        margin: 24px 0;
-        background: #f9f9fb;
-        border-radius: 24px;
-        padding: 24px;
-    }}
-    .benefits-grid .item {{
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 16px;
-        line-height: 1.3;
-    }}
-    .benefits-grid .item::before {{
-        content: "✅";
-        font-size: 20px;
-        flex-shrink: 0;
-    }}
-    .cases-grid {{
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin: 32px 0;
-    }}
-    .case-card {{
-        background: #f5f5f7;
-        border-radius: 20px;
-        padding: 16px;
-        text-align: center;
-    }}
-    .case-card .icon {{ font-size: 32px; margin-bottom: 6px; }}
-    .case-card .title {{ font-weight: 600; font-size: 14px; }}
-    .case-card .result {{ font-size: 20px; font-weight: 700; color: #34c759; }}
-    .case-card .desc {{ font-size: 12px; color: #6e6e73; }}
-    .price-block {{
-        display: flex;
-        justify-content: center;
-        align-items: baseline;
-        gap: 16px;
-        margin: 24px 0;
-    }}
-    .price-block .new {{ font-size: 42px; font-weight: 700; color: #1d1d1f; }}
-    .price-block .old {{ font-size: 22px; color: #8e8e93; text-decoration: line-through; }}
-    .price-block .discount {{
-        background: #ff9f0a;
-        padding: 4px 14px;
-        border-radius: 20px;
-        color: #fff;
-        font-weight: 600;
-        font-size: 16px;
-    }}
-    .btn-primary {{
-        background: #007aff;
-        color: #fff;
-        border: none;
-        padding: 16px 48px;
-        font-size: 22px;
-        font-weight: 600;
-        border-radius: 48px;
-        cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 2px 12px rgba(0,122,255,0.3);
-        width: 100%;
-        max-width: 360px;
-        display: inline-block;
-        text-decoration: none;
-    }}
-    .btn-primary:hover {{
-        background: #005fc5;
-        transform: scale(1.02);
-        box-shadow: 0 4px 16px rgba(0,122,255,0.4);
-    }}
-    .guarantee {{
-        font-size: 14px;
-        color: #6e6e73;
-        margin-top: 16px;
-    }}
-    .max-link {{
-        margin-top: 40px;
-        font-size: 15px;
-        color: #8e8e93;
-    }}
-    .max-link a {{
-        color: #007aff;
-        text-decoration: none;
-    }}
-    .max-link a:hover {{
-        text-decoration: underline;
-    }}
-    @media (max-width: 700px) {{
-        .cases-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        .benefits-grid {{ grid-template-columns: 1fr; }}
-        .price-block .new {{ font-size: 32px; }}
-        .btn-primary {{ font-size: 18px; padding: 14px 24px; }}
-    }}
-</style>
-
-<!-- БЕСПЛАТНЫЙ ПЛАН -->
 <div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
     <h1 style="font-size:32px; margin-bottom:8px;">Твой аудит готов!</h1>
     <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">Прокрутите, чтобы увидеть полный разбор.</p>
@@ -1042,112 +917,66 @@ async def thank_you(user_id: str):
 
 <hr style="margin: 40px 0;">
 
-<!-- БОНУС ЗА ПОДПИСКУ: расширенный план бесплатно -->
-<div style="background: #fff3cd; border-radius: 16px; padding: 20px; margin: 24px 0; border: 2px solid #ff9f0a; text-align: center;">
-    <h3 style="font-size: 20px; margin-bottom: 8px;">🎁 Бонус для первых подписчиков</h3>
-    <p style="font-size: 16px; margin-bottom: 12px;">
-        Ты получил только вершину айсберга.<br>
-        <strong>Подпишись на мой канал в MAX</strong> и я проверю твой план – адаптирую под твой бизнес с учётом анализа продающих аккаунтов.
+<!-- Единый призыв к действию -->
+<div style="text-align:center; max-width:600px; margin:0 auto;">
+    <p style="font-size:20px; font-weight:600;">Хотите получить полную стратегию?</p>
+    <p style="font-size:16px; color:#6e6e73; margin:12px 0 24px;">
+        Выберите свой вариант – бесплатный (с проверкой от продюсера) или платный (полный отчёт с бюджетами и скриптами).
     </p>
-    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-        <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" style="background: #ff9f0a; box-shadow: 0 2px 8px rgba(255,159,10,0.3);">
-            🔔 Подписаться на канал
-        </a>
-        <a href="{bot_link}" target="_blank" class="btn-main" style="background: #007aff; box-shadow: 0 2px 8px rgba(0,122,255,0.3);">
-            📥 Получить расширенный план
-        </a>
-    </div>
-    <p style="font-size: 12px; color: #6e6e73; margin-top: 12px;">
-        После подписки перейдите по ссылке на бота из описания канала — бот проверит подписку и отправит расширенный план.
-    </p>
+    <a href="/choose-plan?user_id={user_id}" class="btn-main" onclick="ym(108348240,'reachGoal','to_choose_plan'); return true;">
+        🔍 Перейти к выбору стратегии
+    </a>
 </div>
+'''
+    return HTMLResponse(content=render_page(content))
 
-<hr style="margin: 40px 0;">
+# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ ===
+@app.get("/choose-plan", response_class=HTMLResponse)
+async def choose_plan(user_id: str):
+    bot_name = os.getenv("MAX_BOT_NAME", "MySalesBot")
+    bot_link = f"https://max.ru/{bot_name}?start=get_free_premium_{user_id}"
+    payment_link = f"/payment?user_id={user_id}&amount=2500"
 
-<!-- АПСЕЙЛ: покупка расширенного плана -->
-<div class="apple-upsale">
-    <h1>Ваш план готов. Хотите превратить его в готовую стратегию?</h1>
-    <p class="sub">Расширенная версия: бюджеты, скрипты, воронка и чек-лист – то, что экономит вам <strong>20 дней</strong> работы.</p>
+    content = f'''
+<div style="max-width:700px; margin:0 auto; text-align:center; padding:20px 0;">
+    <h1 style="font-size:36px; font-weight:700;">Выберите свой путь к стратегии</h1>
+    <p style="font-size:18px; color:#6e6e73; margin:16px 0 32px;">
+        Вы уже получили аудит. Теперь решите, как получить расширенный план.
+    </p>
 
-    <div class="benefits-grid">
-        <div class="item">Бюджет на рекламу с расчётами под вашу нишу</div>
-        <div class="item">5 готовых скриптов продаж</div>
-        <div class="item">Готовая воронка из 5 этапов</div>
-        <div class="item">Чек-лист запуска из 50 пунктов</div>
-    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:24px 0;">
+        <!-- Вариант 1: Бесплатно -->
+        <div style="background:#f5f5f7; border-radius:24px; padding:24px; border: 2px solid #e5e5ea;">
+            <h2 style="font-size:22px; margin-bottom:8px;">🎁 Бесплатно</h2>
+            <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
+                Подпишитесь на мой канал в MAX и я лично проверю ваш план – адаптирую под ваш бизнес с учётом анализа продающих аккаунтов.
+            </p>
+            <p style="font-size:13px; color:#6e6e73; margin-bottom:20px;">
+                <strong>Что получите:</strong> разбор от продюсера, коррекция оффера, рекомендации по каналам.
+            </p>
+            <a href="{bot_link}" target="_blank" class="btn-main" style="background:#ff9f0a; box-shadow: 0 2px 8px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
+                🔔 Подписаться и получить
+            </a>
+        </div>
 
-    <!-- БЛОК СРАВНЕНИЯ ПЛАНОВ -->
-    <div style="background: #f5f5f7; border-radius: 16px; padding: 20px; margin: 24px 0; text-align: left;">
-        <h4 style="text-align: center; margin-bottom: 16px;">Что вы получите?</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 15px;">
-            <div style="background: #fff; border-radius: 12px; padding: 16px;">
-                <p style="font-weight: 600; color: #6e6e73;">📄 Бесплатный план</p>
-                <ul style="list-style: none; padding: 0; margin: 8px 0;">
-                    <li>✅ Анализ ниши и ЦА</li>
-                    <li>✅ 3 точки роста</li>
-                    <li>✅ Первые 3 шага</li>
-                </ul>
-            </div>
-            <div style="background: #fff; border-radius: 12px; padding: 16px; border: 2px solid #007aff;">
-                <p style="font-weight: 600; color: #007aff;">🚀 Расширенный план</p>
-                <ul style="list-style: none; padding: 0; margin: 8px 0;">
-                    <li>✅ Бюджет на рекламу с расчётами</li>
-                    <li>✅ 5 скриптов продаж</li>
-                    <li>✅ Готовая воронка из 5 этапов</li>
-                    <li>✅ Чек-лист из 50 пунктов</li>
-                    <li>✅ Закрытый канал на 30 дней</li>
-                </ul>
-            </div>
+        <!-- Вариант 2: Купить -->
+        <div style="background:#f5f5f7; border-radius:24px; padding:24px; border: 2px solid #007aff;">
+            <h2 style="font-size:22px; margin-bottom:8px;">💰 Купить план</h2>
+            <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
+                Получите полную стратегию: бюджеты, скрипты, воронку, чек-лист и закрытый канал. Готово к внедрению через 20 дней.
+            </p>
+            <p style="font-size:13px; color:#6e6e73; margin-bottom:20px;">
+                <strong>Цена:</strong> 2 500 ₽ <s style="color:#8e8e93;">5 000 ₽</s> (скидка 50%)
+            </p>
+            <a href="{payment_link}" class="btn-main" style="background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3);" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
+                💳 Купить за 2 500 ₽
+            </a>
         </div>
     </div>
 
-    <!-- БЛОК С КЛЮЧЕВОЙ ФРАЗОЙ -->
-    <div style="background: #e8f0fe; border-radius: 16px; padding: 16px; margin: 24px 0; font-size: 20px; font-weight: 600; color: #1d1d1f;">
-        ✅ Вы получите готовый план действий, который заменит месяц консультаций.
-    </div>
-
-    <!-- Кейсы -->
-    <h3 style="font-size:20px; margin: 32px 0 16px;">🔥 Реальные результаты моих клиентов</h3>
-    <div class="cases-grid">
-        <div class="case-card">
-            <div class="icon">🇨🇳</div>
-            <div class="title">Эксперт по китайскому</div>
-            <div class="result">+120 000 ₽</div>
-            <div class="desc">за 14 дней без блога</div>
-        </div>
-        <div class="case-card">
-            <div class="icon">🎓</div>
-            <div class="title">Психолог Ольга</div>
-            <div class="result">+187 000 ₽</div>
-            <div class="desc">с одного вебинара</div>
-        </div>
-        <div class="case-card">
-            <div class="icon">🌊</div>
-            <div class="title">Мастер Фен-Шуй</div>
-            <div class="result">+195 000 ₽</div>
-            <div class="desc">первый запуск при рекламе 30 000 ₽</div>
-        </div>
-        <div class="case-card">
-            <div class="icon">🏫</div>
-            <div class="title">Онлайн-школа коучинга</div>
-            <div class="result">+2 000 000 ₽</div>
-            <div class="desc">марафон в ВК за 2 недели</div>
-        </div>
-    </div>
-
-    <div class="price-block">
-        <span class="new">2 500 ₽</span>
-        <span class="old">5 000 ₽</span>
-        <span class="discount">−50%</span>
-    </div>
-
-    <a href="/payment?user_id={user_id}&amount=2500" class="btn-primary" onclick="ym(108348240,'reachGoal','upgrade_click'); return true;">🔥 Получить стратегию</a>
-    <div class="guarantee">✅ Вернём деньги, если план не принесёт пользы в течение 3 дней</div>
-
-    <!-- Минимальная ссылка на MAX -->
-    <div class="max-link">
+    <p style="font-size:14px; color:#6e6e73; margin-top:24px;">
         💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
-    </div>
+    </p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
