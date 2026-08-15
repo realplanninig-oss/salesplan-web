@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с новыми текстами воронки)
+# File: main.py — веб-приложение Salesplan (финальная версия с исправленными кнопками)
 
 import logging
 import sqlite3
@@ -680,7 +680,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА
+# ГЛАВНАЯ СТРАНИЦА (исправлена кнопка)
 # ========================================
 @app.get("/")
 async def index():
@@ -791,7 +791,8 @@ async def index():
     </div>
 
     <div class="apple-cta">
-        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Что скажете? Заполните анкету</a>
+        <!-- Изменено: убрали "Что скажете?" -->
+        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Заполните анкету</a>
     </div>
 
     <div class="apple-footer-link">
@@ -809,7 +810,7 @@ async def index():
 async def lead_magnet():
     return RedirectResponse(url="/", status_code=301)
 
-# === СТРАНИЦА АНКЕТЫ ===
+# === СТРАНИЦА АНКЕТЫ (исправлена кнопка) ===
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
@@ -846,8 +847,9 @@ async def survey():
             </label>
         </div>
         <div style="text-align:center;margin-top:20px;">
+            <!-- Изменено: убрали "черновик" -->
             <button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">
-                Отправить и получить черновик
+                Отправить и получить план
             </button>
         </div>
     </form>
@@ -909,7 +911,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА БЛАГОДАРНОСТИ ===
+# === СТРАНИЦА БЛАГОДАРНОСТИ (добавлена фраза "Листайте вниз...") ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -923,7 +925,10 @@ async def thank_you(user_id: str):
     content = f'''
 <div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
     <h1 style="font-size:32px; margin-bottom:8px;">Черновик плана готов. Теперь – решать.</h1>
-    <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">В этом документе – первые намётки, основанные на том, что реально привело клиентов в 50+ нишах.</p>
+    <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">
+        В этом документе – первые намётки, основанные на том, что реально привело клиентов в 50+ нишах.
+        <br><strong>Листайте вниз, чтобы прочитать документ полностью.</strong>
+    </p>
     <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
     </div>
