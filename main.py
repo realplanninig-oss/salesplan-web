@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (версия с улучшенной конверсией, без эмодзи)
+# File: main.py — веб-приложение Salesplan (версия с улучшенной конверсией)
 
 import logging
 import sqlite3
@@ -408,18 +408,19 @@ def call_deepseek_diagnostic(name: str, description: str, answers: dict) -> str:
     if not DEEPSEEK_API_KEY:
         logger.error("DEEPSEEK_API_KEY not configured")
         return None
-    q1_map = {"Услугу": "Услугу", "Инфопродукт": "Инфопродукт", "Консультацию": "Консультацию", "Пока не продаю": "Пока не продаю"}
-    q2_map = {"до 5k": "до 5000 ₽", "5k-20k": "5000-20000 ₽", "20k-50k": "20000-50000 ₽", ">50k": "более 50000 ₽"}
-    q3_map = {"<10": "менее 10", "10-50": "10-50", "50-200": "50-200", ">200": "более 200"}
-    q4_map = {"300k/мес": "300 000 ₽/мес", "500k/мес": "500 000 ₽/мес", "1M/мес": "1 000 000 ₽/мес", "Масштаб": "масштабирование"}
-    q5_map = {"Да": "да", "Нет": "нет", "В разработке": "в разработке"}
+    q1_map = {"до 5k": "до 5000 ₽", "5k-20k": "5000-20000 ₽", "20k-50k": "20000-50000 ₽", ">50k": "более 50000 ₽"}
+    q2_map = {"<10": "менее 10", "10-50": "10-50", "50-200": "50-200", ">200": "более 200"}
+    q3_map = {"300k/мес": "300 000 ₽/мес", "500k/мес": "500 000 ₽/мес", "1M/мес": "1 000 000 ₽/мес", "Масштаб": "масштабирование"}
+    # q4, q5 могут быть None, поэтому используем get с запасными значениями
+    q4 = answers.get('q4') or 'не указано'
+    q5 = answers.get('q5') or 'не указано'
     survey_info = f"""
 ДАННЫЕ О БИЗНЕСЕ:
-• Продаёт: {q1_map.get(answers.get('q1'), 'не указано')}
-• Средний чек: {q2_map.get(answers.get('q2'), 'не указано')}
-• Клиентов/мес: {q3_map.get(answers.get('q3'), 'не указано')}
-• Цель на 2026: {q4_map.get(answers.get('q4'), 'не указано')}
-• Есть автоворонка: {q5_map.get(answers.get('q5'), 'не указано')}
+• Название: {name}
+• Описание: {description}
+• Средний чек: {q1_map.get(answers.get('q1'), 'не указано')}
+• Клиентов/мес: {q2_map.get(answers.get('q2'), 'не указано')}
+• Цель на 2026: {q3_map.get(answers.get('q3'), 'не указано')}
 """
     prompt = f"""Сделай профессиональный маркетинговый разбор онлайн-бизнеса.
 
@@ -458,11 +459,9 @@ def generate_premium_report_sync(user_id: str, name: str, description: str, answ
 ДАННЫЕ О БИЗНЕСЕ:
 Название: {name}
 Описание: {description}
-Продаёт: {answers.get('q1', 'не указано')}
-Средний чек: {answers.get('q2', 'не указано')}
-Клиентов/мес: {answers.get('q3', 'не указано')}
-Цель: {answers.get('q4', 'не указано')}
-Автоворонка: {answers.get('q5', 'не указано')}
+Средний чек: {answers.get('q1', 'не указано')}
+Клиентов/мес: {answers.get('q2', 'не указано')}
+Цель: {answers.get('q3', 'не указано')}
 
 Требования:
 1. Все разделы должны содержать конкретные числа, примеры и готовые формулировки.
@@ -680,7 +679,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА
+# ГЛАВНАЯ СТРАНИЦА (новая, с поднятыми кейсами и новой кнопкой)
 # ========================================
 @app.get("/")
 async def index():
@@ -707,6 +706,30 @@ async def index():
         max-width: 700px;
         margin: 0 auto 32px;
         line-height: 1.4;
+    }
+    .cases-block {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        flex-wrap: wrap;
+        margin: 20px 0 30px;
+        background: #f5f5f7;
+        border-radius: 24px;
+        padding: 24px 20px;
+    }
+    .cases-block .case-item {
+        text-align: center;
+        flex: 1;
+        min-width: 100px;
+    }
+    .cases-block .case-item .number {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1d1d1f;
+    }
+    .cases-block .case-item .label {
+        font-size: 14px;
+        color: #6e6e73;
     }
     .apple-text-block {
         background: #f9f9fb;
@@ -764,34 +787,45 @@ async def index():
         .apple-hero .subtitle { font-size: 20px; }
         .apple-text-block { padding: 24px 20px; }
         .apple-list li { font-size: 16px; padding-left: 30px; }
+        .cases-block { gap: 20px; padding: 16px; }
+        .cases-block .case-item .number { font-size: 22px; }
     }
 </style>
 
 <div class="apple-hero">
     <h1>14 дней – и у вас первый клиент. Или я работаю бесплатно.</h1>
-    <p class="subtitle">Большинство продюсеров дают советы. Я, Вероника Макаревич, даю систему, которая уже принесла деньги в 50+ нишах – от психологов до онлайн-школ.</p>
+    <p class="subtitle">Проверьте свою нишу на прибыльность – AI-аналитик покажет, сколько вы теряете и как это исправить.</p>
+
+    <!-- Блок кейсов поднят вверх -->
+    <div class="cases-block">
+        <div class="case-item">
+            <div class="number">+120 000 ₽</div>
+            <div class="label">эксперту по китайскому без блога</div>
+        </div>
+        <div class="case-item">
+            <div class="number">+187 000 ₽</div>
+            <div class="label">психологу с одного вебинара</div>
+        </div>
+        <div class="case-item">
+            <div class="number">+2 000 000 ₽</div>
+            <div class="label">онлайн-школе за марафон</div>
+        </div>
+    </div>
 
     <div class="apple-text-block">
-        <p><strong>Как это работает:</strong> мой AI-аналитик обучен на 10-летнем опыте работы с экспертами. Он сканирует вашу нишу, конкурентов и аудиторию – выявляет точки, где вы теряете клиентов.</p>
-        <p>Результаты, которыми я делюсь:<br>
-        — +120 000 ₽ эксперту по китайскому с нуля без блога;<br>
-        — +187 000 ₽ психологу с одного вебинара;<br>
-        — +2 000 000 ₽ онлайн-школе за марафон в ВК.<br>
-        Это лишь часть того, что AI взял за основу.</p>
-        <p>AI-аналитик формирует персональную структуру плана. Дальше вы выбираете: я проверяю её бесплатно или дорабатываю под вас после консультации – в зависимости от выбранного варианта.</p>
-        <p><strong>Что вы получите:</strong></p>
+        <p><strong>Как это работает:</strong> мой AI-аналитик обучен на 50+ нишах. Он сканирует вашу нишу, конкурентов и аудиторию – и за 2 минуты выдаёт персональный план, который я дорабатываю под вас.</p>
         <ul class="apple-list">
-            <li>Работающую воронку, которая собирает заявки 24/7 – без вашего участия.</li>
-            <li>Готовые скрипты, которые снимают возражения «дорого», «подумаю», «сравню».</li>
-            <li>Бюджетную модель – сколько и куда вложить, чтобы окупиться за 2 недели.</li>
-            <li><strong>Гарантию:</strong> если через 14 дней у вас нет ни одной новой заявки – я дорабатываю проект до первого клиента бесплатно.</li>
+            <li>Выявим 3 главные точки утечки клиентов</li>
+            <li>Рассчитаем бюджет, который окупится за 14 дней</li>
+            <li>Дадим готовые скрипты и воронку, которые работают без вас</li>
         </ul>
         <hr class="apple-divider">
-        <p style="font-size: 19px; font-weight: 500;">Вы получаете не «стратегию вообще», а пошаговый алгоритм, который уже привёл клиентов в вашей нише.</p>
+        <p style="font-size: 19px; font-weight: 500;">Бесплатный мини-разбор вы получите сразу после ответов на 5 вопросов.</p>
     </div>
 
     <div class="apple-cta">
-        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Заполните анкету</a>
+        <!-- Новая кнопка -->
+        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Проверить мою нишу на прибыльность</a>
     </div>
 
     <div class="apple-footer-link">
@@ -802,7 +836,7 @@ async def index():
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# СТРАНИЦА АНКЕТЫ
+# СТРАНИЦА АНКЕТЫ (сокращена до 5 полей)
 # ========================================
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
@@ -820,19 +854,16 @@ async def survey():
     .btn-main:hover{background:#005fc5;transform:scale(1.02);box-shadow:0 4px 12px rgba(0,122,255,0.4)}
 </style>
 <div class="hero">
-    <h1>Три факта, чтобы я поняла ваш бизнес.</h1>
-    <p style="font-size:18px;">Я, Вероника Макаревич, не верю в универсальные решения. Чтобы предложить вам систему, которая реально работает, мне нужно знать: кто ваш клиент, что вы продаёте и где сейчас «болит» маркетинг.</p>
-    <p style="font-size:16px; color:#6e6e73; margin-top:10px;">7 вопросов – это 2 минуты. Мой AI-аналитик (обученный на 50+ нишах) проанализирует ответы и выдаст персональную структуру плана. Дальше вы выбираете: я проверю её бесплатно или доработаю под вас после консультации. Отвечайте честно – от этого зависит точность.</p>
+    <h1>5 вопросов – и вы получите мини-разбор вашей ниши</h1>
+    <p style="font-size:18px;">AI-аналитик оценит вашу нишу, найдёт слабые места и предложит первые шаги. Это займёт 2 минуты.</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
         <div class="form-group"><label>1. Название вашего экспертного проекта</label><input type="text" name="business_name" placeholder="например: Продюсирую экспертов" required></div>
-        <div class="form-group"><label>2. Чем вы помогаете клиентам? (кратко)</label><textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика → план запуска → бесплатный разбор плана за подписку" required></textarea></div>
-        <div class="form-group"><label>3. Что вы продаёте?</label><div class="radio-group"><label><input type="radio" name="q1" value="Услугу" required> Услугу (консультации, сопровождение)</label><label><input type="radio" name="q1" value="Инфопродукт"> Инфопродукт (курсы, программы)</label><label><input type="radio" name="q1" value="Консультацию"> Консультацию (разовая)</label><label><input type="radio" name="q1" value="Пока не продаю"> Пока не продаю</label></div></div>
-        <div class="form-group"><label>4. Средний чек (₽)</label><div class="radio-group"><label><input type="radio" name="q2" value="до 5k" required> до 5k</label><label><input type="radio" name="q2" value="5k-20k"> 5k-20k</label><label><input type="radio" name="q2" value="20k-50k"> 20k-50k</label><label><input type="radio" name="q2" value=">50k"> >50k</label></div></div>
-        <div class="form-group"><label>5. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q3" value="<10" required> меньше 10</label><label><input type="radio" name="q3" value="10-50"> 10-50</label><label><input type="radio" name="q3" value="50-200"> 50-200</label><label><input type="radio" name="q3" value=">200"> более 200</label></div></div>
-        <div class="form-group"><label>6. Цель на 2026 (в деньгах)</label><div class="radio-group"><label><input type="radio" name="q4" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q4" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q4" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q4" value="Масштаб"> Масштаб (выход на новый уровень)</label></div></div>
-        <div class="form-group"><label>7. Уже есть автоворонка?</label><div class="radio-group"><label><input type="radio" name="q5" value="Да" required> Да</label><label><input type="radio" name="q5" value="Нет"> Нет</label><label><input type="radio" name="q5" value="В разработке"> В разработке</label></div></div>
+        <div class="form-group"><label>2. Чем вы помогаете клиентам? (кратко)</label><textarea name="business_description" rows="3" placeholder="Пример: Воронка: бесплатная диагностика → план запуска → разбор" required></textarea></div>
+        <div class="form-group"><label>3. Средний чек (₽)</label><div class="radio-group"><label><input type="radio" name="q1" value="до 5k" required> до 5k</label><label><input type="radio" name="q1" value="5k-20k"> 5k-20k</label><label><input type="radio" name="q1" value="20k-50k"> 20k-50k</label><label><input type="radio" name="q1" value=">50k"> >50k</label></div></div>
+        <div class="form-group"><label>4. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q2" value="<10" required> меньше 10</label><label><input type="radio" name="q2" value="10-50"> 10-50</label><label><input type="radio" name="q2" value="50-200"> 50-200</label><label><input type="radio" name="q2" value=">200"> более 200</label></div></div>
+        <div class="form-group"><label>5. Цель на 2026 (в деньгах)</label><div class="radio-group"><label><input type="radio" name="q3" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q3" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q3" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q3" value="Масштаб"> Масштаб (выход на новый уровень)</label></div></div>
         <div class="form-group">
             <label style="display:flex;align-items:center;gap:8px;">
                 <input type="checkbox" name="consent" required style="width:20px;height:20px;">
@@ -841,7 +872,7 @@ async def survey():
         </div>
         <div style="text-align:center;margin-top:20px;">
             <button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">
-                Отправить и получить план
+                Получить мини-разбор
             </button>
         </div>
     </form>
@@ -856,30 +887,29 @@ async def survey():
 """
     return HTMLResponse(content=render_page(content))
 
-# === ОБРАБОТЧИК АНКЕТЫ ===
+# === ОБРАБОТЧИК АНКЕТЫ (обновлён для 5 полей) ===
 @app.post("/survey/submit")
 async def survey_submit(
     request: Request,
     business_name: str = Form(...),
     business_description: str = Form(...),
-    q1: str = Form(...),
-    q2: str = Form(...),
-    q3: str = Form(...),
-    q4: str = Form(...),
-    q5: str = Form(...),
+    q1: str = Form(...),   # средний чек
+    q2: str = Form(...),   # кол-во клиентов
+    q3: str = Form(...),   # цель
     consent: str = Form(...)
 ):
     user_id = str(uuid.uuid4())
     logger.info(f"New survey submission: user_id={user_id}, business={business_name}")
     save_user(user_id, None, None)
     save_business_data(user_id, business_name, business_description)
-    save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5})
+    # Сохраняем только три ответа (q4, q5 = None)
+    save_form(user_id, {"q1": q1, "q2": q2, "q3": q3, "q4": None, "q5": None})
     
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
     save_consent(user_id, 'survey_and_offer', client_ip, user_agent)
     
-    answers = {"q1": q1, "q2": q2, "q3": q3, "q4": q4, "q5": q5}
+    answers = {"q1": q1, "q2": q2, "q3": q3, "q4": None, "q5": None}
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.execute("INSERT INTO reports (user_id, report_type, status) VALUES (?, 'free', 'generating')", (user_id,))
     report_id = cursor.lastrowid
