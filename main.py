@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с исправленными кнопками)
+# File: main.py — веб-приложение Salesplan (версия с улучшенной конверсией)
 
 import logging
 import sqlite3
@@ -676,11 +676,11 @@ function checkStatus(){{
 setTimeout(checkStatus,1000);
 </script>
 </head>
-<body><div class="spinner"></div><h1>⏳ Генерируем ваш черновик плана...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
+<body><div class="spinner"></div><h1>⏳ Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (исправлена кнопка)
+# ГЛАВНАЯ СТРАНИЦА
 # ========================================
 @app.get("/")
 async def index():
@@ -772,13 +772,13 @@ async def index():
     <p class="subtitle">Большинство продюсеров дают советы. Я, Вероника Макаревич, даю систему, которая уже принесла деньги в 50+ нишах – от психологов до онлайн-школ.</p>
 
     <div class="apple-text-block">
-        <p><strong>Как это работает:</strong> я обучила AI на своём 10-летнем опыте работы с экспертами. Он знает, что реально приводит клиентов, а что – просто сжигает бюджет.</p>
+        <p><strong>Как это работает:</strong> мой AI-аналитик обучен на 10-летнем опыте работы с экспертами. Он сканирует вашу нишу, конкурентов и аудиторию – выявляет точки, где вы теряете клиентов.</p>
         <p>Результаты, которыми я делюсь:<br>
         — +120 000 ₽ эксперту по китайскому с нуля без блога;<br>
         — +187 000 ₽ психологу с одного вебинара;<br>
         — +2 000 000 ₽ онлайн-школе за марафон в ВК.<br>
         Это лишь часть того, что AI взял за основу.</p>
-        <p>AI анализирует вашу нишу и выдаёт черновик плана. Дальше вы выбираете: я проверяю его бесплатно или дорабатываю под вас после консультации – в зависимости от выбранного варианта.</p>
+        <p>AI-аналитик формирует персональную структуру плана. Дальше вы выбираете: я проверяю её бесплатно или дорабатываю под вас после консультации – в зависимости от выбранного варианта.</p>
         <p><strong>Что вы получите:</strong></p>
         <ul class="apple-list">
             <li>Работающую воронку, которая собирает заявки 24/7 – без вашего участия.</li>
@@ -791,7 +791,6 @@ async def index():
     </div>
 
     <div class="apple-cta">
-        <!-- Изменено: убрали "Что скажете?" -->
         <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Заполните анкету</a>
     </div>
 
@@ -803,14 +802,8 @@ async def index():
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# ОСТАЛЬНЫЕ СТРАНИЦЫ
+# СТРАНИЦА АНКЕТЫ
 # ========================================
-
-@app.get("/lead-magnet")
-async def lead_magnet():
-    return RedirectResponse(url="/", status_code=301)
-
-# === СТРАНИЦА АНКЕТЫ (исправлена кнопка) ===
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
@@ -829,7 +822,7 @@ async def survey():
 <div class="hero">
     <h1>Три факта, чтобы я поняла ваш бизнес.</h1>
     <p style="font-size:18px;">Я, Вероника Макаревич, не верю в универсальные решения. Чтобы предложить вам систему, которая реально работает, мне нужно знать: кто ваш клиент, что вы продаёте и где сейчас «болит» маркетинг.</p>
-    <p style="font-size:16px; color:#6e6e73; margin-top:10px;">7 вопросов – это 2 минуты. AI, обученный на моём опыте в 50+ нишах, проанализирует ответы и выдаст черновик плана. Дальше вы выбираете: я проверю его бесплатно или доработаю под вас после консультации. Отвечайте честно – от этого зависит точность.</p>
+    <p style="font-size:16px; color:#6e6e73; margin-top:10px;">7 вопросов – это 2 минуты. Мой AI-аналитик (обученный на 50+ нишах) проанализирует ответы и выдаст персональную структуру плана. Дальше вы выбираете: я проверю её бесплатно или доработаю под вас после консультации. Отвечайте честно – от этого зависит точность.</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -847,7 +840,6 @@ async def survey():
             </label>
         </div>
         <div style="text-align:center;margin-top:20px;">
-            <!-- Изменено: убрали "черновик" -->
             <button type="submit" class="btn-main" id="submitBtn" onclick="ym(108348240,'reachGoal','survey_submit'); return true;">
                 Отправить и получить план
             </button>
@@ -911,7 +903,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА БЛАГОДАРНОСТИ (добавлена фраза "Листайте вниз...") ===
+# === СТРАНИЦА БЛАГОДАРНОСТИ (с блоком призыва к звонку перед тарифами) ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -924,9 +916,9 @@ async def thank_you(user_id: str):
 
     content = f'''
 <div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
-    <h1 style="font-size:32px; margin-bottom:8px;">Черновик плана готов. Теперь – решать.</h1>
+    <h1 style="font-size:32px; margin-bottom:8px;">Ваш персональный план готов</h1>
     <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">
-        В этом документе – первые намётки, основанные на том, что реально привело клиентов в 50+ нишах.
+        В этом документе – конкретные шаги, основанные на том, что реально привело клиентов в 50+ нишах.
         <br><strong>Листайте вниз, чтобы прочитать документ полностью.</strong>
     </p>
     <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
@@ -936,15 +928,28 @@ async def thank_you(user_id: str):
 
 <hr style="margin: 40px 0;">
 
+<!-- БЛОК ПРИЗЫВА К БЕСПЛАТНОМУ ЗВОНКУ -->
+<div style="background:#e8f0fe; border-radius:24px; padding:24px; margin:20px 0; text-align:center;">
+    <h2 style="font-size:24px; margin-bottom:12px;">🎯 Прежде чем выбирать тариф – давайте созвонимся</h2>
+    <p style="font-size:16px; color:#1d1d1f; margin-bottom:12px;">
+        Я, Вероника Макаревич, посмотрю ваш план, укажу 3 ключевые ошибки и скажу, какой вариант вам подходит.
+        <br><strong>Это бесплатно и ни к чему не обязывает.</strong>
+    </p>
+    <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','free_call_click'); return true;">
+        📅 Записаться на бесплатный звонок
+    </a>
+    <p style="font-size:14px; color:#6e6e73; margin-top:12px;">15 минут – и вы будете знать, как действовать дальше</p>
+</div>
+
 <!-- Выбор варианта -->
 <div style="text-align:center; max-width:600px; margin:0 auto;">
-    <p style="font-size:20px; font-weight:600;">Теперь у вас есть три варианта, как мы будем работать с этим черновиком:</p>
+    <p style="font-size:20px; font-weight:600;">Или выберите вариант самостоятельно:</p>
     <div style="display:flex; flex-direction:column; gap:16px; margin:24px 0;">
         <div style="background:#f5f5f7; border-radius:16px; padding:16px;">
-            <p><strong>Бесплатная проверка</strong> – я посмотрю черновик, укажу 3 ключевые ошибки и дам рекомендации по первым шагам.</p>
+            <p><strong>Бесплатная проверка</strong> – я посмотрю ваш план, укажу 3 ключевые ошибки и дам рекомендации по первым шагам.</p>
         </div>
         <div style="background:#e8f0fe; border-radius:16px; padding:16px; border:1px solid #007aff;">
-            <p><strong>Расширенная версия (2500 ₽)</strong> – вы получаете черновик плана от AI, затем мы созваниваемся, я уточняю детали и дорабатываю план под ваш конкретный случай. В итоге вы получаете готовый документ со скриптами, бюджетами, контент-планом и чек-листом.</p>
+            <p><strong>Расширенная версия (2500 ₽)</strong> – вы получаете готовую структуру от AI-аналитика, затем мы созваниваемся, я уточняю детали и дорабатываю план под ваш конкретный случай. В итоге вы получаете готовый документ со скриптами, бюджетами, контент-планом и чек-листом.</p>
         </div>
         <div style="background:#fff3cd; border-radius:16px; padding:16px; border:1px solid #ff9f0a;">
             <p><strong>Полное внедрение под ключ (14 900 ₽)</strong> – я дорабатываю план и внедряю систему до первых клиентов с гарантией результата.</p>
@@ -957,7 +962,7 @@ async def thank_you(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ ===
+# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ (с кейсами и призывом к звонку) ===
 @app.get("/choose-plan", response_class=HTMLResponse)
 async def choose_plan(user_id: str):
     channel_link = "https://max.ru/id781407988795_biz"
@@ -966,7 +971,25 @@ async def choose_plan(user_id: str):
 
     content = f'''
 <div style="max-width:700px; margin:0 auto; padding:20px 16px;">
-    <h1 style="font-size:28px; font-weight:700; text-align:center; margin-bottom:8px;">Вы получили черновик плана от AI. Теперь выберите, как мы будем работать с ним дальше.</h1>
+    <!-- Блок с кейсами -->
+    <div style="background:#f5f5f7; border-radius:20px; padding:20px; margin-bottom:24px; text-align:center;">
+        <h3 style="font-size:18px; margin-bottom:12px;">🔥 Результаты, на которых обучен мой AI-аналитик</h3>
+        <div style="display:flex; justify-content:space-around; flex-wrap:wrap; gap:12px;">
+            <div><span style="font-weight:700; font-size:20px;">+120 000 ₽</span><br><span style="font-size:14px; color:#6e6e73;">без блога</span></div>
+            <div><span style="font-weight:700; font-size:20px;">+187 000 ₽</span><br><span style="font-size:14px; color:#6e6e73;">с вебинара</span></div>
+            <div><span style="font-weight:700; font-size:20px;">+2 000 000 ₽</span><br><span style="font-size:14px; color:#6e6e73;">с марафона</span></div>
+        </div>
+        <p style="font-size:14px; color:#6e6e73; margin-top:12px;">50+ ниш – от психологов до онлайн-школ</p>
+    </div>
+
+    <!-- Призыв к консультации -->
+    <div style="background:#e8f0fe; border-radius:16px; padding:16px; margin-bottom:20px; text-align:center;">
+        <p style="font-size:16px;">💬 <strong>Не уверены, что выбрать?</strong><br>
+        Напишите мне в личный чат MAX – я бесплатно разберу ваш случай и подберу оптимальный тариф.</p>
+        <a href="{channel_link}" target="_blank" class="btn-main" style="display:inline-block; padding:10px 24px; font-size:16px; background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3);">Написать в MAX</a>
+    </div>
+
+    <h1 style="font-size:28px; font-weight:700; text-align:center; margin-bottom:8px;">Вы получили план от AI-аналитика. Теперь выберите, как мы будем работать с ним дальше.</h1>
     <p style="font-size:16px; color:#6e6e73; text-align:center; margin-bottom:32px;">
         Я, Вероника Макаревич, предлагаю три уровня – от бесплатной проверки до полного внедрения.
     </p>
@@ -975,13 +998,13 @@ async def choose_plan(user_id: str):
     <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #e5e5ea; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
             <span style="font-size:28px;">🔍</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0;">Я проверю ваш черновик</h2>
+            <h2 style="font-size:22px; font-weight:600; margin:0;">Я проверю ваш план</h2>
         </div>
         <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
-            Подпишитесь на мой канал в MAX (там кейсы и разборы) – и напишите мне в личный чат слово «Проверка». Я посмотрю ваш черновик, укажу 3 ключевые ошибки и дам рекомендации по первым шагам.
+            Подпишитесь на мой канал в MAX (там кейсы и разборы) – и напишите мне в личный чат слово «Проверка». Я посмотрю ваш план, укажу 3 ключевые ошибки и дам рекомендации по первым шагам.
         </p>
         <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-            <em>Почему я?</em> Я, Вероника Макаревич, обучила AI на своём опыте в 50+ нишах. Результаты: +120 000, +187 000, +2 000 000 – и это только часть.
+            <em>Почему я?</em> Я, Вероника Макаревич, обучила AI-аналитика на своём опыте в 50+ нишах. Результаты: +120 000, +187 000, +2 000 000 – и это только часть.
         </p>
         <a href="{channel_link}" target="_blank" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
             🔔 Подписаться и написать «Проверка»
@@ -998,7 +1021,7 @@ async def choose_plan(user_id: str):
             <h2 style="font-size:22px; font-weight:600; margin:0;">Дорабатываю план под вас</h2>
         </div>
         <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
-            Вы получаете черновик плана от AI. После оплаты мы созваниваемся, я уточняю детали и дорабатываю черновик под ваш конкретный случай. В итоге вы получаете готовый документ:
+            Вы получаете готовую структуру от AI-аналитика. После оплаты мы созваниваемся, я уточняю детали и дорабатываю план под ваш конкретный случай. В итоге вы получаете готовый документ:
         </p>
         <ul style="text-align:left; font-size:15px; padding-left:20px; margin-bottom:16px;">
             <li>Бюджет на рекламу (что, куда, сколько)</li>
@@ -1015,7 +1038,7 @@ async def choose_plan(user_id: str):
         </a>
     </div>
 
-    <!-- Вариант 3: Клиенты под ключ -->
+    <!-- Вариант 3: Клиенты под ключ (усиленная гарантия) -->
     <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.12);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
             <span style="font-size:28px;">🚀</span>
@@ -1034,7 +1057,7 @@ async def choose_plan(user_id: str):
             <strong>Результат:</strong> через 14 дней – минимум одна целевая заявка или консультация.
         </p>
         <p style="font-size:15px; color:#1d1d1f; margin-bottom:16px;">
-            <strong>Гарантия:</strong> если за 14 дней не будет ни одной заявки – я работаю до первого клиента без доплаты.
+            <strong>Гарантия:</strong> если за 14 дней не будет ни одной заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).
         </p>
         <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
             <strong>Как начать:</strong> оплатить → написать мне в MAX с пометкой «Клиенты под ключ» и удобным временем для созвона.
@@ -1063,11 +1086,11 @@ async def payment_page(user_id: str, amount: int = 2500):
     
     if amount == 2500:
         title = "Расширенный план – 2 500 ₽"
-        description = "Вы получаете черновик плана от AI. После оплаты мы созваниваемся, я дорабатываю план под ваш конкретный случай, и вы получаете готовый документ со скриптами, бюджетами, контент-планом и чек-листом."
+        description = "Вы получаете готовую структуру от AI-аналитика. После оплаты мы созваниваемся, я дорабатываю план под ваш конкретный случай, и вы получаете готовый документ со скриптами, бюджетами, контент-планом и чек-листом."
         button_text = "Оплатить 2 500 ₽"
     else:  # 14900
         title = "Внедрение под ключ – 14 900 ₽"
-        description = "Вы получаете всё из расширенного плана, плюс я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты. Гарантия: если через 14 дней у вас нет заявок – я работаю до первого клиента бесплатно."
+        description = "Вы получаете всё из расширенного плана, плюс я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты. Гарантия: если через 14 дней у вас нет заявок – я возвращаю деньги или работаю до первого клиента бесплатно (на ваш выбор)."
         button_text = "Оплатить 14 900 ₽"
     
     content = f'''
@@ -1274,6 +1297,13 @@ async def payment_success(user_id: str, amount: int = 2500):
     <div style="margin-top:20px;">
         <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
     </div>
+    <!-- Повтор гарантии для 14900 -->
+    {'''
+    <hr style="margin:32px 0;">
+    <div style="background:#fff3cd; border-radius:16px; padding:16px;">
+        <p style="font-size:15px;"><strong>🔒 Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
+    </div>
+    ''' if amount == 14900 else ''}
     <hr style="margin:32px 0;">
     <div style="background:#f8f8fa; border-radius:24px; padding:24px; text-align:center;">
         <h3 style="font-size:22px; margin-bottom:12px;">🎁 Бесплатный разбор плана от продюсера</h3>
@@ -1336,7 +1366,7 @@ async def consultation_page(user_id: str = None):
 <div class="hero" style="margin-bottom:30px;">
     <h1 style="font-size:36px;">Разговор по делу – 20 минут</h1>
     <p style="font-size:18px;color:#6e6e73;max-width:700px;margin:0 auto;">
-        Если есть вопросы по черновику плана, по сотрудничеству или вы хотите уточнить детали – напишите мне в MAX с пометкой «Консультация».
+        Если есть вопросы по плану, по сотрудничеству или вы хотите уточнить детали – напишите мне в MAX с пометкой «Консультация».
         Укажите ваш вопрос и три удобных времени для звонка (завтра/послезавтра).
     </p>
     <p style="font-size:15px;color:#6e6e73;max-width:700px;margin:0 auto;margin-top:10px;">
