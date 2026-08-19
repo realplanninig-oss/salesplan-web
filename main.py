@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (версия с улучшенной конверсией)
+# File: main.py — веб-приложение Salesplan (версия с улучшенной конверсией, без эмодзи)
 
 import logging
 import sqlite3
@@ -51,7 +51,7 @@ if not YOOKASSA_SECRET_KEY:
     missing_vars.append("YOOKASSA_SECRET_KEY")
 
 if missing_vars:
-    print(f"⚠️ WARNING: Missing environment variables: {missing_vars}")
+    print(f"WARNING: Missing environment variables: {missing_vars}")
 
 LOGS_DIR = Path("./logs")
 LOGS_DIR.mkdir(exist_ok=True)
@@ -635,7 +635,7 @@ HTML_FOOT = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер экспертов</p>
         <div class="social-links">
-            <a href="https://max.ru/id781407988795_biz" target="_blank">📢 Мой канал в MAX</a>
+            <a href="https://max.ru/id781407988795_biz" target="_blank">Мой канал в MAX</a>
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <div style="margin-top: 8px;">
@@ -676,7 +676,7 @@ function checkStatus(){{
 setTimeout(checkStatus,1000);
 </script>
 </head>
-<body><div class="spinner"></div><h1>⏳ Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
+<body><div class="spinner"></div><h1>Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
 </html>"""
 
 # ========================================
@@ -795,7 +795,7 @@ async def index():
     </div>
 
     <div class="apple-footer-link">
-        💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
+        Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
     </div>
 </div>
 '''
@@ -850,7 +850,7 @@ async def survey():
     document.getElementById('surveyForm').addEventListener('submit', function(e) {
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
-        submitBtn.textContent = '⏳ Отправляю...';
+        submitBtn.textContent = 'Отправляю...';
     });
 </script>
 """
@@ -930,13 +930,13 @@ async def thank_you(user_id: str):
 
 <!-- БЛОК ПРИЗЫВА К БЕСПЛАТНОМУ ЗВОНКУ -->
 <div style="background:#e8f0fe; border-radius:24px; padding:24px; margin:20px 0; text-align:center;">
-    <h2 style="font-size:24px; margin-bottom:12px;">🎯 Прежде чем выбирать тариф – давайте созвонимся</h2>
+    <h2 style="font-size:24px; margin-bottom:12px;">Прежде чем выбирать тариф – давайте созвонимся</h2>
     <p style="font-size:16px; color:#1d1d1f; margin-bottom:12px;">
         Я, Вероника Макаревич, посмотрю ваш план, укажу 3 ключевые ошибки и скажу, какой вариант вам подходит.
         <br><strong>Это бесплатно и ни к чему не обязывает.</strong>
     </p>
     <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','free_call_click'); return true;">
-        📅 Записаться на бесплатный звонок
+        Записаться на бесплатный звонок
     </a>
     <p style="font-size:14px; color:#6e6e73; margin-top:12px;">15 минут – и вы будете знать, как действовать дальше</p>
 </div>
@@ -973,7 +973,7 @@ async def choose_plan(user_id: str):
 <div style="max-width:700px; margin:0 auto; padding:20px 16px;">
     <!-- Блок с кейсами -->
     <div style="background:#f5f5f7; border-radius:20px; padding:20px; margin-bottom:24px; text-align:center;">
-        <h3 style="font-size:18px; margin-bottom:12px;">🔥 Результаты, на которых обучен мой AI-аналитик</h3>
+        <h3 style="font-size:18px; margin-bottom:12px;">Результаты, на которых обучен мой AI-аналитик</h3>
         <div style="display:flex; justify-content:space-around; flex-wrap:wrap; gap:12px;">
             <div><span style="font-weight:700; font-size:20px;">+120 000 ₽</span><br><span style="font-size:14px; color:#6e6e73;">без блога</span></div>
             <div><span style="font-weight:700; font-size:20px;">+187 000 ₽</span><br><span style="font-size:14px; color:#6e6e73;">с вебинара</span></div>
@@ -984,7 +984,7 @@ async def choose_plan(user_id: str):
 
     <!-- Призыв к консультации -->
     <div style="background:#e8f0fe; border-radius:16px; padding:16px; margin-bottom:20px; text-align:center;">
-        <p style="font-size:16px;">💬 <strong>Не уверены, что выбрать?</strong><br>
+        <p style="font-size:16px;"><strong>Не уверены, что выбрать?</strong><br>
         Напишите мне в личный чат MAX – я бесплатно разберу ваш случай и подберу оптимальный тариф.</p>
         <a href="{channel_link}" target="_blank" class="btn-main" style="display:inline-block; padding:10px 24px; font-size:16px; background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3);">Написать в MAX</a>
     </div>
@@ -997,7 +997,7 @@ async def choose_plan(user_id: str):
     <!-- Вариант 1: Бесплатная проверка -->
     <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #e5e5ea; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="font-size:28px;">🔍</span>
+            <span style="font-size:28px;">&#128270;</span>
             <h2 style="font-size:22px; font-weight:600; margin:0;">Я проверю ваш план</h2>
         </div>
         <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
@@ -1007,17 +1007,17 @@ async def choose_plan(user_id: str):
             <em>Почему я?</em> Я, Вероника Макаревич, обучила AI-аналитика на своём опыте в 50+ нишах. Результаты: +120 000, +187 000, +2 000 000 – и это только часть.
         </p>
         <a href="{channel_link}" target="_blank" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
-            🔔 Подписаться и написать «Проверка»
+            Подписаться и написать «Проверка»
         </a>
         <p style="font-size:13px; color:#6e6e73; text-align:center; margin-top:12px;">
-            Что делать: подписаться → написать «Проверка» в личный чат MAX.
+            Что делать: подписаться -> написать «Проверка» в личный чат MAX.
         </p>
     </div>
 
     <!-- Вариант 2: Расширенный план -->
     <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #007aff; box-shadow:0 2px 8px rgba(0,122,255,0.08);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="font-size:28px;">📄</span>
+            <span style="font-size:28px;">&#128196;</span>
             <h2 style="font-size:22px; font-weight:600; margin:0;">Дорабатываю план под вас</h2>
         </div>
         <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
@@ -1031,17 +1031,17 @@ async def choose_plan(user_id: str):
             <li>Чек-лист из 50 пунктов – от регистрации до первых продаж</li>
         </ul>
         <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-            <strong>Как получить:</strong> оплатить → написать мне в MAX для созвона → я дорабатываю план → вы скачиваете готовый документ.
+            <strong>Как получить:</strong> оплатить -> написать мне в MAX для созвона -> я дорабатываю план -> вы скачиваете готовый документ.
         </p>
         <a href="{payment_link_2500}" class="btn-main" style="display:block; text-align:center; background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
-            💳 Оплатить 2 500 ₽
+            Оплатить 2 500 ₽
         </a>
     </div>
 
     <!-- Вариант 3: Клиенты под ключ (усиленная гарантия) -->
     <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.12);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="font-size:28px;">🚀</span>
+            <span style="font-size:28px;">&#128640;</span>
             <h2 style="font-size:22px; font-weight:600; margin:0;">Я дорабатываю и внедряю</h2>
         </div>
         <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
@@ -1060,15 +1060,15 @@ async def choose_plan(user_id: str):
             <strong>Гарантия:</strong> если за 14 дней не будет ни одной заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).
         </p>
         <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-            <strong>Как начать:</strong> оплатить → написать мне в MAX с пометкой «Клиенты под ключ» и удобным временем для созвона.
+            <strong>Как начать:</strong> оплатить -> написать мне в MAX с пометкой «Клиенты под ключ» и удобным временем для созвона.
         </p>
         <a href="{payment_link_14900}" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
-            💳 Оплатить 14 900 ₽
+            Оплатить 14 900 ₽
         </a>
     </div>
 
     <p style="font-size:14px; color:#6e6e73; text-align:center; margin-top:24px;">
-        💬 Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
+        Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
     </p>
 </div>
 '''
@@ -1103,7 +1103,7 @@ async def payment_page(user_id: str, amount: int = 2500):
         <input type="hidden" name="user_id" value="{user_id}">
         <input type="hidden" name="amount" value="{amount}">
         <div class="form-group">
-            <label>📞 Телефон (для чека и связи)</label>
+            <label>Телефон (для чека и связи)</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align:center;font-size:18px;" value="{phone_value}">
             <p style="font-size:12px;color:#8e8e93;margin-top:6px;">Никаких рассылок и звонков без вашего согласия.</p>
         </div>
@@ -1116,9 +1116,9 @@ async def payment_page(user_id: str, amount: int = 2500):
         <div style="text-align:center;margin-top:20px;">
             <button type="submit" class="btn-main" style="width:100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">{button_text}</button>
         </div>
-        <p style="font-size:12px;text-align:center;margin-top:12px;">✅ Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
+        <p style="font-size:12px;text-align:center;margin-top:12px;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
         <div style="margin-top:30px; font-size:14px; color:#8e8e93; text-align:center;">
-            💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
+            Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
         </div>
     </form>
 </div>
@@ -1256,7 +1256,7 @@ async def payment_confirm(request: Request):
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
-    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>✅ Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
+    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
 # === СТРАНИЦА УСПЕХА ===
 @app.get("/payment/success", response_class=HTMLResponse)
@@ -1284,6 +1284,16 @@ async def payment_success(user_id: str, amount: int = 2500):
         download_text = "Ваш расширенный план будет доступен после доработки."
         download_button = ""
 
+    # Блок гарантии для 14900 – убраны все эмодзи
+    guarantee_block = ""
+    if amount == 14900:
+        guarantee_block = """
+    <hr style="margin:32px 0;">
+    <div style="background:#fff3cd; border-radius:16px; padding:16px;">
+        <p style="font-size:15px;"><strong>Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
+    </div>
+    """
+
     html_content = f'''
 <div class="hero">
     <h1>✅ {title}</h1>
@@ -1297,22 +1307,16 @@ async def payment_success(user_id: str, amount: int = 2500):
     <div style="margin-top:20px;">
         <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
     </div>
-    <!-- Повтор гарантии для 14900 -->
-    {'''
-    <hr style="margin:32px 0;">
-    <div style="background:#fff3cd; border-radius:16px; padding:16px;">
-        <p style="font-size:15px;"><strong>🔒 Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
-    </div>
-    ''' if amount == 14900 else ''}
+    {guarantee_block}
     <hr style="margin:32px 0;">
     <div style="background:#f8f8fa; border-radius:24px; padding:24px; text-align:center;">
-        <h3 style="font-size:22px; margin-bottom:12px;">🎁 Бесплатный разбор плана от продюсера</h3>
+        <h3 style="font-size:22px; margin-bottom:12px;">Бесплатный разбор плана от продюсера</h3>
         <p style="font-size:16px; color:#1d1d1f; margin-bottom:8px;">
             Вы купили план. Теперь я лично проверю его за 0 рублей, но только если у вас есть бюджет на внедрение.
         </p>
         <p style="font-size:15px; color:#6e6e73; margin-bottom:20px;">Жмите сюда, чтобы записаться на 20-минутный созвон.</p>
         <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; display:inline-block;" onclick="ym(108348240,'reachGoal','free_review_click'); return true;">
-            📅 Записаться на бесплатный разбор
+            Записаться на бесплатный разбор
         </a>
     </div>
     <hr style="margin:32px 0;">
@@ -1377,10 +1381,10 @@ async def consultation_page(user_id: str = None):
     <div style="background:#f8f8fa;border-radius:16px;padding:20px;margin-bottom:24px;text-align:left;">
         <p style="font-size:16px;line-height:1.5;margin:0;">
             <strong>Что вы получите за 20 минут:</strong><br>
-            ✅ Честный разбор – где план работает, а где требует доработки<br>
-            ✅ Ответ, какой канал даст вам первых клиентов уже на следующей неделе<br>
-            ✅ Конкретные шаги по внедрению, которые не требуют команды<br>
-            ✅ Чек-лист готовности – чтобы не тратить время на неважное
+            - Честный разбор – где план работает, а где требует доработки<br>
+            - Ответ, какой канал даст вам первых клиентов уже на следующей неделе<br>
+            - Конкретные шаги по внедрению, которые не требуют команды<br>
+            - Чек-лист готовности – чтобы не тратить время на неважное
         </p>
     </div>
     <p style="font-size:15px;color:#1d1d1f;margin-bottom:16px;">
@@ -1388,7 +1392,7 @@ async def consultation_page(user_id: str = None):
     </p>
     <div style="margin:20px 0;">
         <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="width:80%;padding:16px;font-size:18px;" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">
-            💬 Написать в личный чат MAX
+            Написать в личный чат MAX
         </a>
     </div>
     <p style="font-size:14px;color:#6e6e73;margin-top:10px;">
@@ -1415,21 +1419,21 @@ async def implementation_page(user_id: str = None):
 <div class="form-card" style="max-width:700px; text-align:left;">
     <h3>Что входит:</h3>
     <ul style="list-style:none; padding:0;">
-        <li style="margin:10px 0;">✅ Аудит текущего маркетинга и воронки</li>
-        <li style="margin:10px 0;">✅ Настройка автоворонки в MAX (Telegram, VK, GetCourse)</li>
-        <li style="margin:10px 0;">✅ Готовые скрипты продаж и возражений</li>
-        <li style="margin:10px 0;">✅ 2 недели поддержки в чате</li>
-        <li style="margin:10px 0;">✅ 1 час личной стратегической сессии</li>
+        <li style="margin:10px 0;">Аудит текущего маркетинга и воронки</li>
+        <li style="margin:10px 0;">Настройка автоворонки в MAX (Telegram, VK, GetCourse)</li>
+        <li style="margin:10px 0;">Готовые скрипты продаж и возражений</li>
+        <li style="margin:10px 0;">2 недели поддержки в чате</li>
+        <li style="margin:10px 0;">1 час личной стратегической сессии</li>
     </ul>
     <div style="background:#e8f0fe; border-radius:16px; padding:16px; margin:24px 0;">
         <p style="font-size:18px; font-weight:600; text-align:center;">Цена: от 15 000 ₽</p>
         <p style="font-size:14px; text-align:center; color:#6e6e73;">Индивидуальный расчёт после созвона</p>
     </div>
     <div style="background:#fff3cd; border-radius:16px; padding:16px; margin-bottom:24px;">
-        <p style="font-size:14px; margin:0;">🔒 <strong>Гарантия:</strong> если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
+        <p style="font-size:14px; margin:0;">Гарантия: если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
     </div>
     <div style="text-align:center;">
-        <a href="/consultation?user_id={user_id}" class="btn-main">📅 Записаться на внедрение</a>
+        <a href="/consultation?user_id={user_id}" class="btn-main">Записаться на внедрение</a>
     </div>
 </div>
 '''
@@ -1511,19 +1515,19 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
         @media (max-width:700px){.funnel-step{flex-wrap:wrap}.funnel-step .step-name{width:100%;margin-bottom:10px}.stats-grid{grid-template-columns:repeat(2,1fr)}}
     </style></head>
 <body><div class="container">
-<h1>📊 Воронка продаж — Salesplan</h1>
+<h1>Воронка продаж — Salesplan</h1>
 <div class="stats-grid" id="statsGrid">
-    <div class="stat-card"><h3>👥 Уникальных посетителей</h3><div class="value" id="totalVisitors">-</div></div>
-    <div class="stat-card"><h3>📝 Бесплатных диагностик</h3><div class="value" id="totalDiagnostics">-</div><div class="trend" id="convVisitToDiag">-</div></div>
-    <div class="stat-card"><h3>💳 Оплатили план</h3><div class="value" id="totalPayments">-</div><div class="trend" id="convDiagToPayment">-</div></div>
-    <div class="stat-card"><h3>📥 Скачали отчет</h3><div class="value" id="totalDownloads">-</div></div>
-    <div class="stat-card"><h3>💰 Выручка</h3><div class="value" id="totalRevenue">-</div></div>
+    <div class="stat-card"><h3>Уникальных посетителей</h3><div class="value" id="totalVisitors">-</div></div>
+    <div class="stat-card"><h3>Бесплатных диагностик</h3><div class="value" id="totalDiagnostics">-</div><div class="trend" id="convVisitToDiag">-</div></div>
+    <div class="stat-card"><h3>Оплатили план</h3><div class="value" id="totalPayments">-</div><div class="trend" id="convDiagToPayment">-</div></div>
+    <div class="stat-card"><h3>Скачали отчет</h3><div class="value" id="totalDownloads">-</div></div>
+    <div class="stat-card"><h3>Выручка</h3><div class="value" id="totalRevenue">-</div></div>
 </div>
-<div class="funnel-container"><h3>🎯 Воронка продаж (за 7 дней)</h3><div id="funnelSteps"></div></div>
+<div class="funnel-container"><h3>Воронка продаж (за 7 дней)</h3><div id="funnelSteps"></div></div>
 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
-<div class="tabs"><button class="tab active" onclick="showTab('clients')">👥 Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">📝 Бесплатные диагностики</button></div>
-<div id="clientsTab" class="table-container"><h3>💰 Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
-<div id="diagnosticsTab" class="table-container" style="display:none"><h3>📝 Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
+<div class="tabs"><button class="tab active" onclick="showTab('clients')">Оплатившие клиенты</button><button class="tab" onclick="showTab('diagnostics')">Бесплатные диагностики</button></div>
+<div id="clientsTab" class="table-container"><h3>Клиенты, оплатившие премиум-план</h3><table id="clientsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Отчет</th><th></th></tr></thead><tbody></tbody></table></div>
+<div id="diagnosticsTab" class="table-container" style="display:none"><h3>Бесплатные диагностики</h3><table id="diagnosticsTable"><thead><tr><th>Дата</th><th>Телефон</th><th>Бизнес</th><th>Анкета</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
 </div>
 <script>
 let clientsData=[];
@@ -1533,20 +1537,20 @@ document.getElementById('totalDiagnostics').innerText=data.summary.diagnostics;
 document.getElementById('totalPayments').innerText=data.summary.payments;
 document.getElementById('totalDownloads').innerText=data.summary.downloads;
 document.getElementById('totalRevenue').innerText=data.summary.total_revenue.toLocaleString()+' ₽';
-document.getElementById('convVisitToDiag').innerHTML=`📈 Конверсия: ${data.summary.conv_visit_to_diag}%`;
-document.getElementById('convDiagToPayment').innerHTML=`📈 Конверсия: ${data.summary.conv_diag_to_payment}%`;
+document.getElementById('convVisitToDiag').innerHTML=`Конверсия: ${data.summary.conv_visit_to_diag}%`;
+document.getElementById('convDiagToPayment').innerHTML=`Конверсия: ${data.summary.conv_diag_to_payment}%`;
 const funnelDiv=document.getElementById('funnelSteps');
-const steps=[[{name:'👥 Посетители сайта',key:'visitors',color:'#007aff'},{name:'📝 Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'💳 Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'📥 Скачивание отчета',key:'downloads',color:'#34c759'}]];
+const steps=[[{name:'Посетители сайта',key:'visitors',color:'#007aff'},{name:'Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'Скачивание отчета',key:'downloads',color:'#34c759'}]];
 const maxCount=Math.max(data.summary.visitors,1);
 funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const percent=(count/maxCount*100).toFixed(1);return `<div class="funnel-step"><div class="step-name">${step.name}</div><div class="step-count">${count}</div><div class="step-bar"><div class="step-fill" style="width:${percent}%;background:${step.color}">${percent}%</div></div></div>`;}).join('');
 const ctx=document.getElementById('funnelChart').getContext('2d');
-new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'👥 Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'📝 Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'💳 Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'📥 Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
+new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">📋 Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">📥 Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">▶ Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>📝 Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>📄 Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
-async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td>${d.phone||'-'}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">📋 Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'✅ Готов':'⏳ Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">📥 Скачать</a>':'-'}<tr>`;});}
-function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'▼ Скрыть':'▶ Подробнее';}}
-function showAnswers(client){alert(`📋 АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
-function showAnswersDialog(q1,q2,q3,q4,q5){alert(`📋 АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
+async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td>${d.phone||'-'}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'Готов':'Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">Скачать</a>':'-'}<tr>`;});}
+function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'Скрыть':'Подробнее';}}
+function showAnswers(client){alert(`АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
+function showAnswersDialog(q1,q2,q3,q4,q5){alert(`АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
 function showTab(tab){document.getElementById('clientsTab').style.display=tab==='clients'?'block':'none';document.getElementById('diagnosticsTab').style.display=tab==='diagnostics'?'block':'none';document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));event.target.classList.add('active');}
 loadStats();loadClients();loadDiagnostics();setInterval(()=>{loadStats();loadClients();loadDiagnostics();},30000);
 </script>
