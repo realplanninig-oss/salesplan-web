@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (шрифты из ТЗ, бирюзовый акцент)
+# File: main.py — веб-приложение Salesplan (финальная версия с обновлённой страницей благодарности)
 
 import logging
 import sqlite3
@@ -566,7 +566,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
-# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS (ШРИФТЫ ИЗ ТЗ) ===
+# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS ===
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -574,7 +574,6 @@ HTML_HEAD = """<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Привлечение клиентов для экспертов | Вероника Макаревич</title>
     <meta name="description" content="Получите план привлечения клиентов под ваш бизнес. AI-аналитика + личное продюсирование. Реальные кейсы: +120 000, +187 000, +2 000 000 ₽.">
-    <!-- Подключение шрифтов из ТЗ -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
@@ -586,7 +585,6 @@ HTML_HEAD = """<!DOCTYPE html>
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
-        /* ГЛОБАЛЬНЫЕ СТИЛИ – ШРИФТЫ ИЗ ТЗ, ТЁМНЫЙ ФОН, БИРЮЗОВЫЙ АКЦЕНТ */
         *{margin:0;padding:0;box-sizing:border-box}
         body{
             font-family: 'Inter', 'Manrope', sans-serif;
@@ -681,12 +679,10 @@ HTML_HEAD = """<!DOCTYPE html>
         }
         .radio-group label:hover{background:rgba(0,212,170,0.1);border-color:rgba(0,212,170,0.3)}
         .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer;accent-color:#00D4AA}
-        /* Моноширинный шрифт для чисел */
         .mono-number {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700;
         }
-        /* Стеклянные карточки для шагов */
         .step-card{
             text-align:center;padding:24px;
             background:rgba(26,29,35,0.4);
@@ -701,14 +697,12 @@ HTML_HEAD = """<!DOCTYPE html>
         .step-icon{font-size:40px;display:block;margin-bottom:12px}
         .step-title{font-size:18px;font-weight:600;color:#00D4AA;margin-bottom:8px;font-family:'Manrope','Inter',sans-serif;}
         .step-desc{font-size:14px;color:#8e8e93}
-        /* Шкала прогресса */
         .timeline{display:flex;justify-content:space-between;position:relative;padding:20px 0;margin-top:20px}
         .timeline::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(255,255,255,0.1);transform:translateY(-50%)}
         .timeline-point{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1}
         .timeline-point .dot{width:12px;height:12px;border-radius:50%;background:#00D4AA;border:2px solid #0F1115;box-shadow:0 0 10px rgba(0,212,170,0.3)}
         .timeline-point .dot.done{background:#ff9f0a;box-shadow:0 0 10px rgba(255,159,10,0.3)}
         .timeline-point .label{font-size:12px;color:#8e8e93;text-align:center;font-family:'Inter','Manrope',sans-serif;}
-        /* FAQ аккордеон */
         .faq-item{border-bottom:1px solid rgba(255,255,255,0.06);padding:16px 0}
         .faq-question{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:500;color:#f5f5f7;transition:color 0.3s;font-family:'Inter','Manrope',sans-serif;}
         .faq-question:hover{color:#00D4AA}
@@ -1267,7 +1261,9 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА БЛАГОДАРНОСТИ ===
+# ========================================
+# СТРАНИЦА БЛАГОДАРНОСТИ (ОБНОВЛЁННАЯ)
+# ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -1282,10 +1278,10 @@ async def thank_you(user_id: str):
 <div style="background:rgba(26,29,35,0.5); backdrop-filter:blur(12px); border-radius:28px; padding:24px; margin-top:20px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
     <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Спасибо за заявку!</h1>
     <p style="font-size:16px; color:#8e8e93; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
-        Мы уже начали анализ. В течение 24 часов пришлем мини‑разбор и 14‑дневный план в ваш Telegram/ВК и на почту.
+        Напишите мне в MAX – я отвечу на все вопросы и подготовлю для вас персональный разбор.
     </p>
     <p style="font-size:14px; color:#636366; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
-        Пока ждете — подготовьте ссылки на вебинар, рассылки и объявления. Это ускорит внедрение правок и первый результат.
+        Чем быстрее вы свяжетесь со мной, тем быстрее мы начнём внедрять план.
     </p>
     <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5; border:1px solid rgba(255,255,255,0.06); color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
@@ -1295,7 +1291,7 @@ async def thank_you(user_id: str):
 <hr style="margin: 40px 0;">
 
 <div style="text-align:center; max-width:600px; margin:0 auto;">
-    <p style="font-size:20px; font-weight:600; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Хотите, чтобы я внедрил этот план и привёл вам клиентов?</p>
+    <p style="font-size:20px; font-weight:600; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Хотите, чтобы я внедрила этот план и привела вам клиентов?</p>
     <p style="font-size:16px; color:#8e8e93; margin:16px 0; font-family:'Inter','Manrope',sans-serif;">
         Напишите мне в MAX – я бесплатно разберу ваш случай и скажу, какой вариант вам подходит.
     </p>
@@ -1309,7 +1305,9 @@ async def thank_you(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ ===
+# ========================================
+# СТРАНИЦА ВЫБОРА СТРАТЕГИИ (три тарифа)
+# ========================================
 @app.get("/choose-plan", response_class=HTMLResponse)
 async def choose_plan(user_id: str):
     channel_link = "https://max.ru/id781407988795_biz"
@@ -1472,10 +1470,6 @@ async def payment_page(user_id: str, amount: int = 2500):
     return HTMLResponse(content=render_page(content))
 
 # === СОЗДАНИЕ ПЛАТЕЖА, WEBHOOK, ПОДТВЕРЖДЕНИЕ ===
-# (Остальные эндпоинты без изменений, так как они уже используют глобальные стили и шрифты)
-# Чтобы не перегружать ответ, я оставлю их в предыдущей версии (они уже корректны)
-
-# === ПРОДОЛЖЕНИЕ КОДА (без изменений) ===
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(
     request: Request,
@@ -1785,7 +1779,7 @@ async def download_report(request: Request, user_id: str, report_type: str):
         return Response(content=row[1] + return_link, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
     raise HTTPException(status_code=404, detail="Report not found")
 
-# === АДМИНКА ===
+# === АДМИН-ДАШБОРД ===
 @app.get("/admin/logs")
 async def admin_logs(auth: bool = Depends(verify_admin)):
     try:
