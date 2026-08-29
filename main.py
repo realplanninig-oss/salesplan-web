@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (обновлённая главная страница)
+# File: main.py — веб-приложение Salesplan (исправленная синтаксическая ошибка)
 
 import logging
 import sqlite3
@@ -1231,7 +1231,8 @@ async def payment_confirm(request: Request):
         if row:
             amount = row[0] if row[0] is not None else 2500
             logger.info(f"Payment confirm: redirecting to success for user {user_id} with amount {amount}")
-            return RedirectResponse(url=f="/payment/success?user_id={user_id}&amount={amount}", status_code=303)
+            # исправленная строка (было url=f="/..." -> url=f"/...")
+            return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
         else:
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
