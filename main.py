@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (исправленная синтаксическая ошибка)
+# File: main.py — веб-приложение Salesplan (тёмная тема, финальная версия)
 
 import logging
 import sqlite3
@@ -566,7 +566,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
-# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS ===
+# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS (ТЁМНАЯ ТЕМА) ===
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -584,36 +584,38 @@ HTML_HEAD = """<!DOCTYPE html>
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
+        /* Глобальные стили — тёмная тема */
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#fff;color:#1d1d1f}
+        body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;background:#0a0a0c;color:#f5f5f7}
         .container{max-width:1000px;margin:0 auto;padding:40px 20px}
         .hero{text-align:center;margin-bottom:60px}
-        .hero h1{font-size:52px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em}
-        .hero p{font-size:21px;color:#6e6e73;max-width:700px;margin-left:auto;margin-right:auto}
-        .btn-main{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:16px 48px;font-size:20px;font-weight:600;border-radius:48px;box-shadow:0 2px 8px rgba(0,122,255,0.3);transition:transform 0.2s,box-shadow 0.2s;border:none;cursor:pointer}
-        .btn-main:hover{background:#005fc5;transform:scale(1.02);box-shadow:0 4px 12px rgba(0,122,255,0.4)}
+        .hero h1{font-size:52px;font-weight:700;margin-bottom:20px;letter-spacing:-0.02em;color:#fff}
+        .hero p{font-size:21px;color:#8e8e93;max-width:700px;margin-left:auto;margin-right:auto}
+        .btn-main{display:inline-block;background:#0a84ff;color:#fff;text-decoration:none;padding:16px 48px;font-size:20px;font-weight:600;border-radius:48px;box-shadow:0 2px 8px rgba(10,132,255,0.3);transition:transform 0.2s,box-shadow 0.2s;border:none;cursor:pointer}
+        .btn-main:hover{background:#0066cc;transform:scale(1.02);box-shadow:0 4px 12px rgba(10,132,255,0.5)}
         .benefits-grid{display:flex;justify-content:center;gap:30px;flex-wrap:wrap;margin:40px auto}
         .benefit-item{flex:1;min-width:200px;text-align:center}
         .benefit-icon{font-size:32px;margin-bottom:12px}
-        .benefit-title{font-size:17px;font-weight:600;color:#1d1d1f}
+        .benefit-title{font-size:17px;font-weight:600;color:#f5f5f7}
         .cases-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:40px 0}
-        .case-card{background:#f5f5f7;border-radius:20px;padding:20px;text-align:center}
+        .case-card{background:#1c1c1e;border-radius:20px;padding:20px;text-align:center;border:1px solid #2c2c2e}
         .case-icon{font-size:48px;margin-bottom:12px}
-        .case-title{font-weight:600;margin-bottom:8px}
+        .case-title{font-weight:600;color:#f5f5f7;margin-bottom:8px}
         .case-result{font-size:24px;font-weight:700;color:#34c759}
-        .case-desc{font-size:12px;color:#6e6e73}
-        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #e5e5e5;font-size:12px;color:#8e8e93}
+        .case-desc{font-size:12px;color:#8e8e93}
+        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid #1c1c1e;font-size:12px;color:#636366}
         .social-links{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-        .social-links a{color:#007aff;text-decoration:none;font-size:12px}
-        hr{margin:30px 0;border:none;border-top:1px solid #e5e5e5}
-        .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
+        .social-links a{color:#0a84ff;text-decoration:none;font-size:12px}
+        hr{margin:30px 0;border:none;border-top:1px solid #1c1c1e}
+        .form-card{background:#1c1c1e;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:600px;margin:0 auto;border:1px solid #2c2c2e}
         .form-group{margin-bottom:24px}
-        label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
-        input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
+        label{font-size:15px;font-weight:500;display:block;margin-bottom:8px;color:#f5f5f7}
+        input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #2c2c2e;border-radius:10px;font-family:inherit;background:#0a0a0c;color:#f5f5f7}
+        input:focus,textarea:focus{outline:none;border-color:#0a84ff}
         .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
-        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
-        .radio-group label:hover{background:#e5e5ea}
-        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer}
+        .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#0a0a0c;border-radius:12px;transition:background 0.2s;border:1px solid #2c2c2e;color:#f5f5f7}
+        .radio-group label:hover{background:#1c1c1e;border-color:#0a84ff}
+        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer;accent-color:#0a84ff}
         @media (max-width:700px){
             .container{padding:20px 16px}
             .hero h1{font-size:32px}
@@ -637,7 +639,7 @@ HTML_FOOT = """
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <div style="margin-top: 8px;">
-            <a href="/oferta">Публичная оферта</a> | <a href="/privacy">Политика персональных данных</a>
+            <a href="/oferta" style="color:#0a84ff;text-decoration:none;">Публичная оферта</a> | <a href="/privacy" style="color:#0a84ff;text-decoration:none;">Политика персональных данных</a>
         </div>
         <p>© 2026 Все права защищены</p>
     </div>
@@ -653,7 +655,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Генерируем план</title>
-<style>body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;text-align:center;padding:60px 20px;background:#fff;color:#1d1d1f}}.spinner{{width:50px;height:50px;border:4px solid #e5e5e5;border-top-color:#007aff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
+<style>body{{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;text-align:center;padding:60px 20px;background:#0a0a0c;color:#f5f5f7}}.spinner{{width:50px;height:50px;border:4px solid #2c2c2e;border-top-color:#0a84ff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
 <script>
 let attempts=0; let isRedirected=false;
 function checkStatus(){{
@@ -674,11 +676,11 @@ function checkStatus(){{
 setTimeout(checkStatus,1000);
 </script>
 </head>
-<body><div class="spinner"></div><h1>Генерируем ваш план...</h1><p>Это займёт 1-2 минуты. Страница обновится сама.</p></body>
+<body><div class="spinner"></div><h1>Генерируем ваш план...</h1><p style="color:#8e8e93;">Это займёт 1-2 минуты. Страница обновится сама.</p></body>
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (обновлённая)
+# ГЛАВНАЯ СТРАНИЦА (тёмная тема, новый заголовок)
 # ========================================
 @app.get("/")
 async def index():
@@ -695,16 +697,22 @@ async def index():
         font-weight: 700;
         letter-spacing: -0.03em;
         line-height: 1.1;
-        margin-bottom: 16px;
-        color: #1d1d1f;
+        margin-bottom: 8px;
+        color: #fff;
     }
     .apple-hero .subtitle {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: 400;
-        color: #6e6e73;
+        color: #8e8e93;
         max-width: 700px;
         margin: 0 auto 32px;
         line-height: 1.4;
+    }
+    .apple-hero .subtitle small {
+        font-size: 16px;
+        color: #636366;
+        display: block;
+        margin-top: 4px;
     }
     .cases-block {
         display: flex;
@@ -712,9 +720,10 @@ async def index():
         gap: 40px;
         flex-wrap: wrap;
         margin: 20px 0 30px;
-        background: #f5f5f7;
+        background: #1c1c1e;
         border-radius: 24px;
         padding: 24px 20px;
+        border: 1px solid #2c2c2e;
     }
     .cases-block .case-item {
         text-align: center;
@@ -724,37 +733,38 @@ async def index():
     .cases-block .case-item .number {
         font-size: 28px;
         font-weight: 700;
-        color: #1d1d1f;
+        color: #fff;
     }
     .cases-block .case-item .label {
         font-size: 13px;
-        color: #6e6e73;
+        color: #8e8e93;
         line-height: 1.4;
         max-width: 180px;
         margin: 4px auto 0;
     }
     .case-detail {
         font-size: 12px;
-        color: #8e8e93;
+        color: #636366;
         margin-top: 4px;
     }
     .apple-text-block {
-        background: #f9f9fb;
+        background: #1c1c1e;
         border-radius: 28px;
         padding: 40px 48px;
         margin: 32px auto;
         text-align: left;
         font-size: 18px;
         line-height: 1.6;
-        color: #1d1d1f;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        color: #f5f5f7;
+        border: 1px solid #2c2c2e;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.4);
     }
     .apple-text-block p {
         margin-bottom: 16px;
     }
     .apple-text-block strong {
         font-weight: 600;
-        color: #1d1d1f;
+        color: #fff;
     }
     .apple-list {
         list-style: none;
@@ -767,10 +777,11 @@ async def index():
         background-size: 20px;
         margin-bottom: 4px;
         font-size: 17px;
+        color: #f5f5f7;
     }
     .apple-divider {
         border: none;
-        border-top: 1px solid #e5e5ea;
+        border-top: 1px solid #2c2c2e;
         margin: 28px 0;
     }
     .apple-cta {
@@ -778,11 +789,11 @@ async def index():
     }
     .apple-footer-link {
         font-size: 15px;
-        color: #8e8e93;
+        color: #636366;
         margin-top: 32px;
     }
     .apple-footer-link a {
-        color: #007aff;
+        color: #0a84ff;
         text-decoration: none;
         font-weight: 500;
     }
@@ -792,6 +803,7 @@ async def index():
     @media (max-width: 700px) {
         .apple-hero h1 { font-size: 36px; }
         .apple-hero .subtitle { font-size: 20px; }
+        .apple-hero .subtitle small { font-size: 14px; }
         .apple-text-block { padding: 24px 20px; }
         .apple-list li { font-size: 16px; padding-left: 30px; }
         .cases-block { gap: 20px; padding: 16px; flex-direction: column; }
@@ -801,8 +813,11 @@ async def index():
 </style>
 
 <div class="apple-hero">
-    <h1>Привожу клиентов экспертам. Авторам курсов, коучам, психологам и не только.</h1>
-    <p class="subtitle">Проверьте свою нишу за 2 минуты – AI-аналитик покажет точки утечки клиентов и даст план, который уже сработал в 50+ нишах.</p>
+    <h1>Привожу клиентов экспертам за 14 дней.</h1>
+    <p class="subtitle">
+        Авторам курсов, коучам, психологам и не только
+        <small>Проверьте свою нишу за 2 минуты – AI-аналитик покажет точки утечки клиентов и даст план, который уже сработал в 50+ нишах.</small>
+    </p>
 
     <!-- Блок кейсов -->
     <div class="cases-block">
@@ -831,7 +846,7 @@ async def index():
             <li>Поймёте, какие каналы приведут первых клиентов</li>
         </ul>
         <hr class="apple-divider">
-        <p style="font-size: 19px; font-weight: 500;">Заполните 5 полей – и я пришлю вам персональный план.</p>
+        <p style="font-size: 19px; font-weight: 500; color: #fff;">Заполните 5 полей – и я пришлю вам персональный план.</p>
     </div>
 
     <div class="apple-cta">
@@ -846,26 +861,27 @@ async def index():
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# СТРАНИЦА АНКЕТЫ (сокращена до 5 полей)
+# СТРАНИЦА АНКЕТЫ (тёмная тема)
 # ========================================
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
 <style>
-    .form-card{background:#fff;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;margin:0 auto}
+    .form-card{background:#1c1c1e;border-radius:24px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:600px;margin:0 auto;border:1px solid #2c2c2e}
     .form-group{margin-bottom:24px}
-    label{font-size:15px;font-weight:500;display:block;margin-bottom:8px}
-    input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:10px;font-family:inherit}
+    label{font-size:15px;font-weight:500;display:block;margin-bottom:8px;color:#f5f5f7}
+    input,textarea{width:100%;padding:12px;font-size:15px;border:1px solid #2c2c2e;border-radius:10px;font-family:inherit;background:#0a0a0c;color:#f5f5f7}
+    input:focus,textarea:focus{outline:none;border-color:#0a84ff}
     .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
-    .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#f5f5f7;border-radius:12px;transition:background 0.2s}
-    .radio-group label:hover{background:#e5e5ea}
-    .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer}
-    .btn-main{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:16px 48px;font-size:20px;font-weight:600;border-radius:48px;box-shadow:0 2px 8px rgba(0,122,255,0.3);transition:transform 0.2s,box-shadow 0.2s;border:none;cursor:pointer}
-    .btn-main:hover{background:#005fc5;transform:scale(1.02);box-shadow:0 4px 12px rgba(0,122,255,0.4)}
+    .radio-group label{display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;padding:8px 12px;background:#0a0a0c;border-radius:12px;transition:background 0.2s;border:1px solid #2c2c2e;color:#f5f5f7}
+    .radio-group label:hover{background:#1c1c1e;border-color:#0a84ff}
+    .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer;accent-color:#0a84ff}
+    .btn-main{display:inline-block;background:#0a84ff;color:#fff;text-decoration:none;padding:16px 48px;font-size:20px;font-weight:600;border-radius:48px;box-shadow:0 2px 8px rgba(10,132,255,0.3);transition:transform 0.2s,box-shadow 0.2s;border:none;cursor:pointer}
+    .btn-main:hover{background:#0066cc;transform:scale(1.02);box-shadow:0 4px 12px rgba(10,132,255,0.5)}
 </style>
 <div class="hero">
-    <h1>5 вопросов – и вы получите план привлечения клиентов</h1>
-    <p style="font-size:18px;">AI-аналитик просканирует вашу нишу, конкурентов и аудиторию – выдаст структуру плана. Я доработаю её под вас. 2 минуты – и вы увидите первые шаги.</p>
+    <h1 style="color:#fff;">5 вопросов – и вы получите план привлечения клиентов</h1>
+    <p style="font-size:18px;color:#8e8e93;">AI-аналитик просканирует вашу нишу, конкурентов и аудиторию – выдаст структуру плана. Я доработаю её под вас. 2 минуты – и вы увидите первые шаги.</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -875,8 +891,8 @@ async def survey():
         <div class="form-group"><label>4. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q2" value="<10" required> меньше 10</label><label><input type="radio" name="q2" value="10-50"> 10-50</label><label><input type="radio" name="q2" value="50-200"> 50-200</label><label><input type="radio" name="q2" value=">200"> более 200</label></div></div>
         <div class="form-group"><label>5. Цель на 2026 (в деньгах)</label><div class="radio-group"><label><input type="radio" name="q3" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q3" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q3" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q3" value="Масштаб"> Масштаб (выход на новый уровень)</label></div></div>
         <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" name="consent" required style="width:20px;height:20px;">
+            <label style="display:flex;align-items:center;gap:8px;color:#f5f5f7;">
+                <input type="checkbox" name="consent" required style="width:20px;height:20px;accent-color:#0a84ff;">
                 <span>Я принимаю условия публичной оферты и даю согласие на обработку персональных данных</span>
             </label>
         </div>
@@ -942,7 +958,7 @@ async def survey_submit(
     asyncio.create_task(generate_and_save())
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
-# === СТРАНИЦА БЛАГОДАРНОСТИ ===
+# === СТРАНИЦА БЛАГОДАРНОСТИ (тёмная тема) ===
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
     conn = sqlite3.connect(DB_PATH)
@@ -954,13 +970,13 @@ async def thank_you(user_id: str):
     report_text_html = row[1].replace("\n", "<br>") if row[1] else ""
 
     content = f'''
-<div style="background:#f9f9fb; border-radius:28px; padding:24px; margin-top:20px; text-align:center;">
-    <h1 style="font-size:32px; margin-bottom:8px;">Ваш план готов</h1>
-    <p style="font-size:16px; color:#6e6e73; margin-bottom:16px;">
+<div style="background:#1c1c1e; border-radius:28px; padding:24px; margin-top:20px; text-align:center; border:1px solid #2c2c2e;">
+    <h1 style="font-size:32px; margin-bottom:8px; color:#fff;">Ваш план готов</h1>
+    <p style="font-size:16px; color:#8e8e93; margin-bottom:16px;">
         В этом документе – конкретные шаги, основанные на том, что реально привело клиентов в 50+ нишах.
-        <br><strong>Листайте вниз, чтобы увидеть полную картину.</strong>
+        <br><strong style="color:#f5f5f7;">Листайте вниз, чтобы увидеть полную картину.</strong>
     </p>
-    <div style="max-height:300px; overflow-y:auto; background:#fff; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5;">
+    <div style="max-height:300px; overflow-y:auto; background:#0a0a0c; border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5; border:1px solid #2c2c2e; color:#f5f5f7;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
     </div>
 </div>
@@ -968,8 +984,8 @@ async def thank_you(user_id: str):
 <hr style="margin: 40px 0;">
 
 <div style="text-align:center; max-width:600px; margin:0 auto;">
-    <p style="font-size:20px; font-weight:600;">Хотите, чтобы я внедрил этот план и привёл вам клиентов?</p>
-    <p style="font-size:16px; color:#6e6e73; margin:16px 0;">
+    <p style="font-size:20px; font-weight:600; color:#fff;">Хотите, чтобы я внедрил этот план и привёл вам клиентов?</p>
+    <p style="font-size:16px; color:#8e8e93; margin:16px 0;">
         Напишите мне в MAX – я бесплатно разберу ваш случай и скажу, какой вариант вам подходит.
     </p>
     <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" onclick="ym(108348240,'reachGoal','to_choose_plan'); return true;">
@@ -979,7 +995,7 @@ async def thank_you(user_id: str):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ ===
+# === СТРАНИЦА ВЫБОРА СТРАТЕГИИ (тёмная тема) ===
 @app.get("/choose-plan", response_class=HTMLResponse)
 async def choose_plan(user_id: str):
     channel_link = "https://max.ru/id781407988795_biz"
@@ -988,18 +1004,18 @@ async def choose_plan(user_id: str):
 
     content = f'''
 <div style="max-width:700px; margin:0 auto; padding:20px 16px;">
-    <h1 style="font-size:28px; font-weight:700; text-align:center; margin-bottom:8px;">Вы получили план. Теперь решите, кто будет его внедрять.</h1>
-    <p style="font-size:16px; color:#6e6e73; text-align:center; margin-bottom:32px;">
+    <h1 style="font-size:28px; font-weight:700; text-align:center; margin-bottom:8px; color:#fff;">Вы получили план. Теперь решите, кто будет его внедрять.</h1>
+    <p style="font-size:16px; color:#8e8e93; text-align:center; margin-bottom:32px;">
         Я, Вероника Макаревич, предлагаю три уровня – от самостоятельного внедрения до полного сопровождения.
     </p>
 
     <!-- Вариант 1: Бесплатно -->
-    <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #e5e5ea; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <div style="background:#1c1c1e; border-radius:20px; padding:24px; margin-bottom:16px; border:1px solid #2c2c2e; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
             <span style="font-size:28px;">&#128270;</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0;">Самостоятельный старт</h2>
+            <h2 style="font-size:22px; font-weight:600; margin:0; color:#fff;">Самостоятельный старт</h2>
         </div>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
+        <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px; line-height:1.5;">
             Вы получили план – внедряйте сами. Подпишитесь на мой канал в MAX – там я разбираю реальные кейсы и отвечаю на вопросы.
         </p>
         <a href="{channel_link}" target="_blank" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
@@ -1008,53 +1024,53 @@ async def choose_plan(user_id: str):
     </div>
 
     <!-- Вариант 2: Расширенный план -->
-    <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #007aff; box-shadow:0 2px 8px rgba(0,122,255,0.08);">
+    <div style="background:#1c1c1e; border-radius:20px; padding:24px; margin-bottom:16px; border:1px solid #0a84ff; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
             <span style="font-size:28px;">&#128196;</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0;">Расширенный план</h2>
+            <h2 style="font-size:22px; font-weight:600; margin:0; color:#fff;">Расширенный план</h2>
         </div>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
+        <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px; line-height:1.5;">
             Готовые скрипты, бюджеты, контент-план, чек-лист из 50 пунктов. + 30-минутная консультация со мной.
         </p>
-        <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-            <strong>Цена:</strong> 2 500 ₽
+        <p style="font-size:14px; color:#8e8e93; margin-bottom:16px;">
+            <strong style="color:#f5f5f7;">Цена:</strong> 2 500 ₽
         </p>
-        <a href="{payment_link_2500}" class="btn-main" style="display:block; text-align:center; background:#007aff; box-shadow:0 2px 8px rgba(0,122,255,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
+        <a href="{payment_link_2500}" class="btn-main" style="display:block; text-align:center; background:#0a84ff; box-shadow:0 2px 8px rgba(10,132,255,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
             Оплатить 2 500 ₽
         </a>
     </div>
 
     <!-- Вариант 3: Внедрение под ключ -->
-    <div style="background:#fff; border-radius:20px; padding:24px; margin-bottom:16px; border:2px solid #ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.12);">
+    <div style="background:#1c1c1e; border-radius:20px; padding:24px; margin-bottom:16px; border:1px solid #ff9f0a; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
             <span style="font-size:28px;">&#128640;</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0;">Внедрение под ключ</h2>
+            <h2 style="font-size:22px; font-weight:600; margin:0; color:#fff;">Внедрение под ключ</h2>
         </div>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:12px; line-height:1.5;">
+        <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px; line-height:1.5;">
             Я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты.
         </p>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:8px;">
-            <strong>Результат:</strong> первые заявки через 14 дней.
+        <p style="font-size:15px; color:#f5f5f7; margin-bottom:8px;">
+            <strong style="color:#fff;">Результат:</strong> первые заявки через 14 дней.
         </p>
-        <p style="font-size:15px; color:#1d1d1f; margin-bottom:16px;">
-            <strong>Гарантия:</strong> если за 14 дней не будет ни одной заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).
+        <p style="font-size:15px; color:#f5f5f7; margin-bottom:16px;">
+            <strong style="color:#fff;">Гарантия:</strong> если за 14 дней не будет ни одной заявки – я <strong style="color:#fff;">возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).
         </p>
-        <p style="font-size:14px; color:#6e6e73; margin-bottom:16px;">
-            <strong>Цена:</strong> 14 900 ₽
+        <p style="font-size:14px; color:#8e8e93; margin-bottom:16px;">
+            <strong style="color:#f5f5f7;">Цена:</strong> 14 900 ₽
         </p>
         <a href="{payment_link_14900}" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 2px 8px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#fff;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
             Оплатить 14 900 ₽
         </a>
     </div>
 
-    <p style="font-size:14px; color:#6e6e73; text-align:center; margin-top:24px;">
-        Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
+    <p style="font-size:14px; color:#636366; text-align:center; margin-top:24px;">
+        Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#0a84ff; text-decoration:none;">Напишите мне в MAX</a>
     </p>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СТРАНИЦА ОПЛАТЫ ===
+# === СТРАНИЦА ОПЛАТЫ (тёмная тема) ===
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
     if amount not in (2500, 14900):
@@ -1075,30 +1091,30 @@ async def payment_page(user_id: str, amount: int = 2500):
     
     content = f'''
 <div class="hero">
-    <h1>{title}</h1>
-    <p style="font-size:18px;">{description}</p>
+    <h1 style="color:#fff;">{title}</h1>
+    <p style="font-size:18px; color:#8e8e93;">{description}</p>
 </div>
-<div class="form-card">
+<div class="form-card" style="background:#1c1c1e; border-radius:24px; padding:32px; box-shadow:0 4px 12px rgba(0,0,0,0.5); max-width:600px; margin:0 auto; border:1px solid #2c2c2e;">
     <form action="/create_yookassa_payment" method="post">
         <input type="hidden" name="user_id" value="{user_id}">
         <input type="hidden" name="amount" value="{amount}">
-        <div class="form-group">
-            <label>Телефон (для чека и связи)</label>
-            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align:center;font-size:18px;" value="{phone_value}">
-            <p style="font-size:12px;color:#8e8e93;margin-top:6px;">Никаких рассылок и звонков без вашего согласия.</p>
+        <div class="form-group" style="margin-bottom:24px;">
+            <label style="font-size:15px; font-weight:500; display:block; margin-bottom:8px; color:#f5f5f7;">Телефон (для чека и связи)</label>
+            <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="width:100%; padding:12px; font-size:15px; border:1px solid #2c2c2e; border-radius:10px; font-family:inherit; background:#0a0a0c; color:#f5f5f7; text-align:center; font-size:18px;" value="{phone_value}">
+            <p style="font-size:12px; color:#636366; margin-top:6px;">Никаких рассылок и звонков без вашего согласия.</p>
         </div>
-        <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" name="consent" required style="width:20px;height:20px;">
-                <span>Я принимаю условия <a href="/oferta" target="_blank">публичной оферты</a> и даю согласие на обработку персональных данных</span>
+        <div class="form-group" style="margin-bottom:24px;">
+            <label style="display:flex; align-items:center; gap:8px; color:#f5f5f7; font-weight:500;">
+                <input type="checkbox" name="consent" required style="width:20px; height:20px; accent-color:#0a84ff;">
+                <span>Я принимаю условия <a href="/oferta" target="_blank" style="color:#0a84ff; text-decoration:none;">публичной оферты</a> и даю согласие на обработку персональных данных</span>
             </label>
         </div>
-        <div style="text-align:center;margin-top:20px;">
-            <button type="submit" class="btn-main" style="width:100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">{button_text}</button>
+        <div style="text-align:center; margin-top:20px;">
+            <button type="submit" class="btn-main" style="width:100%; background:#0a84ff; color:#fff; padding:16px 48px; font-size:20px; font-weight:600; border-radius:48px; box-shadow:0 2px 8px rgba(10,132,255,0.3); border:none; cursor:pointer;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">{button_text}</button>
         </div>
-        <p style="font-size:12px;text-align:center;margin-top:12px;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
-        <div style="margin-top:30px; font-size:14px; color:#8e8e93; text-align:center;">
-            Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#007aff; text-decoration:none;">Напишите мне в MAX</a>
+        <p style="font-size:12px; text-align:center; margin-top:12px; color:#636366;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
+        <div style="margin-top:30px; font-size:14px; color:#636366; text-align:center;">
+            Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#0a84ff; text-decoration:none;">Напишите мне в MAX</a>
         </div>
     </form>
 </div>
@@ -1231,15 +1247,14 @@ async def payment_confirm(request: Request):
         if row:
             amount = row[0] if row[0] is not None else 2500
             logger.info(f"Payment confirm: redirecting to success for user {user_id} with amount {amount}")
-            # исправленная строка (было url=f="/..." -> url=f"/...")
             return RedirectResponse(url=f"/payment/success?user_id={user_id}&amount={amount}", status_code=303)
         else:
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
-    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px}.btn{display:inline-block;background:#007aff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
+    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:sans-serif;text-align:center;padding:50px;background:#0a0a0c;color:#f5f5f7}.btn{display:inline-block;background:#0a84ff;color:#fff;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА ===
+# === СТРАНИЦА УСПЕХА (тёмная тема) ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1269,40 +1284,40 @@ async def payment_success(user_id: str, amount: int = 2500):
     guarantee_block = ""
     if amount == 14900:
         guarantee_block = """
-    <hr style="margin:32px 0;">
-    <div style="background:#fff3cd; border-radius:16px; padding:16px;">
-        <p style="font-size:15px;"><strong>Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong>возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
+    <hr style="margin:32px 0; border-color:#2c2c2e;">
+    <div style="background:#1c1c1e; border-radius:16px; padding:16px; border:1px solid #ff9f0a;">
+        <p style="font-size:15px; color:#f5f5f7;"><strong style="color:#fff;">Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong style="color:#fff;">возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
     </div>
     """
 
     html_content = f'''
 <div class="hero">
-    <h1>✅ {title}</h1>
-    <p style="font-size:18px;">{instruction}</p>
+    <h1 style="color:#fff;">✅ {title}</h1>
+    <p style="font-size:18px; color:#8e8e93;">{instruction}</p>
 </div>
-<div class="form-card" style="text-align:center;">
-    <div style="background:#e8f0fe;border-radius:16px;padding:20px;margin:20px 0;">
-        <p style="font-size:16px;">{download_text}</p>
+<div class="form-card" style="text-align:center; background:#1c1c1e; border-radius:24px; padding:32px; border:1px solid #2c2c2e; max-width:600px; margin:0 auto;">
+    <div style="background:#0a0a0c; border-radius:16px; padding:20px; margin:20px 0; border:1px solid #2c2c2e;">
+        <p style="font-size:16px; color:#f5f5f7;">{download_text}</p>
         {download_button}
     </div>
     <div style="margin-top:20px;">
-        <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
+        <a href="/" class="btn-main" style="background:transparent; color:#0a84ff; box-shadow:none; text-decoration:none; display:inline-block; padding:12px 24px;">На главную</a>
     </div>
     {guarantee_block}
-    <hr style="margin:32px 0;">
-    <div style="background:#f8f8fa; border-radius:24px; padding:24px; text-align:center;">
-        <h3 style="font-size:22px; margin-bottom:12px;">Бесплатный разбор плана от продюсера</h3>
-        <p style="font-size:16px; color:#1d1d1f; margin-bottom:8px;">
+    <hr style="margin:32px 0; border-color:#2c2c2e;">
+    <div style="background:#0a0a0c; border-radius:24px; padding:24px; text-align:center; border:1px solid #2c2c2e;">
+        <h3 style="font-size:22px; margin-bottom:12px; color:#fff;">Бесплатный разбор плана от продюсера</h3>
+        <p style="font-size:16px; color:#f5f5f7; margin-bottom:8px;">
             Вы купили план. Теперь я лично проверю его за 0 рублей, но только если у вас есть бюджет на внедрение.
         </p>
-        <p style="font-size:15px; color:#6e6e73; margin-bottom:20px;">Жмите сюда, чтобы записаться на 20-минутный созвон.</p>
-        <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; display:inline-block;" onclick="ym(108348240,'reachGoal','free_review_click'); return true;">
+        <p style="font-size:15px; color:#8e8e93; margin-bottom:20px;">Жмите сюда, чтобы записаться на 20-минутный созвон.</p>
+        <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; display:inline-block; box-shadow:0 2px 8px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','free_review_click'); return true;">
             Записаться на бесплатный разбор
         </a>
     </div>
-    <hr style="margin:32px 0;">
-    <div style="background:#e8f0fe;border-radius:20px;padding:20px;margin-top:20px;">
-        <p style="font-size:14px;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank">открыть чат</a></p>
+    <hr style="margin:32px 0; border-color:#2c2c2e;">
+    <div style="background:#0a0a0c; border-radius:20px; padding:20px; margin-top:20px; border:1px solid #2c2c2e;">
+        <p style="font-size:14px; color:#8e8e93;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" style="color:#0a84ff; text-decoration:none;">открыть чат</a></p>
     </div>
 </div>
 '''
@@ -1341,7 +1356,7 @@ async def generate_premium_report(request: Request, user_id: str = Form(...)):
         conn.close()
         raise HTTPException(status_code=400, detail="Недостаточно данных для генерации")
 
-# === СТРАНИЦА КОНСУЛЬТАЦИИ ===
+# === СТРАНИЦА КОНСУЛЬТАЦИИ (тёмная тема) ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
@@ -1349,38 +1364,38 @@ async def consultation_page(user_id: str = None):
         save_user(user_id, None, None)
     content = f'''
 <div class="hero" style="margin-bottom:30px;">
-    <h1 style="font-size:36px;">Разговор по делу – 20 минут</h1>
-    <p style="font-size:18px;color:#6e6e73;max-width:700px;margin:0 auto;">
+    <h1 style="font-size:36px; color:#fff;">Разговор по делу – 20 минут</h1>
+    <p style="font-size:18px; color:#8e8e93; max-width:700px; margin:0 auto;">
         Если есть вопросы по плану, по сотрудничеству или вы хотите уточнить детали – напишите мне в MAX с пометкой «Консультация».
         Укажите ваш вопрос и три удобных времени для звонка (завтра/послезавтра).
     </p>
-    <p style="font-size:15px;color:#6e6e73;max-width:700px;margin:0 auto;margin-top:10px;">
+    <p style="font-size:15px; color:#636366; max-width:700px; margin:0 auto; margin-top:10px;">
         Условие: я провожу такие разговоры только с теми, кто имеет бюджет на внедрение от 50 000 ₽. Если вы пока не готовы – сначала внедрите план и посмотрите на результат.
     </p>
 </div>
-<div class="form-card" style="text-align:center;max-width:600px;margin:0 auto;">
-    <div style="background:#f8f8fa;border-radius:16px;padding:20px;margin-bottom:24px;text-align:left;">
-        <p style="font-size:16px;line-height:1.5;margin:0;">
-            <strong>Что вы получите за 20 минут:</strong><br>
+<div class="form-card" style="text-align:center; max-width:600px; margin:0 auto; background:#1c1c1e; border-radius:24px; padding:32px; border:1px solid #2c2c2e;">
+    <div style="background:#0a0a0c; border-radius:16px; padding:20px; margin-bottom:24px; text-align:left; border:1px solid #2c2c2e;">
+        <p style="font-size:16px; line-height:1.5; margin:0; color:#f5f5f7;">
+            <strong style="color:#fff;">Что вы получите за 20 минут:</strong><br>
             - Честный разбор – где план работает, а где требует доработки<br>
             - Ответ, какой канал даст вам первых клиентов уже на следующей неделе<br>
             - Конкретные шаги по внедрению, которые не требуют команды<br>
             - Чек-лист готовности – чтобы не тратить время на неважное
         </p>
     </div>
-    <p style="font-size:15px;color:#1d1d1f;margin-bottom:16px;">
+    <p style="font-size:15px; color:#f5f5f7; margin-bottom:16px;">
         Чтобы записаться, просто напишите мне в личный чат MAX – я согласую время и проведу разбор.
     </p>
     <div style="margin:20px 0;">
-        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="width:80%;padding:16px;font-size:18px;" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">
+        <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" class="btn-main" style="width:80%; padding:16px; font-size:18px; background:#0a84ff; color:#fff; text-decoration:none; border-radius:48px; display:inline-block;" onclick="ym(108348240,'reachGoal','consultation_click'); return true;">
             Написать в личный чат MAX
         </a>
     </div>
-    <p style="font-size:14px;color:#6e6e73;margin-top:10px;">
-        Напишите цифру <strong>1</strong> в чат – и я вышлю вам разбор.
+    <p style="font-size:14px; color:#636366; margin-top:10px;">
+        Напишите цифру <strong style="color:#f5f5f7;">1</strong> в чат – и я вышлю вам разбор.
     </p>
     <div style="margin-top:30px;">
-        <a href="/" class="btn-main" style="background:transparent;color:#007aff;box-shadow:none;">На главную</a>
+        <a href="/" class="btn-main" style="background:transparent; color:#0a84ff; box-shadow:none; text-decoration:none; display:inline-block; padding:12px 24px;">На главную</a>
     </div>
 </div>
 '''
@@ -1394,27 +1409,27 @@ async def implementation_page(user_id: str = None):
         save_user(user_id, None, None)
     content = f'''
 <div class="hero">
-    <h1>Внедрение под ключ – ваш бизнес с системой за 14 дней</h1>
-    <p style="font-size:20px;">Я лично настрою воронку, чат-бота и скрипты. Вы получаете не просто отчёт, а работающий механизм.</p>
+    <h1 style="color:#fff;">Внедрение под ключ – ваш бизнес с системой за 14 дней</h1>
+    <p style="font-size:20px; color:#8e8e93;">Я лично настрою воронку, чат-бота и скрипты. Вы получаете не просто отчёт, а работающий механизм.</p>
 </div>
-<div class="form-card" style="max-width:700px; text-align:left;">
-    <h3>Что входит:</h3>
-    <ul style="list-style:none; padding:0;">
+<div class="form-card" style="max-width:700px; text-align:left; background:#1c1c1e; border-radius:24px; padding:32px; border:1px solid #2c2c2e; margin:0 auto;">
+    <h3 style="color:#fff;">Что входит:</h3>
+    <ul style="list-style:none; padding:0; color:#f5f5f7;">
         <li style="margin:10px 0;">Аудит текущего маркетинга и воронки</li>
         <li style="margin:10px 0;">Настройка автоворонки в MAX (Telegram, VK, GetCourse)</li>
         <li style="margin:10px 0;">Готовые скрипты продаж и возражений</li>
         <li style="margin:10px 0;">2 недели поддержки в чате</li>
         <li style="margin:10px 0;">1 час личной стратегической сессии</li>
     </ul>
-    <div style="background:#e8f0fe; border-radius:16px; padding:16px; margin:24px 0;">
-        <p style="font-size:18px; font-weight:600; text-align:center;">Цена: от 15 000 ₽</p>
-        <p style="font-size:14px; text-align:center; color:#6e6e73;">Индивидуальный расчёт после созвона</p>
+    <div style="background:#0a0a0c; border-radius:16px; padding:16px; margin:24px 0; border:1px solid #2c2c2e;">
+        <p style="font-size:18px; font-weight:600; text-align:center; color:#fff;">Цена: от 15 000 ₽</p>
+        <p style="font-size:14px; text-align:center; color:#8e8e93;">Индивидуальный расчёт после созвона</p>
     </div>
-    <div style="background:#fff3cd; border-radius:16px; padding:16px; margin-bottom:24px;">
-        <p style="font-size:14px; margin:0;">Гарантия: если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
+    <div style="background:#1c1c1e; border-radius:16px; padding:16px; margin-bottom:24px; border:1px solid #ff9f0a;">
+        <p style="font-size:14px; margin:0; color:#f5f5f7;">Гарантия: если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
     </div>
     <div style="text-align:center;">
-        <a href="/consultation?user_id={user_id}" class="btn-main">Записаться на внедрение</a>
+        <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#0a84ff; color:#fff; text-decoration:none; padding:16px 48px; border-radius:48px; display:inline-block;">Записаться на внедрение</a>
     </div>
 </div>
 '''
@@ -1467,32 +1482,33 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
     dashboard_html = """<!DOCTYPE html>
 <html lang="ru">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Админ-дашборд | Salesplan</title><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
-        *{margin:0;padding:0;box-sizing:border-box} body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f7;padding:20px}
-        .container{max-width:1400px;margin:0 auto} h1{font-size:28px;margin-bottom:20px}
+        *{margin:0;padding:0;box-sizing:border-box} body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0a0a0c;color:#f5f5f7;padding:20px}
+        .container{max-width:1400px;margin:0 auto} h1{color:#fff;font-size:28px;margin-bottom:20px}
         .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:30px}
-        .stat-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-        .stat-card h3{font-size:14px;color:#6e6e73;margin-bottom:8px}
-        .stat-card .value{font-size:32px;font-weight:700;color:#1d1d1f}
+        .stat-card{background:#1c1c1e;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid #2c2c2e}
+        .stat-card h3{font-size:14px;color:#8e8e93;margin-bottom:8px}
+        .stat-card .value{font-size:32px;font-weight:700;color:#fff}
         .stat-card .trend{font-size:12px;color:#34c759;margin-top:8px}
-        .chart-container{background:#fff;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.05)} canvas{max-height:350px}
-        .funnel-container{background:#fff;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-        .funnel-step{display:flex;align-items:center;margin:15px 0;padding:15px;background:#f8f8fa;border-radius:12px}
-        .funnel-step .step-name{width:200px;font-weight:600}
-        .funnel-step .step-count{width:100px;font-size:24px;font-weight:700;color:#007aff}
-        .funnel-step .step-bar{flex:1;height:30px;background:#e5e5ea;border-radius:15px;overflow:hidden}
-        .funnel-step .step-fill{height:100%;background:#007aff;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px}
-        .tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid #e5e5e5;flex-wrap:wrap}
-        .tab{padding:12px 24px;cursor:pointer;border:none;background:none;font-size:16px;transition:all 0.2s}
-        .tab.active{border-bottom:2px solid #007aff;color:#007aff;font-weight:500}
-        .table-container{background:#fff;border-radius:16px;padding:20px;overflow-x:auto} table{width:100%;border-collapse:collapse}
-        th,td{padding:12px;text-align:left;border-bottom:1px solid #e5e5e5} th{background:#f8f8fa;font-weight:600}
+        .chart-container{background:#1c1c1e;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid #2c2c2e} canvas{max-height:350px}
+        .funnel-container{background:#1c1c1e;border-radius:16px;padding:20px;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:1px solid #2c2c2e}
+        .funnel-step{display:flex;align-items:center;margin:15px 0;padding:15px;background:#0a0a0c;border-radius:12px;border:1px solid #2c2c2e}
+        .funnel-step .step-name{width:200px;font-weight:600;color:#f5f5f7}
+        .funnel-step .step-count{width:100px;font-size:24px;font-weight:700;color:#0a84ff}
+        .funnel-step .step-bar{flex:1;height:30px;background:#2c2c2e;border-radius:15px;overflow:hidden}
+        .funnel-step .step-fill{height:100%;background:#0a84ff;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px}
+        .tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid #2c2c2e;flex-wrap:wrap}
+        .tab{padding:12px 24px;cursor:pointer;border:none;background:none;font-size:16px;color:#8e8e93;transition:all 0.2s}
+        .tab.active{border-bottom:2px solid #0a84ff;color:#0a84ff;font-weight:500}
+        .table-container{background:#1c1c1e;border-radius:16px;padding:20px;overflow-x:auto;border:1px solid #2c2c2e} table{width:100%;border-collapse:collapse}
+        th,td{padding:12px;text-align:left;border-bottom:1px solid #2c2c2e} th{background:#0a0a0c;font-weight:600;color:#f5f5f7}
+        td{color:#f5f5f7}
         .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:12px}
-        .badge-success{background:#34c75920;color:#248a3d} .badge-pending{background:#ff9f0a20;color:#cc7b00}
-        .report-link{color:#007aff;text-decoration:none} .expand-btn{cursor:pointer;color:#007aff;font-size:12px}
-        .row-detail{display:none;background:#f8f8fa} .row-detail td{padding:20px}
-        .detail-section{margin-bottom:15px} .detail-section strong{display:block;margin-bottom:5px}
+        .badge-success{background:#34c75920;color:#34c759} .badge-pending{background:#ff9f0a20;color:#ff9f0a}
+        .report-link{color:#0a84ff;text-decoration:none} .expand-btn{cursor:pointer;color:#0a84ff;font-size:12px}
+        .row-detail{display:none;background:#0a0a0c} .row-detail td{padding:20px}
+        .detail-section{margin-bottom:15px} .detail-section strong{display:block;margin-bottom:5px;color:#f5f5f7}
         .detail-answers{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
-        .answer-tag{background:#e5e5ea;padding:4px 12px;border-radius:20px;font-size:12px}
+        .answer-tag{background:#2c2c2e;padding:4px 12px;border-radius:20px;font-size:12px;color:#f5f5f7}
         @media (max-width:700px){.funnel-step{flex-wrap:wrap}.funnel-step .step-name{width:100%;margin-bottom:10px}.stats-grid{grid-template-columns:repeat(2,1fr)}}
     </style></head>
 <body><div class="container">
@@ -1521,14 +1537,14 @@ document.getElementById('totalRevenue').innerText=data.summary.total_revenue.toL
 document.getElementById('convVisitToDiag').innerHTML=`Конверсия: ${data.summary.conv_visit_to_diag}%`;
 document.getElementById('convDiagToPayment').innerHTML=`Конверсия: ${data.summary.conv_diag_to_payment}%`;
 const funnelDiv=document.getElementById('funnelSteps');
-const steps=[[{name:'Посетители сайта',key:'visitors',color:'#007aff'},{name:'Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'Скачивание отчета',key:'downloads',color:'#34c759'}]];
+const steps=[[{name:'Посетители сайта',key:'visitors',color:'#0a84ff'},{name:'Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'Скачивание отчета',key:'downloads',color:'#34c759'}]];
 const maxCount=Math.max(data.summary.visitors,1);
 funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const percent=(count/maxCount*100).toFixed(1);return `<div class="funnel-step"><div class="step-name">${step.name}</div><div class="step-count">${count}</div><div class="step-bar"><div class="step-fill" style="width:${percent}%;background:${step.color}">${percent}%</div></div></div>`;}).join('');
 const ctx=document.getElementById('funnelChart').getContext('2d');
-new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#007aff',backgroundColor:'#007aff20',tension:0.3,fill:true},{label:'Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
+new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#0a84ff',backgroundColor:'#0a84ff20',tension:0.3,fill:true},{label:'Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
-data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small>${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
-async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td>${d.phone||'-'}</td><td><strong>${d.business_name||'-'}</strong><br><small>${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'Готов':'Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">Скачать</a>':'-'}<tr>`;});}
+data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small style="color:#8e8e93;">${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
+async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td>${d.phone||'-'}</td><td><strong>${d.business_name||'-'}</strong><br><small style="color:#8e8e93;">${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'Готов':'Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">Скачать</a>':'-'}<tr>`;});}
 function toggleDetail(btn){const row=btn.closest('tr');const detailRow=row.nextElementSibling;if(detailRow&&detailRow.classList.contains('row-detail')){const isHidden=detailRow.style.display==='none';detailRow.style.display=isHidden?'table-row':'none';btn.innerText=isHidden?'Скрыть':'Подробнее';}}
 function showAnswers(client){alert(`АНКЕТА КЛИЕНТА\n\nПродаёт: ${client.q1||'-'}\nСредний чек: ${client.q2||'-'}\nКлиентов/мес: ${client.q3||'-'}\nЦель: ${client.q4||'-'}\nАвтоворонка: ${client.q5||'-'}`);}
 function showAnswersDialog(q1,q2,q3,q4,q5){alert(`АНКЕТА\n\nПродаёт: ${q1||'-'}\nСредний чек: ${q2||'-'}\nКлиентов/мес: ${q3||'-'}\nЦель: ${q4||'-'}\nАвтоворонка: ${q5||'-'}`);}
@@ -1578,38 +1594,38 @@ async def funnel_7_days_redirect():
 async def oferta_page():
     content = """
 <div class="hero" style="margin-bottom:20px;">
-    <h1>Публичная оферта</h1>
-    <p style="font-size:14px;color:#6e6e73;">о заключении договора купли-продажи цифрового товара</p>
+    <h1 style="color:#fff;">Публичная оферта</h1>
+    <p style="font-size:14px; color:#8e8e93;">о заключении договора купли-продажи цифрового товара</p>
 </div>
-<div class="form-card" style="text-align:left;max-width:800px;">
-    <p><strong>Индивидуальный предприниматель Макаревич Вероника Александровна,</strong><br>
+<div class="form-card" style="text-align:left;max-width:800px; background:#1c1c1e; border-radius:24px; padding:32px; border:1px solid #2c2c2e; margin:0 auto; color:#f5f5f7;">
+    <p><strong style="color:#fff;">Индивидуальный предприниматель Макаревич Вероника Александровна,</strong><br>
     ИНН 781407988795, зарегистрированная в качестве налогоплательщика,<br>
     размещая настоящий документ на сайте<br>
     realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»),<br>
     предлагает неограниченному кругу лиц (далее — «Покупатель»)<br>
     заключить договор купли-продажи цифрового товара на условиях, изложенных ниже.</p>
 
-    <h3>1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h3>
+    <h3 style="color:#fff;">1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h3>
     <p>1.1. Цифровой товар — профессиональный маркетинговый план продаж, сгенерированный с использованием искусственного интеллекта на основе данных, предоставленных Покупателем, предоставляемый в электронном виде в формате текстового файла (.txt) через Сайт.</p>
     <p>1.2. Сайт — интернет-страница, расположенная по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net</p>
     <p>1.3. Продавец — Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795.</p>
     <p>1.4. Покупатель — любое физическое или юридическое лицо, акцептовавшее настоящую оферту.</p>
 
-    <h3>2. ПРЕДМЕТ ДОГОВОРА</h3>
+    <h3 style="color:#fff;">2. ПРЕДМЕТ ДОГОВОРА</h3>
     <p>2.1. Продавец обязуется передать в собственность Покупателю Цифровой товар, а Покупатель обязуется оплатить его в порядке и на условиях, предусмотренных настоящей офертой.</p>
     <p>2.2. Цифровой товар передается Покупателю в момент получения доступа к файлу для скачивания после полной оплаты.</p>
 
-    <h3>3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
+    <h3 style="color:#fff;">3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
     <p>3.1. Стоимость Цифрового товара составляет 490 (Четыреста девяносто) рублей.</p>
     <p>3.2. Оплата производится через платежную систему ЮKassa (ООО «ЮMoney») с использованием банковской карты или иных доступных способов.</p>
     <p>3.3. Оплата считается произведенной в момент поступления денежных средств на счет Продавца.</p>
 
-    <h3>4. ПОРЯДОК ПЕРЕДАЧИ ЦИФРОВОГО ТОВАРА</h3>
+    <h3 style="color:#fff;">4. ПОРЯДОК ПЕРЕДАЧИ ЦИФРОВОГО ТОВАРА</h3>
     <p>4.1. После успешной оплаты Покупателю автоматически открывается доступ к странице с Цифровым товаром для скачивания.</p>
     <p>4.2. Цифровой товар считается переданным надлежащим образом в момент предоставления доступа к файлу для скачивания.</p>
     <p>4.3. Продавец не несет ответственности за невозможность скачать Цифровой товар по техническим причинам на стороне Покупателя (отсутствие интернета, блокировка провайдером и т.п.).</p>
 
-    <h3>5. ПОРЯДОК ВОЗВРАТА ДЕНЕЖНЫХ СРЕДСТВ</h3>
+    <h3 style="color:#fff;">5. ПОРЯДОК ВОЗВРАТА ДЕНЕЖНЫХ СРЕДСТВ</h3>
     <p>5.1. В соответствии со ст. 26.1 Закона РФ «О защите прав потребителей» цифровой товар надлежащего качества возврату не подлежит.</p>
     <p>5.2. Возврат денежных средств возможен в следующих исключительных случаях:<br>
     — Цифровой товар не может быть открыт / прочитан по техническим причинам;<br>
@@ -1619,11 +1635,11 @@ async def oferta_page():
     <p>5.4. При подтверждении оснований для возврата Продавец обязуется вернуть денежные средства в течение 3 (трех) рабочих дней с момента получения заявления от Покупателя.</p>
     <p>5.5. Возврат осуществляется на ту же банковскую карту или счет, с которого производилась оплата.</p>
 
-    <h3>6. ОТВЕТСТВЕННОСТЬ СТОРОН</h3>
+    <h3 style="color:#fff;">6. ОТВЕТСТВЕННОСТЬ СТОРОН</h3>
     <p>6.1. Цифровой товар предоставляется «как есть» (as is). Продавец не гарантирует достижение Покупателем каких-либо финансовых или бизнес-результатов при использовании Цифрового товара.</p>
     <p>6.2. Продавец не несет ответственности за убытки Покупателя, возникшие в результате использования Цифрового товара.</p>
 
-    <h3>7. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ</h3>
+    <h3 style="color:#fff;">7. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ</h3>
     <p>7.1. Цифровой товар является результатом интеллектуальной деятельности Продавца (с использованием нейросетей). Все исключительные права на Цифровой товар принадлежат Продавцу.</p>
     <p>7.2. Покупатель получает право личного некоммерческого использования Цифрового товара. Запрещается:<br>
     — перепродажа Цифрового товара;<br>
@@ -1631,20 +1647,20 @@ async def oferta_page():
     — копирование и тиражирование в коммерческих целях;<br>
     — выдача Цифрового товара за свой собственный.</p>
 
-    <h3>8. ПЕРСОНАЛЬНЫЕ ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ</h3>
+    <h3 style="color:#fff;">8. ПЕРСОНАЛЬНЫЕ ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ</h3>
     <p>8.1. Вопросы обработки персональных данных регулируются Политикой обработки персональных данных, размещенной на Сайте по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net/privacy</p>
     <p>8.2. Направляя данные через формы на Сайте, Покупатель дает согласие на их обработку в соответствии с указанной Политикой.</p>
 
-    <h3>9. ФОРС-МАЖОР</h3>
+    <h3 style="color:#fff;">9. ФОРС-МАЖОР</h3>
     <p>9.1. Стороны освобождаются от ответственности за полное или частичное неисполнение обязательств, если это явилось следствием обстоятельств непреодолимой силы (стихийные бедствия, военные действия, решения органов власти, блокировки интернет-ресурсов и т.п.).</p>
 
-    <h3>10. КОНТАКТЫ ПРОДАВЦА</h3>
+    <h3 style="color:#fff;">10. КОНТАКТЫ ПРОДАВЦА</h3>
     <p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
     — ИНН: 781407988795<br>
     — Email: veranikamakarevich@yandex.ru<br>
     — MAX-канал: https://max.ru/id781407988795_biz</p>
 
-    <h3>11. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</h3>
+    <h3 style="color:#fff;">11. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</h3>
     <p>11.1. Акцептом настоящей оферты является совершение Покупателем действий по оплате Цифрового товара и/или проставление галочки в чекбоксе «Я принимаю условия публичной оферты».</p>
     <p>11.2. Продавец вправе изменять условия оферты в одностороннем порядке. Изменения вступают в силу с момента их опубликования на Сайте.</p>
     <p>Дата публикации: «05» мая 2026 г.</p>
@@ -1656,17 +1672,17 @@ async def oferta_page():
 async def privacy_page():
     content = """
 <div class="hero" style="margin-bottom:20px;">
-    <h1>Политика обработки персональных данных</h1>
-    <p style="font-size:14px;color:#6e6e73;">Индивидуального предпринимателя Макаревич Вероники Александровны</p>
+    <h1 style="color:#fff;">Политика обработки персональных данных</h1>
+    <p style="font-size:14px; color:#8e8e93;">Индивидуального предпринимателя Макаревич Вероники Александровны</p>
 </div>
-<div class="form-card" style="text-align:left;max-width:800px;">
-    <h3>1. ОБЩИЕ ПОЛОЖЕНИЯ</h3>
+<div class="form-card" style="text-align:left;max-width:800px; background:#1c1c1e; border-radius:24px; padding:32px; border:1px solid #2c2c2e; margin:0 auto; color:#f5f5f7;">
+    <h3 style="color:#fff;">1. ОБЩИЕ ПОЛОЖЕНИЯ</h3>
     <p>1.1. Настоящая Политика определяет порядок обработки и защиты персональных данных лиц, использующих сайт realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»).</p>
     <p>1.2. Оператор персональных данных: Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795.</p>
     <p>1.3. Настоящая Политика составлена во исполнение требований Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных» (с изменениями на 2026 год).</p>
     <p>1.4. Используя Сайт и заполняя формы, Пользователь выражает согласие с условиями настоящей Политики.</p>
 
-    <h3>2. КАКИЕ ДАННЫЕ СОБИРАЮТСЯ</h3>
+    <h3 style="color:#fff;">2. КАКИЕ ДАННЫЕ СОБИРАЮТСЯ</h3>
     <p>2.1. Оператор собирает следующие персональные данные:<br>
     — Номер телефона (обязательно)<br>
     — Имя (опционально)<br>
@@ -1678,7 +1694,7 @@ async def privacy_page():
     — Дата и время посещения<br>
     — Страница, с которой совершен переход (Referrer)</p>
 
-    <h3>3. ЦЕЛИ ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
+    <h3 style="color:#fff;">3. ЦЕЛИ ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
     <p>3.1. Основные цели:<br>
     — Предоставление доступа к сервису маркетинговой диагностики<br>
     — Генерация индивидуального маркетингового плана на основе анкеты<br>
@@ -1690,13 +1706,13 @@ async def privacy_page():
     <p>3.2. Второстепенные цели (с отдельным согласием Пользователя):<br>
     — Направление информационных и рекламных рассылок (если Пользователь подписался)</p>
 
-    <h3>4. ПРАВОВЫЕ ОСНОВАНИЯ ОБРАБОТКИ</h3>
+    <h3 style="color:#fff;">4. ПРАВОВЫЕ ОСНОВАНИЯ ОБРАБОТКИ</h3>
     <p>4.1. Оператор обрабатывает персональные данные на основании:<br>
     — Согласия субъекта персональных данных (отдельный чекбокс на Сайте)<br>
     — Договора (публичной оферты), стороной которого является субъект<br>
     — Исполнения обязательств, предусмотренных законодательством РФ</p>
 
-    <h3>5. ПОРЯДОК И УСЛОВИЯ ОБРАБОТКИ</h3>
+    <h3 style="color:#fff;">5. ПОРЯДОК И УСЛОВИЯ ОБРАБОТКИ</h3>
     <p>5.1. Обработка данных включает: сбор, запись, систематизацию, накопление, хранение, уточнение, извлечение, использование, передачу, блокирование, удаление, уничтожение.</p>
     <p>5.2. Срок хранения персональных данных: 3 (три) года с момента последнего взаимодействия с Пользователем либо до момента отзыва согласия, если отзыв не противоречит законодательству.</p>
     <p>5.3. Хранение данных осуществляется на серверах, расположенных на территории Российской Федерации.<br>
@@ -1708,7 +1724,7 @@ async def privacy_page():
     — По запросу уполномоченных государственных органов (в рамках закона)</p>
     <p>5.5. Доступ к персональным данным имеет только Оператор (Макаревич Вероника Александровна). Иные лица к данным доступа не имеют.</p>
 
-    <h3>6. ПРАВА ПОЛЬЗОВАТЕЛЯ</h3>
+    <h3 style="color:#fff;">6. ПРАВА ПОЛЬЗОВАТЕЛЯ</h3>
     <p>6.1. Пользователь имеет право:<br>
     — Получить информацию о своих персональных данных, обрабатываемых Оператором<br>
     — Требовать уточнения, блокирования или уничтожения своих данных<br>
@@ -1717,7 +1733,7 @@ async def privacy_page():
     <p>6.2. Для реализации прав необходимо направить запрос на электронную почту: veranikamakarevich@yandex.ru</p>
     <p>6.3. Оператор обязуется рассмотреть запрос и дать ответ в течение 10 (десяти) рабочих дней.</p>
 
-    <h3>7. ЗАЩИТА ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
+    <h3 style="color:#fff;">7. ЗАЩИТА ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
     <p>7.1. Оператор принимает следующие меры защиты:<br>
     — Парольная защита доступа к базам данных (SQLite с паролем)<br>
     — Использование HTTPS-шифрования (через Timeweb)<br>
@@ -1726,21 +1742,21 @@ async def privacy_page():
     — Антивирусное ПО на рабочем компьютере</p>
     <p>7.2. В случае утечки персональных данных Оператор обязуется в течение 24 часов уведомить Роскомнадзор и пострадавших лиц в порядке, установленном законодательством.</p>
 
-    <h3>8. ИСПОЛЬЗОВАНИЕ ФАЙЛОВ COOKIE И МЕТРИК</h3>
+    <h3 style="color:#fff;">8. ИСПОЛЬЗОВАНИЕ ФАЙЛОВ COOKIE И МЕТРИК</h3>
     <p>8.1. На Сайте используется Яндекс.Метрика для сбора статистики посещений. Данные собираются в обезличенном виде.</p>
     <p>8.2. Пользователь может отключить cookie в настройках браузера.</p>
 
-    <h3>9. ПОРЯДОК ОТЗЫВА СОГЛАСИЯ</h3>
+    <h3 style="color:#fff;">9. ПОРЯДОК ОТЗЫВА СОГЛАСИЯ</h3>
     <p>9.1. Пользователь может отозвать согласие на обработку персональных данных, направив письменное заявление на электронную почту Оператора.</p>
     <p>9.2. В случае отзыва согласия Оператор обязуется прекратить обработку и уничтожить персональные данные в течение 30 дней, если иное не предусмотрено законом.</p>
 
-    <h3>10. КОНТАКТЫ ОПЕРАТОРА</h3>
+    <h3 style="color:#fff;">10. КОНТАКТЫ ОПЕРАТОРА</h3>
     <p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
     — ИНН: 781407988795<br>
     — Email: veranikamakarevich@yandex.ru<br>
     — MAX-канал: https://max.ru/id781407988795_biz</p>
 
-    <h3>11. ИЗМЕНЕНИЕ ПОЛИТИКИ</h3>
+    <h3 style="color:#fff;">11. ИЗМЕНЕНИЕ ПОЛИТИКИ</h3>
     <p>11.1. Оператор вправе изменять настоящую Политику. Новая редакция вступает в силу с момента ее публикации на Сайте.</p>
     <p>Дата публикации: «05» мая 2026 г.</p>
 </div>
