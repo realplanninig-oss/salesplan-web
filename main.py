@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с обновлённой страницей благодарности)
+# File: main.py — веб-приложение Salesplan (финальная версия с улучшенной читаемостью и выбором тарифов на thank-you)
 
 import logging
 import sqlite3
@@ -771,7 +771,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА
+# ГЛАВНАЯ СТРАНИЦА (улучшенная читаемость)
 # ========================================
 @app.get("/")
 async def index():
@@ -794,17 +794,17 @@ async def index():
         font-family: 'Manrope', 'Inter', sans-serif;
     }
     .apple-hero .subtitle {
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 400;
-        color: #8e8e93;
+        color: #aab2c0;
         max-width: 700px;
         margin: 0 auto 32px;
         line-height: 1.4;
         font-family: 'Inter', 'Manrope', sans-serif;
     }
     .apple-hero .subtitle small {
-        font-size: 16px;
-        color: #636366;
+        font-size: 18px;
+        color: #8e8e93;
         display: block;
         margin-top: 4px;
         font-family: 'Inter', 'Manrope', sans-serif;
@@ -828,23 +828,23 @@ async def index():
         min-width: 150px;
     }
     .cases-block .case-item .number {
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 700;
         color: #00D4AA;
         text-shadow: 0 0 15px rgba(0,212,170,0.2);
         font-family: 'JetBrains Mono', monospace;
     }
     .cases-block .case-item .label {
-        font-size: 13px;
-        color: #8e8e93;
+        font-size: 16px;
+        color: #f5f5f7;
         line-height: 1.4;
         max-width: 180px;
         margin: 4px auto 0;
         font-family: 'Inter', 'Manrope', sans-serif;
     }
     .case-detail {
-        font-size: 12px;
-        color: #636366;
+        font-size: 15px;
+        color: #aab2c0;
         margin-top: 4px;
         font-family: 'Inter', 'Manrope', sans-serif;
     }
@@ -981,12 +981,13 @@ async def index():
     @media (max-width: 700px) {
         .apple-hero h1 { font-size: 36px; }
         .apple-hero .subtitle { font-size: 20px; }
-        .apple-hero .subtitle small { font-size: 14px; }
+        .apple-hero .subtitle small { font-size: 16px; }
         .apple-text-block { padding: 24px 20px; }
         .apple-list li { font-size: 16px; padding-left: 30px; }
         .cases-block { gap: 20px; padding: 16px; flex-direction: column; }
-        .cases-block .case-item .number { font-size: 22px; }
-        .cases-block .case-item { min-width: unset; }
+        .cases-block .case-item .number { font-size: 24px; }
+        .cases-block .case-item .label { font-size: 15px; }
+        .case-detail { font-size: 14px; }
         .steps-grid { grid-template-columns: 1fr; gap: 16px; }
         .what-grid { grid-template-columns: 1fr; gap: 24px; }
         .timeline { flex-wrap: wrap; justify-content: center; gap: 16px; }
@@ -1262,7 +1263,7 @@ async def survey_submit(
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
 # ========================================
-# СТРАНИЦА БЛАГОДАРНОСТИ (ОБНОВЛЁННАЯ)
+# СТРАНИЦА БЛАГОДАРНОСТИ (с выбором тарифов)
 # ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
@@ -1273,6 +1274,10 @@ async def thank_you(user_id: str):
         return HTMLResponse(content=render_waiting_page(user_id, "free", f"/thank-you?user_id={user_id}"))
 
     report_text_html = row[1].replace("\n", "<br>") if row[1] else ""
+
+    channel_link = "https://max.ru/id781407988795_biz"
+    payment_link_2500 = f"/payment?user_id={user_id}&amount=2500"
+    payment_link_14900 = f"/payment?user_id={user_id}&amount=14900"
 
     content = f'''
 <div style="background:rgba(26,29,35,0.5); backdrop-filter:blur(12px); border-radius:28px; padding:24px; margin-top:20px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
@@ -1293,11 +1298,50 @@ async def thank_you(user_id: str):
 <div style="text-align:center; max-width:600px; margin:0 auto;">
     <p style="font-size:20px; font-weight:600; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Хотите, чтобы я внедрила этот план и привела вам клиентов?</p>
     <p style="font-size:16px; color:#8e8e93; margin:16px 0; font-family:'Inter','Manrope',sans-serif;">
-        Напишите мне в MAX – я бесплатно разберу ваш случай и скажу, какой вариант вам подходит.
+        Выберите свой вариант – от бесплатного разбора до полного внедрения.
     </p>
-    <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn-main" onclick="ym(108348240,'reachGoal','to_choose_plan'); return true;">
-        Написать в MAX
-    </a>
+
+    <!-- Три варианта -->
+    <div style="display:flex; flex-direction:column; gap:16px; margin:24px 0;">
+        <!-- Бесплатно -->
+        <div class="glass-card" style="padding:20px; text-align:center;">
+            <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Бесплатный разбор</h3>
+            <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px;">
+                Подпишитесь на мой канал в MAX – я лично проверю ваш план и дам рекомендации по первым шагам.
+            </p>
+            <a href="{channel_link}" target="_blank" class="btn-main" style="display:inline-block; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
+                Подписаться
+            </a>
+        </div>
+
+        <!-- Расширенный план -->
+        <div class="glass-card" style="border-color:rgba(0,212,170,0.3); padding:20px; text-align:center;">
+            <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Расширенный план</h3>
+            <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px;">
+                Готовые скрипты, бюджеты, контент-план, чек-лист из 50 пунктов. + 30-минутная консультация.
+            </p>
+            <p style="font-size:14px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 2 500 ₽</p>
+            <a href="{payment_link_2500}" class="btn-main" style="display:inline-block; background:#00D4AA; box-shadow:0 0 20px rgba(0,212,170,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
+                Оплатить 2 500 ₽
+            </a>
+        </div>
+
+        <!-- Внедрение под ключ -->
+        <div class="glass-card gold" style="padding:20px; text-align:center;">
+            <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Внедрение под ключ</h3>
+            <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px;">
+                Я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты. Гарантия: первые заявки через 14 дней или возврат денег.
+            </p>
+            <p style="font-size:14px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 14 900 ₽</p>
+            <a href="{payment_link_14900}" class="btn-main" style="display:inline-block; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
+                Оплатить 14 900 ₽
+            </a>
+        </div>
+    </div>
+
+    <p style="font-size:14px; color:#636366; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">
+        💬 Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
+    </p>
     <div style="margin-top:16px;">
         <a href="/" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA;">Вернуться на главную</a>
     </div>
@@ -1306,119 +1350,15 @@ async def thank_you(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# СТРАНИЦА ВЫБОРА СТРАТЕГИИ (три тарифа)
+# СТРАНИЦА ВЫБОРА СТРАТЕГИИ (редирект на thank-you)
 # ========================================
 @app.get("/choose-plan", response_class=HTMLResponse)
 async def choose_plan(user_id: str):
-    channel_link = "https://max.ru/id781407988795_biz"
-    payment_link_2500 = f"/payment?user_id={user_id}&amount=2500"
-    payment_link_14900 = f"/payment?user_id={user_id}&amount=14900"
+    return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=302)
 
-    content = f'''
-<div style="max-width:700px; margin:0 auto; padding:20px 16px;">
-
-    <!-- Блок с кейсами -->
-    <div class="glass-card" style="text-align:center; margin-bottom:24px;">
-        <h3 style="color:#00D4AA; text-shadow: 0 0 15px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Результаты, на которых обучен мой AI-аналитик</h3>
-        <div style="display:flex; justify-content:space-around; flex-wrap:wrap; gap:12px;">
-            <div>
-                <div style="font-weight:700; font-size:24px; color:#00D4AA; text-shadow: 0 0 15px rgba(0,212,170,0.2); font-family:'JetBrains Mono',monospace;">+120 000 ₽</div>
-                <div style="font-size:14px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">без блога</div>
-            </div>
-            <div>
-                <div style="font-weight:700; font-size:24px; color:#00D4AA; text-shadow: 0 0 15px rgba(0,212,170,0.2); font-family:'JetBrains Mono',monospace;">+187 000 ₽</div>
-                <div style="font-size:14px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">с вебинара</div>
-            </div>
-            <div>
-                <div style="font-weight:700; font-size:24px; color:#00D4AA; text-shadow: 0 0 15px rgba(0,212,170,0.2); font-family:'JetBrains Mono',monospace;">+2 000 000 ₽</div>
-                <div style="font-size:14px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">с марафона</div>
-            </div>
-        </div>
-        <p style="font-size:14px; color:#636366; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">50+ ниш – от психологов до онлайн-школ</p>
-    </div>
-
-    <!-- Блок "Не уверены, что выбрать?" -->
-    <div style="background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; margin-bottom:24px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
-        <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px; font-family:'Inter','Manrope',sans-serif;">
-            <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Не уверены, что выбрать?</strong><br>
-            Напишите мне в личный чат MAX – я бесплатно разберу ваш случай и подберу оптимальный тариф.
-        </p>
-        <a href="{channel_link}" target="_blank" class="btn-main" style="display:inline-block; padding:10px 24px; font-size:16px;">Написать в MAX</a>
-    </div>
-
-    <h1 style="font-size:28px; font-weight:700; text-align:center; margin-bottom:8px; color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Вы получили план. Теперь выберите, как мы будем работать с ним дальше.</h1>
-    <p style="font-size:16px; color:#8e8e93; text-align:center; margin-bottom:32px; font-family:'Inter','Manrope',sans-serif;">
-        Я, Вероника Макаревич, предлагаю три уровня – от бесплатной проверки до полного внедрения.
-    </p>
-
-    <!-- Вариант 1: Бесплатная проверка -->
-    <div class="glass-card" style="margin-bottom:16px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="font-size:28px;">&#128270;</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Я проверю ваш план</h2>
-        </div>
-        <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px; line-height:1.5; font-family:'Inter','Manrope',sans-serif;">
-            Подпишитесь на мой канал в MAX (там кейсы и разборы) – и напишите мне в личный чат слово «Проверка». Я посмотрю ваш план, укажу 3 ключевые ошибки и дам рекомендации по первым шагам.
-        </p>
-        <p style="font-size:14px; color:#8e8e93; margin-bottom:16px; font-style:italic; font-family:'Inter','Manrope',sans-serif;">
-            <em>Почему я?</em> Я, Вероника Макаревич, обучила AI-аналитика на своём опыте в 50+ нишах. Результаты: +120 000, +187 000, +2 000 000 – и это только часть.
-        </p>
-        <a href="{channel_link}" target="_blank" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#0F1115;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
-            Подписаться и написать «Проверка»
-        </a>
-        <p style="font-size:13px; color:#636366; text-align:center; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">
-            Что делать: подписаться → написать «Проверка» в личный чат MAX.
-        </p>
-    </div>
-
-    <!-- Вариант 2: Расширенный план -->
-    <div class="glass-card" style="border-color:rgba(0,212,170,0.3); margin-bottom:16px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="font-size:28px;">&#128196;</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Расширенный план</h2>
-        </div>
-        <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px; line-height:1.5; font-family:'Inter','Manrope',sans-serif;">
-            Готовые скрипты, бюджеты, контент-план, чек-лист из 50 пунктов. + 30-минутная консультация со мной.
-        </p>
-        <p style="font-size:14px; color:#8e8e93; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
-            <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Цена:</strong> 2 500 ₽
-        </p>
-        <a href="{payment_link_2500}" class="btn-main" style="display:block; text-align:center; background:#00D4AA; box-shadow:0 0 20px rgba(0,212,170,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#0F1115;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
-            Оплатить 2 500 ₽
-        </a>
-    </div>
-
-    <!-- Вариант 3: Внедрение под ключ -->
-    <div class="glass-card gold" style="margin-bottom:16px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span style="font-size:28px;">&#128640;</span>
-            <h2 style="font-size:22px; font-weight:600; margin:0; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Внедрение под ключ</h2>
-        </div>
-        <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px; line-height:1.5; font-family:'Inter','Manrope',sans-serif;">
-            Я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты.
-        </p>
-        <p style="font-size:15px; color:#f5f5f7; margin-bottom:8px; font-family:'Inter','Manrope',sans-serif;">
-            <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Результат:</strong> первые заявки через 14 дней.
-        </p>
-        <p style="font-size:15px; color:#f5f5f7; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
-            <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Гарантия:</strong> если за 14 дней не будет ни одной заявки – я <strong style="color:#00D4AA;">возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).
-        </p>
-        <p style="font-size:14px; color:#8e8e93; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
-            <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Цена:</strong> 14 900 ₽
-        </p>
-        <a href="{payment_link_14900}" class="btn-main" style="display:block; text-align:center; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:14px 24px; font-size:17px; border-radius:48px; text-decoration:none; color:#0F1115;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
-            Оплатить 14 900 ₽
-        </a>
-    </div>
-
-    <p style="font-size:14px; color:#636366; text-align:center; margin-top:24px; font-family:'Inter','Manrope',sans-serif;">
-        Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
-    </p>
-</div>
-'''
-    return HTMLResponse(content=render_page(content))
-
-# === СТРАНИЦА ОПЛАТЫ ===
+# ========================================
+# СТРАНИЦА ОПЛАТЫ
+# ========================================
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
     if amount not in (2500, 14900):
@@ -1469,7 +1409,7 @@ async def payment_page(user_id: str, amount: int = 2500):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СОЗДАНИЕ ПЛАТЕЖА, WEBHOOK, ПОДТВЕРЖДЕНИЕ ===
+# === СОЗДАНИЕ ПЛАТЕЖА ===
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(
     request: Request,
@@ -1540,6 +1480,7 @@ async def create_yookassa_payment(
         save_payment_request(user_id, phone, amount=amount)
         return RedirectResponse(url=f"/payment?user_id={user_id}&amount={amount}", status_code=303)
 
+# === ВЕБХУК ===
 @app.post("/payment/webhook")
 async def payment_webhook(request: Request):
     try:
@@ -1573,6 +1514,7 @@ async def payment_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
         return JSONResponse(content={"status": "error"}, status_code=500)
 
+# === ПОДТВЕРЖДЕНИЕ ОПЛАТЫ ===
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
     params = dict(request.query_params)
@@ -1873,7 +1815,7 @@ loadStats();loadClients();loadDiagnostics();setInterval(()=>{loadStats();loadCli
 </html>"""
     return HTMLResponse(content=dashboard_html)
 
-# === API АДМИНКИ ===
+# === API ДЛЯ АДМИНКИ ===
 @app.get("/admin/api/stats")
 async def admin_stats(auth: bool = Depends(verify_admin)):
     days = 7
