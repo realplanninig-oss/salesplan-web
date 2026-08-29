@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с улучшенной читаемостью и выбором тарифов на thank-you)
+# File: main.py — веб-приложение Salesplan (финальная версия со всеми правками)
 
 import logging
 import sqlite3
@@ -771,7 +771,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (улучшенная читаемость)
+# ГЛАВНАЯ СТРАНИЦА (обновлённая)
 # ========================================
 @app.get("/")
 async def index():
@@ -848,6 +848,20 @@ async def index():
         margin-top: 4px;
         font-family: 'Inter', 'Manrope', sans-serif;
     }
+    .guarantee-block {
+        background: rgba(255,159,10,0.15);
+        border: 1px solid #ff9f0a;
+        border-radius: 40px;
+        padding: 16px 32px;
+        display: inline-block;
+        font-size: 22px;
+        font-weight: 600;
+        color: #ff9f0a;
+        margin: 20px auto 30px;
+        font-family: 'Manrope', 'Inter', sans-serif;
+        text-align: center;
+        box-shadow: 0 0 30px rgba(255,159,10,0.1);
+    }
     .apple-text-block {
         background: rgba(26,29,35,0.5);
         backdrop-filter: blur(12px);
@@ -893,58 +907,39 @@ async def index():
     }
     .apple-footer-link a { color: #00D4AA; text-decoration: none; font-weight: 500; }
     .apple-footer-link a:hover { text-decoration: underline; }
-    .steps-grid {
-        display: grid;
-        grid-template-columns: repeat(3,1fr);
-        gap: 24px;
-        margin: 40px 0;
-    }
-    .step-card {
+    .timeline-section {
+        margin: 60px 0;
         text-align: center;
-        padding: 24px;
-        background: rgba(26,29,35,0.4);
+        background: rgba(26,29,35,0.3);
         backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        border-radius: 24px;
+        padding: 32px 24px;
         border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 20px;
-        transition: transform 0.3s,border-color 0.3s;
-        font-family: 'Inter', 'Manrope', sans-serif;
     }
-    .step-card:hover { transform: translateY(-4px); border-color: rgba(0,212,170,0.3); box-shadow: 0 8px 25px rgba(0,212,170,0.1); }
-    .step-icon { font-size: 40px; display: block; margin-bottom: 12px; }
-    .step-title { font-size: 18px; font-weight: 600; color: #00D4AA; margin-bottom: 8px; font-family: 'Manrope', 'Inter', sans-serif; }
-    .step-desc { font-size: 14px; color: #8e8e93; font-family: 'Inter', 'Manrope', sans-serif; }
-    .what-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 40px;
-        align-items: start;
-        margin: 40px 0;
+    .timeline-section h3 {
+        color: #00D4AA;
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        font-family: 'Manrope','Inter',sans-serif;
     }
-    .what-list { list-style: none; padding: 0; }
-    .what-list li {
-        padding: 10px 0 10px 36px;
-        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%2300D4AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>') left center no-repeat;
-        background-size: 20px;
-        color: #f5f5f7;
-        font-size: 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        font-family: 'Inter', 'Manrope', sans-serif;
-    }
-    .what-list li:last-child { border-bottom: none; }
     .timeline {
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
         position: relative;
         padding: 20px 0;
-        margin-top: 20px;
+        max-width: 700px;
+        margin: 0 auto;
     }
     .timeline::before {
         content: '';
         position: absolute;
         top: 50%;
-        left: 0;
-        right: 0;
+        left: 10%;
+        right: 10%;
         height: 2px;
         background: rgba(255,255,255,0.1);
         transform: translateY(-50%);
@@ -955,29 +950,39 @@ async def index():
         align-items: center;
         gap: 8px;
         z-index: 1;
+        background: rgba(15,17,21,0.8);
+        padding: 8px 12px;
+        border-radius: 12px;
+        min-width: 80px;
     }
     .timeline-point .dot {
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         background: #00D4AA;
         border: 2px solid #0F1115;
-        box-shadow: 0 0 10px rgba(0,212,170,0.3);
+        box-shadow: 0 0 12px rgba(0,212,170,0.3);
     }
-    .timeline-point .dot.done { background: #ff9f0a; box-shadow: 0 0 10px rgba(255,159,10,0.3); }
-    .timeline-point .label { font-size: 11px; color: #8e8e93; text-align: center; max-width: 80px; font-family: 'Inter', 'Manrope', sans-serif; }
-    .badge-metrics {
-        background: rgba(26,29,35,0.4);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 40px;
-        padding: 12px 24px;
-        display: inline-block;
+    .timeline-point .dot.done { background: #ff9f0a; box-shadow: 0 0 12px rgba(255,159,10,0.3); }
+    .timeline-point .label {
         font-size: 13px;
         color: #8e8e93;
-        margin-top: 16px;
+        text-align: center;
         font-family: 'Inter', 'Manrope', sans-serif;
+        font-weight: 500;
     }
-    .badge-metrics strong { color: #00D4AA; font-family: 'Manrope', 'Inter', sans-serif; }
+    .timeline-label {
+        color: #636366;
+        font-size: 14px;
+        margin-top: 16px;
+        font-family: 'Inter','Manrope',sans-serif;
+    }
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 24px;
+        margin: 40px 0;
+    }
     @media (max-width: 700px) {
         .apple-hero h1 { font-size: 36px; }
         .apple-hero .subtitle { font-size: 20px; }
@@ -988,11 +993,11 @@ async def index():
         .cases-block .case-item .number { font-size: 24px; }
         .cases-block .case-item .label { font-size: 15px; }
         .case-detail { font-size: 14px; }
-        .steps-grid { grid-template-columns: 1fr; gap: 16px; }
-        .what-grid { grid-template-columns: 1fr; gap: 24px; }
-        .timeline { flex-wrap: wrap; justify-content: center; gap: 16px; }
+        .guarantee-block { font-size: 18px; padding: 12px 20px; }
+        .timeline { flex-direction: column; align-items: center; gap: 12px; }
         .timeline::before { display: none; }
-        .badge-metrics { display: block; text-align: center; }
+        .timeline-point { min-width: unset; }
+        .steps-grid { grid-template-columns: 1fr; gap: 16px; }
     }
 </style>
 
@@ -1000,7 +1005,7 @@ async def index():
     <h1>Привожу клиентов экспертам за 14 дней.</h1>
     <p class="subtitle">
         Авторам курсов, коучам, психологам и не только
-        <small>Проверьте свою нишу за 2 минуты – AI-аналитик покажет точки утечки клиентов и даст план, который уже сработал в 50+ нишах.</small>
+        <small>Проверьте свою нишу за 2 минуты – AI-аналитик покажет точки утечки клиентов и даст план привлечения клиентов, который уже сработал.</small>
     </p>
 
     <!-- Блок кейсов -->
@@ -1022,8 +1027,13 @@ async def index():
         </div>
     </div>
 
+    <!-- ГАРАНТИЯ -->
+    <div class="guarantee-block">
+        🔥 Приведу клиента за 14 дней или верну деньги
+    </div>
+
     <div class="apple-text-block">
-        <p><strong>Как это работает:</strong> мой AI-аналитик обучен на реальных кейсах в 50+ нишах. Он сканирует вашу нишу, конкурентов и аудиторию – и за 2 минуты выдаёт структуру плана, которую я дорабатываю под вас.</p>
+        <p><strong>Как это работает:</strong> мой AI-аналитик обучен на реальных кейсах. Он сканирует вашу нишу, конкурентов и аудиторию – и за 2 минуты выдаёт структуру плана, которую я дорабатываю под вас.</p>
         <ul class="apple-list">
             <li>Узнаете, где теряете клиентов и как это исправить</li>
             <li>Получите план действий на ближайшие шаги</li>
@@ -1042,7 +1052,31 @@ async def index():
     </div>
 </div>
 
-<!-- БЛОК: КАК ЭТО РАБОТАЕТ -->
+<!-- ОТДЕЛЬНЫЙ БЛОК: ВРЕМЕННАЯ ШКАЛА ВНЕДРЕНИЯ -->
+<div class="timeline-section">
+    <h3>⏳ Временная шкала внедрения</h3>
+    <div class="timeline">
+        <div class="timeline-point">
+            <span class="dot done"></span>
+            <span class="label">Правки оффера</span>
+        </div>
+        <div class="timeline-point">
+            <span class="dot"></span>
+            <span class="label">Прогрев</span>
+        </div>
+        <div class="timeline-point">
+            <span class="dot"></span>
+            <span class="label">A/B тесты</span>
+        </div>
+        <div class="timeline-point">
+            <span class="dot"></span>
+            <span class="label">Первые заявки</span>
+        </div>
+    </div>
+    <div class="timeline-label">день 1 → день 14</div>
+</div>
+
+<!-- БЛОК: КАК ЭТО РАБОТАЕТ (3 ШАГА) -->
 <div style="margin: 80px 0; text-align: center;">
     <h2 style="color: #00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Как вы получите заявки за 14 дней</h2>
     <p style="color: #8e8e93; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; font-family:'Inter','Manrope',sans-serif;">Просто следуйте трём шагам – и система начнёт приносить клиентов.</p>
@@ -1063,117 +1097,7 @@ async def index():
             <div class="step-desc">ROMI/CPA, чек-лист A/B и корректировки по ходу</div>
         </div>
     </div>
-    <div style="display: inline-block; background: rgba(255,159,10,0.2); border: 1px solid #ff9f0a; border-radius: 40px; padding: 8px 24px; color: #ff9f0a; font-size: 14px; margin-top: 10px; font-family:'Inter','Manrope',sans-serif;">
-        ⚡ Гарантия: первый клиент или работаю бесплатно
-    </div>
 </div>
-
-<!-- БЛОК: ЧТО ВЫ ПОЛУЧИТЕ -->
-<div style="margin: 80px 0; text-align: center;">
-    <h2 style="color: #00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Что получите уже сегодня</h2>
-    <p style="color: #8e8e93; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; font-family:'Inter','Manrope',sans-serif;">Чёткий план действий без воды и общих фраз.</p>
-    <div class="what-grid">
-        <div style="text-align: left;">
-            <ul class="what-list">
-                <li>Карта воронки с красными зонами</li>
-                <li>Три главные утечки и как их закрыть</li>
-                <li>14‑дневный план приоритетов</li>
-                <li>Скрипты оффера, прогрева и продаж</li>
-                <li>Прогноз ROMI/CPA и бюджет на 14 дней</li>
-            </ul>
-            <div class="badge-metrics">
-                📊 Прозрачные метрики по этапам: <strong>CTR</strong> • <strong>лид</strong> • <strong>заявка</strong> • <strong>оплата</strong>
-            </div>
-        </div>
-        <div style="background: rgba(26,29,35,0.3); backdrop-filter: blur(8px); border-radius: 20px; padding: 24px; border: 1px solid rgba(255,255,255,0.06);">
-            <h4 style="color: #00D4AA; font-size: 16px; margin-bottom: 8px; font-family:'Manrope','Inter',sans-serif;">Временная шкала внедрения</h4>
-            <div class="timeline">
-                <div class="timeline-point">
-                    <span class="dot done"></span>
-                    <span class="label">Правки оффера</span>
-                </div>
-                <div class="timeline-point">
-                    <span class="dot"></span>
-                    <span class="label">Прогрев</span>
-                </div>
-                <div class="timeline-point">
-                    <span class="dot"></span>
-                    <span class="label">A/B тесты</span>
-                </div>
-                <div class="timeline-point">
-                    <span class="dot"></span>
-                    <span class="label">Первые заявки</span>
-                </div>
-            </div>
-            <p style="color: #636366; font-size: 12px; margin-top: 10px; font-family:'Inter','Manrope',sans-serif;">день 1 → день 14</p>
-        </div>
-    </div>
-</div>
-
-<!-- БЛОК: FAQ -->
-<div style="margin: 80px 0;">
-    <h2 style="color: #00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); text-align: center; margin-bottom: 40px; font-family:'Manrope','Inter',sans-serif;">Частые вопросы</h2>
-    <div style="max-width: 700px; margin: 0 auto; background: rgba(26,29,35,0.4); backdrop-filter: blur(8px); border-radius: 24px; padding: 24px; border: 1px solid rgba(255,255,255,0.06);">
-        <div class="faq-item">
-            <div class="faq-question" onclick="toggleFaq(this)">
-                <span>Что, если ниши нет в моих 50+?</span>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="faq-answer">AI берет ближайшие бенчмарки по поведенческим и ценовым сегментам; критичные данные проверяю вручную.</div>
-        </div>
-        <div class="faq-item">
-            <div class="faq-question" onclick="toggleFaq(this)">
-                <span>Какие данные нужны от меня?</span>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="faq-answer">Ответы на 5 вопросов + доступ к метрикам (по желанию).</div>
-        </div>
-        <div class="faq-item">
-            <div class="faq-question" onclick="toggleFaq(this)">
-                <span>Как считать окупаемость за 14 дней?</span>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="faq-answer">Прогноз ROMI/CPA и чувствительность бюджета включены в план.</div>
-        </div>
-        <div class="faq-item">
-            <div class="faq-question" onclick="toggleFaq(this)">
-                <span>Работаете с малым бюджетом?</span>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="faq-answer">Да, тестовые запуски от малого чека; план подстроим под лимит.</div>
-        </div>
-        <div class="faq-item">
-            <div class="faq-question" onclick="toggleFaq(this)">
-                <span>Гарантия как работает?</span>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="faq-answer">Если нет первого клиента в 14 дней при выполнении плана — работаю бесплатно до результата.</div>
-        </div>
-        <div class="faq-item">
-            <div class="faq-question" onclick="toggleFaq(this)">
-                <span>Можно без кейса публично?</span>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="faq-answer">Да, кейс по NDA.</div>
-        </div>
-    </div>
-</div>
-
-<script>
-function toggleFaq(el) {
-    const answer = el.nextElementSibling;
-    const arrow = el.querySelector('.arrow');
-    if (answer.classList.contains('open')) {
-        answer.classList.remove('open');
-        arrow.textContent = '▼';
-    } else {
-        document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('open'));
-        document.querySelectorAll('.faq-question .arrow').forEach(a => a.textContent = '▼');
-        answer.classList.add('open');
-        arrow.textContent = '▲';
-    }
-}
-</script>
 '''
     return HTMLResponse(content=render_page(content))
 
@@ -1263,7 +1187,7 @@ async def survey_submit(
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
 # ========================================
-# СТРАНИЦА БЛАГОДАРНОСТИ (с выбором тарифов)
+# СТРАНИЦА БЛАГОДАРНОСТИ (с выбором тарифов, шрифт увеличен, цена 50 000)
 # ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
@@ -1277,15 +1201,15 @@ async def thank_you(user_id: str):
 
     channel_link = "https://max.ru/id781407988795_biz"
     payment_link_2500 = f"/payment?user_id={user_id}&amount=2500"
-    payment_link_14900 = f"/payment?user_id={user_id}&amount=14900"
+    payment_link_50000 = f"/payment?user_id={user_id}&amount=50000"
 
     content = f'''
 <div style="background:rgba(26,29,35,0.5); backdrop-filter:blur(12px); border-radius:28px; padding:24px; margin-top:20px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
     <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Спасибо за заявку!</h1>
-    <p style="font-size:16px; color:#8e8e93; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
+    <p style="font-size:18px; color:#f5f5f7; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif; font-weight:500;">
         Напишите мне в MAX – я отвечу на все вопросы и подготовлю для вас персональный разбор.
     </p>
-    <p style="font-size:14px; color:#636366; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
+    <p style="font-size:17px; color:#aab2c0; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif; line-height:1.5;">
         Чем быстрее вы свяжетесь со мной, тем быстрее мы начнём внедрять план.
     </p>
     <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5; border:1px solid rgba(255,255,255,0.06); color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">
@@ -1296,8 +1220,8 @@ async def thank_you(user_id: str):
 <hr style="margin: 40px 0;">
 
 <div style="text-align:center; max-width:600px; margin:0 auto;">
-    <p style="font-size:20px; font-weight:600; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Хотите, чтобы я внедрила этот план и привела вам клиентов?</p>
-    <p style="font-size:16px; color:#8e8e93; margin:16px 0; font-family:'Inter','Manrope',sans-serif;">
+    <p style="font-size:22px; font-weight:600; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Хотите, чтобы я внедрила этот план и привела вам клиентов?</p>
+    <p style="font-size:17px; color:#8e8e93; margin:16px 0; font-family:'Inter','Manrope',sans-serif;">
         Выберите свой вариант – от бесплатного разбора до полного внедрения.
     </p>
 
@@ -1306,7 +1230,7 @@ async def thank_you(user_id: str):
         <!-- Бесплатно -->
         <div class="glass-card" style="padding:20px; text-align:center;">
             <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Бесплатный разбор</h3>
-            <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px;">
+            <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px;">
                 Подпишитесь на мой канал в MAX – я лично проверю ваш план и дам рекомендации по первым шагам.
             </p>
             <a href="{channel_link}" target="_blank" class="btn-main" style="display:inline-block; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_free'); return true;">
@@ -1317,29 +1241,29 @@ async def thank_you(user_id: str):
         <!-- Расширенный план -->
         <div class="glass-card" style="border-color:rgba(0,212,170,0.3); padding:20px; text-align:center;">
             <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Расширенный план</h3>
-            <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px;">
+            <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px;">
                 Готовые скрипты, бюджеты, контент-план, чек-лист из 50 пунктов. + 30-минутная консультация.
             </p>
-            <p style="font-size:14px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 2 500 ₽</p>
+            <p style="font-size:15px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 2 500 ₽</p>
             <a href="{payment_link_2500}" class="btn-main" style="display:inline-block; background:#00D4AA; box-shadow:0 0 20px rgba(0,212,170,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
                 Оплатить 2 500 ₽
             </a>
         </div>
 
-        <!-- Внедрение под ключ -->
+        <!-- Внедрение под ключ (цена 50 000) -->
         <div class="glass-card gold" style="padding:20px; text-align:center;">
             <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Внедрение под ключ</h3>
-            <p style="font-size:15px; color:#f5f5f7; margin-bottom:12px;">
+            <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px;">
                 Я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты. Гарантия: первые заявки через 14 дней или возврат денег.
             </p>
-            <p style="font-size:14px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 14 900 ₽</p>
-            <a href="{payment_link_14900}" class="btn-main" style="display:inline-block; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
-                Оплатить 14 900 ₽
+            <p style="font-size:15px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 50 000 ₽</p>
+            <a href="{payment_link_50000}" class="btn-main" style="display:inline-block; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
+                Оплатить 50 000 ₽
             </a>
         </div>
     </div>
 
-    <p style="font-size:14px; color:#636366; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">
+    <p style="font-size:16px; color:#aab2c0; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">
         💬 Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
     </p>
     <div style="margin-top:16px;">
@@ -1357,11 +1281,11 @@ async def choose_plan(user_id: str):
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=302)
 
 # ========================================
-# СТРАНИЦА ОПЛАТЫ
+# СТРАНИЦА ОПЛАТЫ (поддержка 2500 и 50000)
 # ========================================
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
-    if amount not in (2500, 14900):
+    if amount not in (2500, 50000):
         return RedirectResponse(url=f"/payment?user_id={user_id}&amount=2500", status_code=303)
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
@@ -1372,10 +1296,10 @@ async def payment_page(user_id: str, amount: int = 2500):
         title = "Расширенный план – 2 500 ₽"
         description = "Вы получаете готовую структуру от AI-аналитика. После оплаты мы созваниваемся, я дорабатываю план под ваш конкретный случай, и вы получаете готовый документ со скриптами, бюджетами, контент-планом и чек-листом."
         button_text = "Оплатить 2 500 ₽"
-    else:
+    else:  # 50000
         title = "Внедрение под ключ – первые заявки за 14 дней"
         description = "Я лично настраиваю воронку, запускаю рекламу, пишу скрипты. Вы получаете работающую систему привлечения клиентов. Гарантия: если за 14 дней нет заявок – я возвращаю деньги или работаю до первого клиента бесплатно (на ваш выбор)."
-        button_text = "Оплатить 14 900 ₽"
+        button_text = "Оплатить 50 000 ₽"
     
     content = f'''
 <div class="hero">
@@ -1409,7 +1333,7 @@ async def payment_page(user_id: str, amount: int = 2500):
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СОЗДАНИЕ ПЛАТЕЖА ===
+# === СОЗДАНИЕ ПЛАТЕЖА (добавлена поддержка 50000) ===
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(
     request: Request,
@@ -1436,7 +1360,7 @@ async def create_yookassa_payment(
     
     if amount == 2500:
         description = "Расширенный маркетинговый план + консультация"
-    elif amount == 14900:
+    elif amount == 50000:
         description = "Внедрение под ключ: привлечение клиентов"
     else:
         description = f"План продаж за {amount} ₽"
@@ -1569,7 +1493,7 @@ async def payment_success(user_id: str, amount: int = 2500):
         download_button = ""
 
     guarantee_block = ""
-    if amount == 14900:
+    if amount == 50000:
         guarantee_block = """
     <hr style="margin:32px 0;">
     <div style="background:rgba(26,29,35,0.5); border-radius:16px; padding:16px; border:1px solid #ff9f0a;">
