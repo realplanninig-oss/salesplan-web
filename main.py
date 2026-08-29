@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия со всеми правками)
+# File: main.py — веб-приложение Salesplan (финальная версия с обновлённым оффером и расположением блоков)
 
 import logging
 import sqlite3
@@ -907,6 +907,13 @@ async def index():
     }
     .apple-footer-link a { color: #00D4AA; text-decoration: none; font-weight: 500; }
     .apple-footer-link a:hover { text-decoration: underline; }
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 24px;
+        margin: 40px 0;
+    }
+    /* Блок шкалы внедрения (без слова "Временная") */
     .timeline-section {
         margin: 60px 0;
         text-align: center;
@@ -977,12 +984,6 @@ async def index():
         margin-top: 16px;
         font-family: 'Inter','Manrope',sans-serif;
     }
-    .steps-grid {
-        display: grid;
-        grid-template-columns: repeat(3,1fr);
-        gap: 24px;
-        margin: 40px 0;
-    }
     @media (max-width: 700px) {
         .apple-hero h1 { font-size: 36px; }
         .apple-hero .subtitle { font-size: 20px; }
@@ -994,10 +995,10 @@ async def index():
         .cases-block .case-item .label { font-size: 15px; }
         .case-detail { font-size: 14px; }
         .guarantee-block { font-size: 18px; padding: 12px 20px; }
+        .steps-grid { grid-template-columns: 1fr; gap: 16px; }
         .timeline { flex-direction: column; align-items: center; gap: 12px; }
         .timeline::before { display: none; }
         .timeline-point { min-width: unset; }
-        .steps-grid { grid-template-columns: 1fr; gap: 16px; }
     }
 </style>
 
@@ -1027,9 +1028,9 @@ async def index():
         </div>
     </div>
 
-    <!-- ГАРАНТИЯ -->
+    <!-- НОВАЯ ГАРАНТИЯ (обновлённый оффер) -->
     <div class="guarantee-block">
-        🔥 Приведу клиента за 14 дней или верну деньги
+        🔥 Приведу клиента за 14 дней и покажу, как удержать его на 3 месяца
     </div>
 
     <div class="apple-text-block">
@@ -1050,30 +1051,6 @@ async def index():
     <div class="apple-footer-link">
         Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
     </div>
-</div>
-
-<!-- ОТДЕЛЬНЫЙ БЛОК: ВРЕМЕННАЯ ШКАЛА ВНЕДРЕНИЯ -->
-<div class="timeline-section">
-    <h3>⏳ Временная шкала внедрения</h3>
-    <div class="timeline">
-        <div class="timeline-point">
-            <span class="dot done"></span>
-            <span class="label">Правки оффера</span>
-        </div>
-        <div class="timeline-point">
-            <span class="dot"></span>
-            <span class="label">Прогрев</span>
-        </div>
-        <div class="timeline-point">
-            <span class="dot"></span>
-            <span class="label">A/B тесты</span>
-        </div>
-        <div class="timeline-point">
-            <span class="dot"></span>
-            <span class="label">Первые заявки</span>
-        </div>
-    </div>
-    <div class="timeline-label">день 1 → день 14</div>
 </div>
 
 <!-- БЛОК: КАК ЭТО РАБОТАЕТ (3 ШАГА) -->
@@ -1097,6 +1074,30 @@ async def index():
             <div class="step-desc">ROMI/CPA, чек-лист A/B и корректировки по ходу</div>
         </div>
     </div>
+</div>
+
+<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ (перемещён сюда, без слова "Временная") -->
+<div class="timeline-section">
+    <h3>Шкала внедрения</h3>
+    <div class="timeline">
+        <div class="timeline-point">
+            <span class="dot done"></span>
+            <span class="label">Правки оффера</span>
+        </div>
+        <div class="timeline-point">
+            <span class="dot"></span>
+            <span class="label">Прогрев</span>
+        </div>
+        <div class="timeline-point">
+            <span class="dot"></span>
+            <span class="label">A/B тесты</span>
+        </div>
+        <div class="timeline-point">
+            <span class="dot"></span>
+            <span class="label">Первые заявки</span>
+        </div>
+    </div>
+    <div class="timeline-label">день 1 → день 14</div>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
@@ -1187,7 +1188,7 @@ async def survey_submit(
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
 # ========================================
-# СТРАНИЦА БЛАГОДАРНОСТИ (с выбором тарифов, шрифт увеличен, цена 50 000)
+# СТРАНИЦА БЛАГОДАРНОСТИ (с заменой кнопки)
 # ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
@@ -1266,8 +1267,9 @@ async def thank_you(user_id: str):
     <p style="font-size:16px; color:#aab2c0; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">
         💬 Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
     </p>
+    <!-- Кнопка вместо "Вернуться на главную" -->
     <div style="margin-top:16px;">
-        <a href="/" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA;">Вернуться на главную</a>
+        <a href="{channel_link}" target="_blank" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA; display:inline-block; padding:12px 24px;">Есть вопросы? Напишите в MAX</a>
     </div>
 </div>
 '''
@@ -1950,4 +1952,4 @@ async def privacy_page():
 # === ЗАПУСК ===
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)    
