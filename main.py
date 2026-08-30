@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия)
+# File: main.py — веб-приложение Salesplan (объединённая версия)
 
 import logging
 import sqlite3
@@ -130,7 +130,7 @@ async def track_and_block_requests(request: Request, call_next):
     path = request.url.path
     user_agent = request.headers.get("user-agent", "").lower()
     client_ip = request.client.host if request.client else "unknown"
-    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/choose-plan", "/lead-magnet", "/consultation", "/generate-premium-report", "/implementation"]:
+    if path in ["/", "/survey", "/payment", "/payment/success", "/thank-you", "/choose-plan", "/consultation", "/implementation", "/oferta", "/privacy"]:
         track_visit(ip=client_ip, user_agent=user_agent)
     if path == "/favicon.ico":
         return await call_next(request)
@@ -566,7 +566,7 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
-# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS ===
+# === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS (СИНИЙ ФОН, СТЕКЛЯННЫЙ ЭФФЕКТ, ЯКОРНОЕ МЕНЮ) ===
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -585,13 +585,15 @@ HTML_HEAD = """<!DOCTYPE html>
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
+        /* ГЛОБАЛЬНЫЕ СТИЛИ – СИНИЙ ФОН, СТЕКЛЯННЫЙ ЭФФЕКТ */
         *{margin:0;padding:0;box-sizing:border-box}
         body{
             font-family: 'Inter', 'Manrope', sans-serif;
-            background: #0F1115;
+            background: #0B1E33;  /* синий фон */
             color: #f5f5f7;
             line-height: 1.6;
             font-weight: 400;
+            padding-top: 80px; /* отступ для фиксированной шапки */
         }
         .container{max-width:1100px;margin:0 auto;padding:40px 20px}
         .hero{text-align:center;margin-bottom:60px}
@@ -631,7 +633,7 @@ HTML_HEAD = """<!DOCTYPE html>
         .btn-secondary{background:transparent;border:1px solid #00D4AA;color:#00D4AA}
         .btn-secondary:hover{background:#00D4AA;color:#0F1115}
         .glass-card{
-            background:rgba(26,29,35,0.6);
+            background:rgba(26,29,35,0.5);
             backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
             border:1px solid rgba(255,255,255,0.08);
@@ -648,7 +650,7 @@ HTML_HEAD = """<!DOCTYPE html>
         .social-links a{color:#00D4AA;text-decoration:none;font-size:12px}
         hr{margin:30px 0;border:none;border-top:1px solid rgba(255,255,255,0.06)}
         .form-card{
-            background:rgba(26,29,35,0.6);
+            background:rgba(26,29,35,0.5);
             backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
             border:1px solid rgba(255,255,255,0.08);
@@ -700,7 +702,7 @@ HTML_HEAD = """<!DOCTYPE html>
         .timeline{display:flex;justify-content:space-between;position:relative;padding:20px 0;margin-top:20px}
         .timeline::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(255,255,255,0.1);transform:translateY(-50%)}
         .timeline-point{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1}
-        .timeline-point .dot{width:12px;height:12px;border-radius:50%;background:#00D4AA;border:2px solid #0F1115;box-shadow:0 0 10px rgba(0,212,170,0.3)}
+        .timeline-point .dot{width:12px;height:12px;border-radius:50%;background:#00D4AA;border:2px solid #0B1E33;box-shadow:0 0 10px rgba(0,212,170,0.3)}
         .timeline-point .dot.done{background:#ff9f0a;box-shadow:0 0 10px rgba(255,159,10,0.3)}
         .timeline-point .label{font-size:12px;color:#8e8e93;text-align:center;font-family:'Inter','Manrope',sans-serif;}
         .faq-item{border-bottom:1px solid rgba(255,255,255,0.06);padding:16px 0}
@@ -709,18 +711,90 @@ HTML_HEAD = """<!DOCTYPE html>
         .faq-question .arrow{transition:transform 0.3s;font-size:20px;color:#636366}
         .faq-answer{max-height:0;overflow:hidden;transition:max-height 0.4s ease, padding 0.3s;color:#aab2c0;padding:0;font-family:'Inter','Manrope',sans-serif;}
         .faq-answer.open{max-height:300px;padding:12px 0 0 0}
-        @media (max-width:700px){
-            .container{padding:20px 16px}
-            .hero h1{font-size:32px}
-            .hero p{font-size:18px}
-            .btn-main{padding:12px 24px;font-size:18px}
+
+        /* ФИКСИРОВАННАЯ ШАПКА С ЯКОРЯМИ */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(11, 30, 51, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 0 20px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .navbar .logo {
+            font-family: 'Manrope', 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: #00D4AA;
+            text-decoration: none;
+            text-shadow: 0 0 15px rgba(0,212,170,0.2);
+        }
+        .navbar .nav-links {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        .navbar .nav-links a {
+            color: #f5f5f7;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+            font-family: 'Inter', 'Manrope', sans-serif;
+        }
+        .navbar .nav-links a:hover {
+            color: #00D4AA;
+        }
+        .navbar .nav-links .btn-nav {
+            background: #00D4AA;
+            color: #0F1115;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .navbar .nav-links .btn-nav:hover {
+            background: #00b894;
+            color: #0F1115;
+        }
+        @media (max-width: 700px) {
+            .navbar .nav-links {
+                gap: 12px;
+            }
+            .navbar .nav-links a {
+                font-size: 12px;
+            }
+            .navbar .nav-links .btn-nav {
+                padding: 6px 14px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 <body>
+
+<!-- ФИКСИРОВАННАЯ ШАПКА С ЯКОРЯМИ -->
+<nav class="navbar">
+    <a href="/" class="logo">Вероника Макаревич</a>
+    <div class="nav-links">
+        <a href="/#how-it-works">Как работает</a>
+        <a href="/#cases">Кейсы</a>
+        <a href="/#pricing">Тарифы</a>
+        <a href="/survey" class="btn-nav">Получить план</a>
+    </div>
+</nav>
+
 <div class="container">
 """
-
 HTML_FOOT = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер экспертов</p>
@@ -746,7 +820,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 <html lang="ru">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Генерируем план</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>body{{font-family:'Inter','Manrope',sans-serif;text-align:center;padding:60px 20px;background:#0F1115;color:#f5f5f7}}.spinner{{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#00D4AA;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
+<style>body{{font-family:'Inter','Manrope',sans-serif;text-align:center;padding:60px 20px;background:#0B1E33;color:#f5f5f7}}.spinner{{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#00D4AA;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
 <script>
 let attempts=0; let isRedirected=false;
 function checkStatus(){{
@@ -771,7 +845,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (обновлённая)
+# ГЛАВНАЯ СТРАНИЦА (сокращённый текст, улучшенная шкала, якоря)
 # ========================================
 @app.get("/")
 async def index():
@@ -812,7 +886,7 @@ async def index():
     .apple-cta {
         margin: 24px 0 32px;
     }
-    .cases-block {
+    #cases .cases-block {
         display: flex;
         justify-content: center;
         gap: 40px;
@@ -958,7 +1032,7 @@ async def index():
         align-items: center;
         gap: 8px;
         z-index: 1;
-        background: rgba(15,17,21,0.8);
+        background: rgba(11,30,51,0.8);
         padding: 8px 12px;
         border-radius: 12px;
         min-width: 80px;
@@ -968,7 +1042,7 @@ async def index():
         height: 14px;
         border-radius: 50%;
         background: #00D4AA;
-        border: 2px solid #0F1115;
+        border: 2px solid #0B1E33;
         box-shadow: 0 0 12px rgba(0,212,170,0.3);
     }
     .timeline-point .dot.done { background: #ff9f0a; box-shadow: 0 0 12px rgba(255,159,10,0.3); }
@@ -1015,22 +1089,24 @@ async def index():
         <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Получить план</a>
     </div>
 
-    <!-- Блок кейсов -->
-    <div class="cases-block">
-        <div class="case-item">
-            <div class="number">+120 000 ₽</div>
-            <div class="label">Эксперт по китайскому</div>
-            <div class="case-detail">запуск с нуля без блога</div>
-        </div>
-        <div class="case-item">
-            <div class="number">+187 000 ₽</div>
-            <div class="label">Психолог Ольга</div>
-            <div class="case-detail">запуск онлайн-курса с нуля</div>
-        </div>
-        <div class="case-item">
-            <div class="number">+2 000 000 ₽</div>
-            <div class="label">Онлайн-школа коучинга</div>
-            <div class="case-detail">марафон в ВК за 2 недели</div>
+    <!-- Блок кейсов (с якорем) -->
+    <div id="cases">
+        <div class="cases-block">
+            <div class="case-item">
+                <div class="number">+120 000 ₽</div>
+                <div class="label">Эксперт по китайскому</div>
+                <div class="case-detail">запуск с нуля без блога</div>
+            </div>
+            <div class="case-item">
+                <div class="number">+187 000 ₽</div>
+                <div class="label">Психолог Ольга</div>
+                <div class="case-detail">запуск онлайн-курса с нуля</div>
+            </div>
+            <div class="case-item">
+                <div class="number">+2 000 000 ₽</div>
+                <div class="label">Онлайн-школа коучинга</div>
+                <div class="case-detail">марафон в ВК за 2 недели</div>
+            </div>
         </div>
     </div>
 
@@ -1060,8 +1136,8 @@ async def index():
     </div>
 </div>
 
-<!-- БЛОК: КАК ЭТО РАБОТАЕТ (3 ШАГА) -->
-<div style="margin: 80px 0; text-align: center;">
+<!-- БЛОК: КАК ЭТО РАБОТАЕТ (с якорем) -->
+<div id="how-it-works" style="margin: 80px 0; text-align: center;">
     <h2 style="color: #00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Как вы получите заявки за 14 дней</h2>
     <p style="color: #8e8e93; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; font-family:'Inter','Manrope',sans-serif;">Просто следуйте трём шагам – и система начнёт приносить клиентов.</p>
     <div class="steps-grid">
@@ -1083,25 +1159,25 @@ async def index():
     </div>
 </div>
 
-<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ -->
+<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ (улучшенная) -->
 <div class="timeline-section">
     <h3>Шкала внедрения</h3>
     <div class="timeline">
         <div class="timeline-point">
             <span class="dot done"></span>
-            <span class="label">Правки оффера</span>
+            <span class="label">🛠️ Правки оффера</span>
         </div>
         <div class="timeline-point">
             <span class="dot"></span>
-            <span class="label">Прогрев</span>
+            <span class="label">🔥 Прогрев</span>
         </div>
         <div class="timeline-point">
             <span class="dot"></span>
-            <span class="label">A/B тесты</span>
+            <span class="label">📊 A/B тесты</span>
         </div>
         <div class="timeline-point">
             <span class="dot"></span>
-            <span class="label">Первые заявки</span>
+            <span class="label">✅ Первые заявки</span>
         </div>
     </div>
     <div class="timeline-label">день 1 → день 14</div>
@@ -1110,7 +1186,7 @@ async def index():
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# СТРАНИЦА АНКЕТЫ
+# СТРАНИЦА АНКЕТЫ (без изменений, только фон обновлён глобально)
 # ========================================
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
@@ -1195,7 +1271,7 @@ async def survey_submit(
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
 # ========================================
-# СТРАНИЦА БЛАГОДАРНОСТИ (с добавленной фразой, без дубля кнопки)
+# СТРАНИЦА СПАСИБО (с тремя тарифами и фразой "Хотите внедрить")
 # ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
@@ -1236,7 +1312,6 @@ async def thank_you(user_id: str):
         Выберите свой вариант – от бесплатного разбора до полного внедрения.
     </p>
 
-    <!-- Три варианта -->
     <div style="display:flex; flex-direction:column; gap:16px; margin:24px 0;">
         <!-- Бесплатно -->
         <div class="glass-card" style="padding:20px; text-align:center;">
@@ -1283,7 +1358,7 @@ async def thank_you(user_id: str):
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# СТРАНИЦА ВЫБОРА СТРАТЕГИИ (редирект на thank-you)
+# СТРАНИЦА ВЫБОРА ТАРИФОВ – редирект на thank-you
 # ========================================
 @app.get("/choose-plan", response_class=HTMLResponse)
 async def choose_plan(user_id: str):
@@ -1335,14 +1410,14 @@ async def payment_page(user_id: str, amount: int = 2500):
         </div>
         <p style="font-size:12px;text-align:center;margin-top:12px;color:#636366;font-family:'Inter','Manrope',sans-serif;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
         <div style="margin-top:30px; font-size:14px; color:#636366; text-align:center; font-family:'Inter','Manrope',sans-serif;">
-            Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
+            💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
         </div>
     </form>
 </div>
 '''
     return HTMLResponse(content=render_page(content))
 
-# === СОЗДАНИЕ ПЛАТЕЖА (добавлена поддержка 50000) ===
+# === СОЗДАНИЕ ПЛАТЕЖА ===
 @app.post("/create_yookassa_payment")
 async def create_yookassa_payment(
     request: Request,
@@ -1473,9 +1548,9 @@ async def payment_confirm(request: Request):
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
-    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Inter','Manrope',sans-serif;text-align:center;padding:50px;background:#0F1115;color:#f5f5f7}.btn{display:inline-block;background:#00D4AA;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
+    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Inter','Manrope',sans-serif;text-align:center;padding:50px;background:#0B1E33;color:#f5f5f7}.btn{display:inline-block;background:#00D4AA;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА ===
+# === СТРАНИЦА УСПЕХА (с гарантией и бесплатным разбором) ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1543,7 +1618,7 @@ async def payment_success(user_id: str, amount: int = 2500):
 '''
     return HTMLResponse(content=render_page(html_content))
 
-# === СТРАНИЦА КОНСУЛЬТАЦИИ ===
+# === СТРАНИЦА КОНСУЛЬТАЦИИ (упрощённая, ссылка на MAX) ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
@@ -1654,7 +1729,7 @@ async def download_report(request: Request, user_id: str, report_type: str):
         return Response(content=row[1] + return_link, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={report_type}_{user_id}.txt"})
     raise HTTPException(status_code=404, detail="Report not found")
 
-# === АДМИН-ДАШБОРД ===
+# === АДМИН-ДАШБОРД (с API) ===
 @app.get("/admin/logs")
 async def admin_logs(auth: bool = Depends(verify_admin)):
     try:
