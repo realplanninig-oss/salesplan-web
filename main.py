@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с обновлённым оффером и расположением блоков)
+# File: main.py — веб-приложение Salesplan (финальная версия)
 
 import logging
 import sqlite3
@@ -798,7 +798,7 @@ async def index():
         font-weight: 400;
         color: #aab2c0;
         max-width: 700px;
-        margin: 0 auto 32px;
+        margin: 0 auto 24px;
         line-height: 1.4;
         font-family: 'Inter', 'Manrope', sans-serif;
     }
@@ -808,6 +808,9 @@ async def index():
         display: block;
         margin-top: 4px;
         font-family: 'Inter', 'Manrope', sans-serif;
+    }
+    .apple-cta {
+        margin: 24px 0 32px;
     }
     .cases-block {
         display: flex;
@@ -898,7 +901,6 @@ async def index():
         border-top: 1px solid rgba(255,255,255,0.06);
         margin: 28px 0;
     }
-    .apple-cta { margin: 40px 0 24px; }
     .apple-footer-link {
         font-size: 15px;
         color: #636366;
@@ -913,7 +915,6 @@ async def index():
         gap: 24px;
         margin: 40px 0;
     }
-    /* Блок шкалы внедрения (без слова "Временная") */
     .timeline-section {
         margin: 60px 0;
         text-align: center;
@@ -1009,6 +1010,11 @@ async def index():
         <small>Проверьте свою нишу за 2 минуты – AI-аналитик покажет точки утечки клиентов и даст план привлечения клиентов, который уже сработал.</small>
     </p>
 
+    <!-- КНОПКА ПОДНЯТА НАВЕРХ -->
+    <div class="apple-cta">
+        <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Получить план</a>
+    </div>
+
     <!-- Блок кейсов -->
     <div class="cases-block">
         <div class="case-item">
@@ -1028,7 +1034,7 @@ async def index():
         </div>
     </div>
 
-    <!-- НОВАЯ ГАРАНТИЯ (обновлённый оффер) -->
+    <!-- ГАРАНТИЯ -->
     <div class="guarantee-block">
         🔥 Приведу клиента за 14 дней и покажу, как удержать его на 3 месяца
     </div>
@@ -1044,7 +1050,8 @@ async def index():
         <p style="font-size: 19px; font-weight: 500; color: #fff; font-family: 'Manrope','Inter',sans-serif;">Заполните 5 полей – и я пришлю вам персональный план.</p>
     </div>
 
-    <div class="apple-cta">
+    <!-- ВТОРАЯ КНОПКА (дублирующая) – оставим для удобства -->
+    <div class="apple-cta" style="margin-top: 20px;">
         <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Получить план</a>
     </div>
 
@@ -1076,7 +1083,7 @@ async def index():
     </div>
 </div>
 
-<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ (перемещён сюда, без слова "Временная") -->
+<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ -->
 <div class="timeline-section">
     <h3>Шкала внедрения</h3>
     <div class="timeline">
@@ -1188,7 +1195,7 @@ async def survey_submit(
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
 # ========================================
-# СТРАНИЦА БЛАГОДАРНОСТИ (с заменой кнопки)
+# СТРАНИЦА БЛАГОДАРНОСТИ (с добавленной фразой, без дубля кнопки)
 # ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
@@ -1207,11 +1214,14 @@ async def thank_you(user_id: str):
     content = f'''
 <div style="background:rgba(26,29,35,0.5); backdrop-filter:blur(12px); border-radius:28px; padding:24px; margin-top:20px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
     <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Спасибо за заявку!</h1>
-    <p style="font-size:18px; color:#f5f5f7; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif; font-weight:500;">
+    <p style="font-size:18px; color:#f5f5f7; margin-bottom:12px; font-family:'Inter','Manrope',sans-serif; font-weight:500;">
         Напишите мне в MAX – я отвечу на все вопросы и подготовлю для вас персональный разбор.
     </p>
-    <p style="font-size:17px; color:#aab2c0; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif; line-height:1.5;">
+    <p style="font-size:17px; color:#aab2c0; margin-bottom:8px; font-family:'Inter','Manrope',sans-serif; line-height:1.5;">
         Чем быстрее вы свяжетесь со мной, тем быстрее мы начнём внедрять план.
+    </p>
+    <p style="font-size:16px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif; margin-bottom:16px;">
+        <strong>Листайте вниз, чтобы увидеть полный отчёт.</strong>
     </p>
     <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5; border:1px solid rgba(255,255,255,0.06); color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
@@ -1264,10 +1274,7 @@ async def thank_you(user_id: str):
         </div>
     </div>
 
-    <p style="font-size:16px; color:#aab2c0; margin-top:12px; font-family:'Inter','Manrope',sans-serif;">
-        💬 Есть вопросы? <a href="{channel_link}" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
-    </p>
-    <!-- Кнопка вместо "Вернуться на главную" -->
+    <!-- Единственная кнопка "Есть вопросы? Напишите в MAX" -->
     <div style="margin-top:16px;">
         <a href="{channel_link}" target="_blank" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA; display:inline-block; padding:12px 24px;">Есть вопросы? Напишите в MAX</a>
     </div>
@@ -1952,4 +1959,4 @@ async def privacy_page():
 # === ЗАПУСК ===
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)    
+    uvicorn.run(app, host="0.0.0.0", port=port)
