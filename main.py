@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (финальная версия с неон-лайм)
+# File: main.py — веб-приложение Salesplan (с SEO-оптимизацией)
 
 import logging
 import sqlite3
@@ -15,7 +15,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse, PlainTextResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import uvicorn
 
@@ -41,6 +41,7 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 MAX_BOT_TOKEN = os.getenv("MAX_BOT_TOKEN")
 ADMIN_CHANNEL_ID = os.getenv("ADMIN_CHANNEL_ID")
+BASE_URL = os.getenv("BASE_URL", "https://realplanninig-oss-salesplan-web-7eb2.twc1.net")  # для sitemap
 
 missing_vars = []
 if not DEEPSEEK_API_KEY:
@@ -566,28 +567,105 @@ async def generate_premium_report_background(user_id: str, name: str, descriptio
 async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
+# === SEO: robots.txt ===
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots():
+    return """User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /payment/confirm
+Disallow: /thank-you
+Disallow: /payment/success
+Disallow: /check_status
+Disallow: /check-premium-status
+Sitemap: {}/sitemap.xml
+""".format(BASE_URL)
+
+# === SEO: sitemap.xml ===
+@app.get("/sitemap.xml", response_class=PlainTextResponse)
+async def sitemap():
+    now = datetime.now().strftime("%Y-%m-%d")
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{BASE_URL}/</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>{BASE_URL}/survey</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>{BASE_URL}/payment</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>{BASE_URL}/oferta</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>{BASE_URL}/privacy</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>{BASE_URL}/consultation</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>{BASE_URL}/implementation</loc>
+    <lastmod>{now}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
+"""
+
 # === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS (дизайн-система) ===
 # Основной цвет – неон-лайм #B5FF47, дополнительный – #5AD1FF
-HTML_HEAD = """<!DOCTYPE html>
+
+def render_page(content: str, title: str = "Привлечение клиентов для экспертов | Вероника Макаревич", description: str = "Получите план привлечения клиентов под ваш бизнес. AI-аналитика + личное продюсирование. Реальные кейсы: +120 000, +187 000, +2 000 000 ₽.", noindex: bool = False):
+    """Генерирует полную HTML-страницу с мета-тегами и Open Graph."""
+    robots_meta = '<meta name="robots" content="noindex, nofollow">' if noindex else ''
+    og_image = f"{BASE_URL}/static/og-image.png"  # если есть, иначе можно использовать картинку-заглушку
+    html_head = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Привлечение клиентов для экспертов | Вероника Макаревич</title>
-    <meta name="description" content="Получите план привлечения клиентов под ваш бизнес. AI-аналитика + личное продюсирование. Реальные кейсы: +120 000, +187 000, +2 000 000 ₽.">
+    <title>{title}</title>
+    <meta name="description" content="{description}">
+    {robots_meta}
+    <meta property="og:title" content="{title}">
+    <meta property="og:description" content="{description}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{BASE_URL}/">
+    <meta property="og:image" content="{og_image}">
+    <meta name="twitter:card" content="summary_large_image">
     <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        (function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};
         m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+        for (var j = 0; j < document.scripts.length; j++) {{if (document.scripts[j].src === r) {{ return; }}}}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})
         (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-        ym(108348240, "init", { clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true, ecommerce:"dataLayer" });
+        ym(108348240, "init", {{ clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true, ecommerce:"dataLayer" }});
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         /* === ДИЗАЙН-СИСТЕМА === */
-        :root {
+        :root {{
             --color-bg: #0F1115;
             --color-bg-secondary: #1A1D23;
             --color-text-primary: #FFFFFF;
@@ -603,19 +681,19 @@ HTML_HEAD = """<!DOCTYPE html>
             --shadow-glow: 0 0 30px rgba(181,255,71,0.3);
             --radius-card: 16px;
             --radius-button: 60px;
-        }
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{
+        }}
+        *{{margin:0;padding:0;box-sizing:border-box}}
+        body{{
             font-family: var(--font-body);
             background: var(--color-bg);
             color: var(--color-text-primary);
             line-height: 1.6;
             font-weight: 400;
             padding-top: 80px;
-        }
-        .container{max-width:1200px;margin:0 auto;padding:40px 20px}
-        .hero{text-align:center;margin-bottom:60px}
-        .hero h1{
+        }}
+        .container{{max-width:1200px;margin:0 auto;padding:40px 20px}}
+        .hero{{text-align:center;margin-bottom:60px}}
+        .hero h1{{
             font-size:clamp(2.2rem, 5vw, 4.5rem);
             font-weight:700;
             margin-bottom:20px;
@@ -623,16 +701,16 @@ HTML_HEAD = """<!DOCTYPE html>
             color:var(--color-accent);
             text-shadow:0 0 30px rgba(181,255,71,0.2);
             font-family: var(--font-heading);
-        }
-        .hero p{font-size:clamp(1rem, 1.5vw, 1.25rem);color:var(--color-text-secondary);max-width:700px;margin-left:auto;margin-right:auto;font-family:var(--font-body);}
-        h1, h2, h3, .heading {
+        }}
+        .hero p{{font-size:clamp(1rem, 1.5vw, 1.25rem);color:var(--color-text-secondary);max-width:700px;margin-left:auto;margin-right:auto;font-family:var(--font-body);}}
+        h1, h2, h3, .heading {{
             color: var(--color-accent);
             font-family: var(--font-heading);
             font-weight: 700;
-        }
-        h2 { font-size: clamp(1.8rem, 3vw, 3rem); font-weight: 700; margin-bottom: 16px; text-shadow: 0 0 20px rgba(181,255,71,0.15); }
-        h3 { font-size: clamp(1.3rem, 1.8vw, 1.8rem); font-weight: 600; margin-bottom: 12px; }
-        .btn-main{
+        }}
+        h2 {{ font-size: clamp(1.8rem, 3vw, 3rem); font-weight: 700; margin-bottom: 16px; text-shadow: 0 0 20px rgba(181,255,71,0.15); }}
+        h3 {{ font-size: clamp(1.3rem, 1.8vw, 1.8rem); font-weight: 600; margin-bottom: 12px; }}
+        .btn-main{{
             display:inline-block;
             background:var(--color-accent);
             color:#0F1115;
@@ -646,21 +724,21 @@ HTML_HEAD = """<!DOCTYPE html>
             border:none;
             cursor:pointer;
             font-family: var(--font-body);
-        }
-        .btn-main:hover{
+        }}
+        .btn-main:hover{{
             transform:translateY(-2px);
             box-shadow:0 0 40px rgba(181,255,71,0.6);
-        }
-        .btn-secondary{
+        }}
+        .btn-secondary{{
             background:transparent;
             border:1px solid var(--color-accent);
             color:var(--color-accent);
-        }
-        .btn-secondary:hover{
+        }}
+        .btn-secondary:hover{{
             background:rgba(181,255,71,0.1);
             box-shadow:0 0 20px rgba(181,255,71,0.1);
-        }
-        .glass-card{
+        }}
+        .glass-card{{
             background:var(--color-glass);
             backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
@@ -670,18 +748,18 @@ HTML_HEAD = """<!DOCTYPE html>
             transition:all 0.3s ease;
             font-family: var(--font-body);
             box-shadow:var(--shadow-glass);
-        }
-        .glass-card:hover{
+        }}
+        .glass-card:hover{{
             border-color:rgba(181,255,71,0.3);
             box-shadow:0 0 30px rgba(181,255,71,0.05);
-        }
-        .glass-card.gold{border-color:rgba(90,209,255,0.3)}
-        .glass-card.gold:hover{border-color:var(--color-accent-secondary);box-shadow:0 0 30px rgba(90,209,255,0.1)}
-        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--color-glass-border);font-size:12px;color:var(--color-text-secondary);font-family:var(--font-body);}
-        .social-links{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-        .social-links a{color:var(--color-accent);text-decoration:none;font-size:12px}
-        hr{margin:30px 0;border:none;border-top:1px solid var(--color-glass-border)}
-        .form-card{
+        }}
+        .glass-card.gold{{border-color:rgba(90,209,255,0.3)}}
+        .glass-card.gold:hover{{border-color:var(--color-accent-secondary);box-shadow:0 0 30px rgba(90,209,255,0.1)}}
+        .footer{{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--color-glass-border);font-size:12px;color:var(--color-text-secondary);font-family:var(--font-body);}}
+        .social-links{{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}}
+        .social-links a{{color:var(--color-accent);text-decoration:none;font-size:12px}}
+        hr{{margin:30px 0;border:none;border-top:1px solid var(--color-glass-border)}}
+        .form-card{{
             background:var(--color-glass);
             backdrop-filter:blur(12px);
             -webkit-backdrop-filter:blur(12px);
@@ -692,20 +770,20 @@ HTML_HEAD = """<!DOCTYPE html>
             margin:0 auto;
             font-family: var(--font-body);
             box-shadow:var(--shadow-glass);
-        }
-        .form-group{margin-bottom:24px}
-        label{font-size:0.9rem;font-weight:500;display:block;margin-bottom:8px;color:var(--color-text-secondary)}
-        input,textarea{
+        }}
+        .form-group{{margin-bottom:24px}}
+        label{{font-size:0.9rem;font-weight:500;display:block;margin-bottom:8px;color:var(--color-text-secondary)}}
+        input,textarea{{
             width:100%;padding:12px;font-size:1rem;
             border:1px solid rgba(255,255,255,0.1);border-radius:10px;
             font-family:var(--font-body);
             background:rgba(255,255,255,0.06);
             color:var(--color-text-primary);
             transition:border-color 0.3s,box-shadow 0.3s;
-        }
-        input:focus,textarea:focus{outline:none;border-color:var(--color-accent);box-shadow:0 0 10px rgba(181,255,71,0.2)}
-        .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
-        .radio-group label{
+        }}
+        input:focus,textarea:focus{{outline:none;border-color:var(--color-accent);box-shadow:0 0 10px rgba(181,255,71,0.2)}}
+        .radio-group{{display:flex;flex-direction:column;gap:12px;margin-top:8px}}
+        .radio-group label{{
             display:flex;align-items:center;gap:8px;
             font-weight:normal;cursor:pointer;padding:8px 12px;
             background:rgba(255,255,255,0.04);
@@ -713,14 +791,14 @@ HTML_HEAD = """<!DOCTYPE html>
             transition:all 0.2s;border:1px solid var(--color-glass-border);
             color:var(--color-text-primary);
             font-family:var(--font-body);
-        }
-        .radio-group label:hover{background:rgba(181,255,71,0.08);border-color:rgba(181,255,71,0.3)}
-        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer;accent-color:var(--color-accent)}
-        .mono-number {
+        }}
+        .radio-group label:hover{{background:rgba(181,255,71,0.08);border-color:rgba(181,255,71,0.3)}}
+        .radio-group input[type="radio"]{{width:20px;height:20px;margin:0;cursor:pointer;accent-color:var(--color-accent)}}
+        .mono-number {{
             font-family: var(--font-mono);
             font-weight: 600;
-        }
-        .step-card{
+        }}
+        .step-card{{
             text-align:center;padding:24px;
             background:var(--color-glass);
             backdrop-filter:blur(8px);
@@ -729,26 +807,26 @@ HTML_HEAD = """<!DOCTYPE html>
             border-radius:var(--radius-card);
             transition:all 0.3s ease;
             font-family:var(--font-body);
-        }
-        .step-card:hover{transform:translateY(-4px);border-color:rgba(181,255,71,0.3);box-shadow:0 8px 25px rgba(181,255,71,0.05)}
-        .step-icon{font-size:40px;display:block;margin-bottom:12px}
-        .step-title{font-size:1.125rem;font-weight:600;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-heading);}
-        .step-desc{font-size:0.875rem;color:var(--color-text-secondary)}
-        .timeline{display:flex;justify-content:space-between;position:relative;padding:20px 0;margin-top:20px}
-        .timeline::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:var(--color-glass-border);transform:translateY(-50%)}
-        .timeline-point{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1}
-        .timeline-point .dot{width:12px;height:12px;border-radius:50%;background:var(--color-accent);border:2px solid var(--color-bg);box-shadow:0 0 10px rgba(181,255,71,0.3)}
-        .timeline-point .dot.done{background:var(--color-accent-secondary);box-shadow:0 0 10px rgba(90,209,255,0.3)}
-        .timeline-point .label{font-size:0.75rem;color:var(--color-text-secondary);text-align:center;font-family:var(--font-body);}
-        .faq-item{border-bottom:1px solid var(--color-glass-border);padding:16px 0}
-        .faq-question{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:500;color:var(--color-text-primary);transition:color 0.3s;font-family:var(--font-body);}
-        .faq-question:hover{color:var(--color-accent)}
-        .faq-question .arrow{transition:transform 0.3s;font-size:20px;color:var(--color-text-secondary)}
-        .faq-answer{max-height:0;overflow:hidden;transition:max-height 0.4s ease, padding 0.3s;color:var(--color-text-secondary);padding:0;font-family:var(--font-body);}
-        .faq-answer.open{max-height:300px;padding:12px 0 0 0}
+        }}
+        .step-card:hover{{transform:translateY(-4px);border-color:rgba(181,255,71,0.3);box-shadow:0 8px 25px rgba(181,255,71,0.05)}}
+        .step-icon{{font-size:40px;display:block;margin-bottom:12px}}
+        .step-title{{font-size:1.125rem;font-weight:600;color:var(--color-accent);margin-bottom:8px;font-family:var(--font-heading);}}
+        .step-desc{{font-size:0.875rem;color:var(--color-text-secondary)}}
+        .timeline{{display:flex;justify-content:space-between;position:relative;padding:20px 0;margin-top:20px}}
+        .timeline::before{{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:var(--color-glass-border);transform:translateY(-50%)}}
+        .timeline-point{{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1}}
+        .timeline-point .dot{{width:12px;height:12px;border-radius:50%;background:var(--color-accent);border:2px solid var(--color-bg);box-shadow:0 0 10px rgba(181,255,71,0.3)}}
+        .timeline-point .dot.done{{background:var(--color-accent-secondary);box-shadow:0 0 10px rgba(90,209,255,0.3)}}
+        .timeline-point .label{{font-size:0.75rem;color:var(--color-text-secondary);text-align:center;font-family:var(--font-body);}}
+        .faq-item{{border-bottom:1px solid var(--color-glass-border);padding:16px 0}}
+        .faq-question{{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:500;color:var(--color-text-primary);transition:color 0.3s;font-family:var(--font-body);}}
+        .faq-question:hover{{color:var(--color-accent)}}
+        .faq-question .arrow{{transition:transform 0.3s;font-size:20px;color:var(--color-text-secondary)}}
+        .faq-answer{{max-height:0;overflow:hidden;transition:max-height 0.4s ease, padding 0.3s;color:var(--color-text-secondary);padding:0;font-family:var(--font-body);}}
+        .faq-answer.open{{max-height:300px;padding:12px 0 0 0}}
 
         /* ФИКСИРОВАННАЯ ШАПКА */
-        .navbar {
+        .navbar {{
             position: fixed;
             top: 0;
             left: 0;
@@ -763,8 +841,8 @@ HTML_HEAD = """<!DOCTYPE html>
             display: flex;
             align-items: center;
             justify-content: space-between;
-        }
-        .navbar .logo {
+        }}
+        .navbar .logo {{
             font-family: var(--font-heading);
             font-weight: 800;
             font-size: 1.8rem;
@@ -772,24 +850,24 @@ HTML_HEAD = """<!DOCTYPE html>
             text-decoration: none;
             text-shadow: 0 0 15px rgba(181,255,71,0.2);
             letter-spacing:-0.02em;
-        }
-        .navbar .nav-links {
+        }}
+        .navbar .nav-links {{
             display: flex;
             gap: 24px;
             align-items: center;
-        }
-        .navbar .nav-links a {
+        }}
+        .navbar .nav-links a {{
             color: var(--color-text-secondary);
             text-decoration: none;
             font-size: 1rem;
             font-weight: 500;
             transition: color 0.2s;
             font-family: var(--font-body);
-        }
-        .navbar .nav-links a:hover {
+        }}
+        .navbar .nav-links a:hover {{
             color: var(--color-accent);
-        }
-        .navbar .nav-links .btn-nav {
+        }}
+        .navbar .nav-links .btn-nav {{
             background: var(--color-accent);
             color: #0F1115;
             padding: 8px 20px;
@@ -797,82 +875,99 @@ HTML_HEAD = """<!DOCTYPE html>
             font-weight: 600;
             font-size: 0.9rem;
             transition: all 0.2s;
-        }
-        .navbar .nav-links .btn-nav:hover {
+        }}
+        .navbar .nav-links .btn-nav:hover {{
             transform:translateY(-2px);
             box-shadow:0 0 20px rgba(181,255,71,0.4);
-        }
-        @media (max-width: 700px) {
-            .navbar .nav-links { gap: 12px; }
-            .navbar .nav-links a { font-size: 0.8rem; }
-            .navbar .nav-links .btn-nav { padding: 6px 14px; font-size: 0.8rem; }
-        }
+        }}
+        @media (max-width: 700px) {{
+            .navbar .nav-links {{ gap: 12px; }}
+            .navbar .nav-links a {{ font-size: 0.8rem; }}
+            .navbar .nav-links .btn-nav {{ padding: 6px 14px; font-size: 0.8rem; }}
+        }}
         /* Дополнительные стили для главной */
-        .apple-hero, .apple-text-block, .apple-list li, .apple-footer-link {
+        .apple-hero, .apple-text-block, .apple-list li, .apple-footer-link {{
             font-family: var(--font-body);
-        }
-        .apple-hero h1, .apple-hero .subtitle, .steps-grid .step-title {
+        }}
+        .apple-hero h1, .apple-hero .subtitle, .steps-grid .step-title {{
             font-family: var(--font-heading);
-        }
-        .timeline-section h3, .timeline-label {
+        }}
+        .timeline-section h3, .timeline-label {{
             font-family: var(--font-heading);
-        }
-        .cases-block .case-item .label, .case-detail {
+        }}
+        .cases-block .case-item .label, .case-detail {{
             font-family: var(--font-body);
-        }
-        .apple-list li {
+        }}
+        .apple-list li {{
             background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>') left center no-repeat;
             background-size: 20px;
-        }
-        .apple-footer-link a { color: var(--color-accent); }
+        }}
+        .apple-footer-link a {{ color: var(--color-accent); }}
         /* Стили для графика внедрения */
-        .implementation-graph {
+        .implementation-graph {{
             background: rgba(255,255,255,0.04);
             border-radius: 16px;
             padding: 24px 20px;
             border: 1px solid rgba(255,255,255,0.08);
             margin-top: 20px;
-        }
-        .graph-step {
+        }}
+        .graph-step {{
             display: flex;
             align-items: center;
             margin: 12px 0;
             gap: 12px;
-        }
-        .graph-step .step-label {
+        }}
+        .graph-step .step-label {{
             width: 120px;
             font-size: 0.9rem;
             color: #FFFFFF;
             font-family: var(--font-body);
             text-align: right;
-        }
-        .graph-step .step-bar {
+        }}
+        .graph-step .step-bar {{
             flex: 1;
             height: 8px;
             background: rgba(255,255,255,0.08);
             border-radius: 4px;
             overflow: hidden;
-        }
-        .graph-step .step-fill {
+        }}
+        .graph-step .step-fill {{
             height: 100%;
             border-radius: 4px;
             transition: width 1s;
-        }
-        .graph-step .step-fill.done { background: var(--color-accent); width: 100%; }
-        .graph-step .step-fill.partial { background: var(--color-accent-secondary); width: 50%; }
-        .graph-step .step-fill.empty { background: rgba(255,255,255,0.2); width: 0%; }
-        .graph-step .step-status {
+        }}
+        .graph-step .step-fill.done {{ background: var(--color-accent); width: 100%; }}
+        .graph-step .step-fill.partial {{ background: var(--color-accent-secondary); width: 50%; }}
+        .graph-step .step-fill.empty {{ background: rgba(255,255,255,0.2); width: 0%; }}
+        .graph-step .step-status {{
             width: 80px;
             font-size: 0.8rem;
             color: var(--color-text-secondary);
             font-family: var(--font-body);
-        }
-        .graph-step .step-status.done { color: var(--color-accent); }
-        .graph-step .step-status.partial { color: var(--color-accent-secondary); }
-        @media (max-width: 700px) {
-            .graph-step .step-label { width: 80px; font-size: 0.8rem; }
-            .graph-step .step-status { width: 60px; font-size: 0.7rem; }
-        }
+        }}
+        .graph-step .step-status.done {{ color: var(--color-accent); }}
+        .graph-step .step-status.partial {{ color: var(--color-accent-secondary); }}
+        @media (max-width: 700px) {{
+            .graph-step .step-label {{ width: 80px; font-size: 0.8rem; }}
+            .graph-step .step-status {{ width: 60px; font-size: 0.7rem; }}
+        }}
+        /* Дополнительные стили для SEO-текста */
+        .seo-text {{
+            font-size: 0.95rem;
+            color: var(--color-text-secondary);
+            line-height: 1.7;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid var(--color-glass-border);
+        }}
+        .seo-text h3 {{
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: var(--color-accent);
+        }}
+        .seo-text p {{
+            margin-bottom: 14px;
+        }}
     </style>
 </head>
 <body>
@@ -890,7 +985,7 @@ HTML_HEAD = """<!DOCTYPE html>
 
 <div class="container">
 """
-HTML_FOOT = """
+    html_foot = """
     <div class="footer">
         <p>Вероника Макаревич | Продюсер экспертов</p>
         <div class="social-links">
@@ -905,15 +1000,14 @@ HTML_FOOT = """
 </div>
 </body>
 </html>"""
-
-def render_page(content: str):
-    return HTML_HEAD + content + HTML_FOOT
+    return html_head + content + html_foot
 
 # === ВСПОМОГАТЕЛЬНЫЕ СТРАНИЦЫ ОЖИДАНИЯ ===
 def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Генерируем план</title>
+<meta name="robots" content="noindex, nofollow">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>body{{font-family:'Manrope',sans-serif;text-align:center;padding:60px 20px;background:#0F1115;color:#FFFFFF}}.spinner{{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#B5FF47;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
 <script>
@@ -940,7 +1034,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (обновлённая)
+# ГЛАВНАЯ СТРАНИЦА (обновлённая с SEO-текстом)
 # ========================================
 @app.get("/")
 async def index():
@@ -1203,6 +1297,23 @@ async def index():
     #pricing .pricing-card .btn-gold:hover {
         box-shadow: 0 0 30px rgba(90,209,255,0.4);
     }
+    .seo-text {
+        margin-top: 60px;
+        padding-top: 40px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .seo-text h3 {
+        color: #B5FF47;
+        font-family: 'Inter Tight', sans-serif;
+        font-size: 1.4rem;
+        margin-bottom: 16px;
+    }
+    .seo-text p {
+        font-size: 0.95rem;
+        color: #AAB2C0;
+        line-height: 1.7;
+        margin-bottom: 14px;
+    }
     @media (max-width: 700px) {
         .apple-hero h1 { font-size: 1.8rem; }
         .apple-hero .subtitle { font-size: 1rem; }
@@ -1216,6 +1327,7 @@ async def index():
         .graph-step .step-label { width: 80px; font-size: 0.8rem; }
         .graph-step .step-status { width: 60px; font-size: 0.7rem; }
         #pricing .pricing-grid { gap: 16px; }
+        .seo-text { margin-top: 40px; padding-top: 30px; }
     }
 </style>
 
@@ -1351,8 +1463,27 @@ async def index():
     </div>
     <p style="font-size:0.9rem; color:#636366; margin-top:20px; font-family:'Manrope',sans-serif;">* Для тарифа «Внедрение под ключ» требуется предварительный созвон.</p>
 </div>
+
+<!-- SEO-текст (расширенный контент) -->
+<div class="seo-text">
+    <h3>Привлечение клиентов для экспертов: как работает система</h3>
+    <p>Вы эксперт, коуч, психолог или владелец онлайн-школы? Тогда вы знаете, как сложно привлекать клиентов в условиях высокой конкуренции. Моя система, основанная на AI-аналитике и реальных кейсах, помогает экспертам получать стабильный поток заявок уже через 14 дней после внедрения.</p>
+    <p>Я — Вероника Макаревич, продюсер экспертов. Моя специализация — настройка воронок продаж, разработка офферов и скриптов, а также запуск рекламных кампаний. Я работаю с экспертами из разных ниш: коучинг, психология, обучение, наставничество, и помогаю им выходить на новый уровень дохода.</p>
+    <p><strong>Как я привлекаю клиентов для экспертов?</strong> Я использую AI-аналитику для сканирования ниши, конкурентов и аудитории. На основе данных я создаю персональный план действий, который включает в себя:</p>
+    <ul style="list-style: none; padding: 0; font-family: 'Manrope', sans-serif; color: #AAB2C0;">
+        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23B5FF47%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%2220 6 9 17 4 12%22/></svg>') left center no-repeat; background-size: 16px;">Проверку текущей воронки продаж и выявление точек утечки клиентов</li>
+        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23B5FF47%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%2220 6 9 17 4 12%22/></svg>') left center no-repeat; background-size: 16px;">Разработку оффера, который цепляет целевую аудиторию</li>
+        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23B5FF47%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%2220 6 9 17 4 12%22/></svg>') left center no-repeat; background-size: 16px;">Настройку рекламных каналов (Яндекс Директ, VK, Telegram)</li>
+        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23B5FF47%22 stroke-width=%223%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%2220 6 9 17 4 12%22/></svg>') left center no-repeat; background-size: 16px;">Готовые скрипты продаж и возражений</li>
+    </ul>
+    <p>В результатах моих клиентов — первые заявки уже через 14 дней, а средний чек увеличивается в 2-3 раза. Я не просто даю план — я внедряю его вместе с вами, контролируя ключевые метрики и корректируя стратегию по ходу.</p>
+    <p>Хотите узнать, как привлечь клиентов в вашу нишу? Заполните анкету из 5 вопросов, и AI-аналитик подготовит персональный разбор бесплатно. А после этого мы с вами обсудим, какой тариф подходит именно вам — от бесплатного разбора до полного внедрения под ключ с гарантией первых заявок за 14 дней.</p>
+</div>
 '''
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content, 
+        title="Привлечение клиентов для экспертов, коучей и психологов | Вероника Макаревич",
+        description="Помогаю экспертам, коучам и психологам привлекать клиентов. Получите персональный план привлечения клиентов за 14 дней. Бесплатная AI-диагностика."
+    ))
 
 # ========================================
 # СТРАНИЦА АНКЕТЫ
@@ -1392,7 +1523,10 @@ async def survey():
     });
 </script>
 """
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title="Бесплатная диагностика: получите план привлечения клиентов для экспертов",
+        description="Ответьте на 5 вопросов и получите персональный план привлечения клиентов от AI-аналитика. Бесплатно."
+    ))
 
 # === ОБРАБОТЧИК АНКЕТЫ ===
 @app.post("/survey/submit")
@@ -1440,7 +1574,7 @@ async def survey_submit(
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=303)
 
 # ========================================
-# СТРАНИЦА СПАСИБО
+# СТРАНИЦА СПАСИБО (закрыта от индексации)
 # ========================================
 @app.get("/thank-you", response_class=HTMLResponse)
 async def thank_you(user_id: str):
@@ -1524,7 +1658,11 @@ async def thank_you(user_id: str):
     </div>
 </div>
 '''
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title="Спасибо за заявку! Ваш персональный план готов",
+        description="Спасибо! Ваш персональный план привлечения клиентов готов. Напишите мне в MAX для внедрения.",
+        noindex=True  # закрываем страницу от индексации
+    ))
 
 # ========================================
 # СТРАНИЦА ВЫБОРА ТАРИФОВ – редирект на thank-you
@@ -1584,7 +1722,10 @@ async def payment_page(user_id: str, amount: int = 2500):
     </form>
 </div>
 '''
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title=f"{title} – оплата и внедрение для экспертов",
+        description=f"{description} Оплата через ЮKassa, гарантия возврата."
+    ))
 
 # === СОЗДАНИЕ ПЛАТЕЖА ===
 @app.post("/create_yookassa_payment")
@@ -1691,7 +1832,7 @@ async def payment_webhook(request: Request):
         logger.error(f"Webhook error: {e}")
         return JSONResponse(content={"status": "error"}, status_code=500)
 
-# === ПОДТВЕРЖДЕНИЕ ОПЛАТЫ ===
+# === ПОДТВЕРЖДЕНИЕ ОПЛАТЫ (закрыто от индексации) ===
 @app.get("/payment/confirm")
 async def payment_confirm(request: Request):
     params = dict(request.query_params)
@@ -1719,7 +1860,7 @@ async def payment_confirm(request: Request):
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Manrope',sans-serif;text-align:center;padding:50px;background:#0F1115;color:#FFFFFF}.btn{display:inline-block;background:#B5FF47;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:60px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА ===
+# === СТРАНИЦА УСПЕХА (закрыта от индексации) ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1785,7 +1926,11 @@ async def payment_success(user_id: str, amount: int = 2500):
     </div>
 </div>
 '''
-    return HTMLResponse(content=render_page(html_content))
+    return HTMLResponse(content=render_page(content,
+        title="Оплата прошла успешно – начните привлечение клиентов",
+        description="Ваш план готов. Начните привлекать клиентов уже сегодня. Гарантия результатов.",
+        noindex=True
+    ))
 
 # === СТРАНИЦА КОНСУЛЬТАЦИИ ===
 @app.get("/consultation", response_class=HTMLResponse)
@@ -1830,7 +1975,10 @@ async def consultation_page(user_id: str = None):
     </div>
 </div>
 '''
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title="Бесплатная консультация по привлечению клиентов для экспертов",
+        description="Запишитесь на 20-минутную консультацию, чтобы обсудить ваш план привлечения клиентов. Бесплатно."
+    ))
 
 # === СТРАНИЦА ВНЕДРЕНИЯ ПОД КЛЮЧ ===
 @app.get("/implementation", response_class=HTMLResponse)
@@ -1864,7 +2012,10 @@ async def implementation_page(user_id: str = None):
     </div>
 </div>
 '''
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title="Внедрение под ключ для экспертов – первые клиенты за 14 дней",
+        description="Личное внедрение воронки, скриптов и рекламы. Гарантия первых заявок за 14 дней."
+    ))
 
 # === ЧЕК-СТАТУС ОТЧЁТА ===
 @app.get("/check-premium-status")
@@ -1912,7 +2063,7 @@ async def admin_logs(auth: bool = Depends(verify_admin)):
 async def admin_dashboard(auth: bool = Depends(verify_admin)):
     dashboard_html = """<!DOCTYPE html>
 <html lang="ru">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Админ-дашборд | Salesplan</title><link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Админ-дашборд | Salesplan</title><meta name="robots" content="noindex, nofollow"><link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
         *{margin:0;padding:0;box-sizing:border-box} body{font-family:'Manrope',sans-serif;background:#0F1115;color:#FFFFFF;padding:20px}
         .container{max-width:1400px;margin:0 auto} h1{color:#B5FF47;font-size:28px;margin-bottom:20px;text-shadow:0 0 20px rgba(181,255,71,0.15);font-family:'Inter Tight',sans-serif}
         .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:30px}
@@ -2103,7 +2254,10 @@ async def oferta_page():
     <p>Дата публикации: «05» мая 2026 г.</p>
 </div>
 """
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title="Публичная оферта – договор купли-продажи цифрового товара",
+        description="Условия приобретения маркетингового плана. Гарантии, возврат, интеллектуальная собственность."
+    ))
 
 @app.get("/privacy", response_class=HTMLResponse)
 async def privacy_page():
@@ -2198,7 +2352,10 @@ async def privacy_page():
     <p>Дата публикации: «05» мая 2026 г.</p>
 </div>
 """
-    return HTMLResponse(content=render_page(content))
+    return HTMLResponse(content=render_page(content,
+        title="Политика обработки персональных данных – Вероника Макаревич",
+        description="Как мы собираем, храним и защищаем ваши персональные данные. Ваша конфиденциальность."
+    ))
 
 # === ЗАПУСК ===
 if __name__ == "__main__":
