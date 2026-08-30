@@ -1,4 +1,4 @@
-# File: main.py — веб-приложение Salesplan (исправленная версия)
+# File: main.py — веб-приложение Salesplan (объединённая версия)
 
 import logging
 import sqlite3
@@ -567,7 +567,6 @@ async def health():
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
 # === ГЛОБАЛЬНЫЕ HTML ШАБЛОНЫ И CSS (СИНИЙ ФОН, СТЕКЛЯННЫЙ ЭФФЕКТ, ЯКОРНОЕ МЕНЮ) ===
-# === ЦВЕТА: акцентный — #00BCD4 (бирюзовый), текст на кнопках — #0F1115 ===
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -586,15 +585,15 @@ HTML_HEAD = """<!DOCTYPE html>
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/108348240" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
-        /* ГЛОБАЛЬНЫЕ СТИЛИ – СИНИЙ ФОН, СТЕКЛЯННЫЙ ЭФФЕКТ, БИРЮЗОВЫЙ АКЦЕНТ */
+        /* ГЛОБАЛЬНЫЕ СТИЛИ – СИНИЙ ФОН, СТЕКЛЯННЫЙ ЭФФЕКТ */
         *{margin:0;padding:0;box-sizing:border-box}
         body{
-            font-family: 'Inter', sans-serif;
-            background: #0B1E33;
+            font-family: 'Inter', 'Manrope', sans-serif;
+            background: #0B1E33;  /* синий фон */
             color: #f5f5f7;
             line-height: 1.6;
             font-weight: 400;
-            padding-top: 80px;
+            padding-top: 80px; /* отступ для фиксированной шапки */
         }
         .container{max-width:1100px;margin:0 auto;padding:40px 20px}
         .hero{text-align:center;margin-bottom:60px}
@@ -603,36 +602,36 @@ HTML_HEAD = """<!DOCTYPE html>
             font-weight:700;
             margin-bottom:20px;
             letter-spacing:-0.02em;
-            color:#00BCD4;
-            text-shadow:0 0 20px rgba(0,188,212,0.3);
-            font-family: 'Manrope', sans-serif;
+            color:#00D4AA;
+            text-shadow:0 0 20px rgba(0,212,170,0.3);
+            font-family: 'Manrope', 'Inter', sans-serif;
         }
-        .hero p{font-size:21px;color:#aab2c0;max-width:700px;margin-left:auto;margin-right:auto;font-family:'Inter',sans-serif;}
+        .hero p{font-size:21px;color:#aab2c0;max-width:700px;margin-left:auto;margin-right:auto}
         h1, h2, h3, .heading {
-            color: #00BCD4;
-            font-family: 'Manrope', sans-serif;
+            color: #00D4AA;
+            font-family: 'Manrope', 'Inter', sans-serif;
             font-weight: 700;
         }
-        h2 { font-size: 36px; font-weight: 700; margin-bottom: 16px; text-shadow: 0 0 20px rgba(0,188,212,0.2); }
+        h2 { font-size: 36px; font-weight: 700; margin-bottom: 16px; text-shadow: 0 0 20px rgba(0,212,170,0.2); }
         h3 { font-size: 24px; font-weight: 600; margin-bottom: 12px; }
         .btn-main{
             display:inline-block;
-            background:#00BCD4;
+            background:#00D4AA;
             color:#0F1115;
             text-decoration:none;
             padding:16px 48px;
             font-size:20px;
             font-weight:600;
             border-radius:48px;
-            box-shadow:0 0 20px rgba(0,188,212,0.3);
+            box-shadow:0 0 20px rgba(0,212,170,0.3);
             transition:transform 0.2s,box-shadow 0.2s;
             border:none;
             cursor:pointer;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Manrope', sans-serif;
         }
-        .btn-main:hover{background:#00A5C4;transform:scale(1.02);box-shadow:0 0 30px rgba(0,188,212,0.5)}
-        .btn-secondary{background:transparent;border:1px solid #00BCD4;color:#00BCD4}
-        .btn-secondary:hover{background:#00BCD4;color:#0F1115}
+        .btn-main:hover{background:#00b894;transform:scale(1.02);box-shadow:0 0 30px rgba(0,212,170,0.5)}
+        .btn-secondary{background:transparent;border:1px solid #00D4AA;color:#00D4AA}
+        .btn-secondary:hover{background:#00D4AA;color:#0F1115}
         .glass-card{
             background:rgba(26,29,35,0.5);
             backdrop-filter:blur(12px);
@@ -641,14 +640,14 @@ HTML_HEAD = """<!DOCTYPE html>
             border-radius:24px;
             padding:32px;
             transition:border-color 0.3s,box-shadow 0.3s;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Manrope', sans-serif;
         }
-        .glass-card:hover{border-color:rgba(0,188,212,0.3);box-shadow:0 8px 32px rgba(0,188,212,0.1)}
+        .glass-card:hover{border-color:rgba(0,212,170,0.3);box-shadow:0 8px 32px rgba(0,212,170,0.1)}
         .glass-card.gold{border-color:rgba(255,159,10,0.3)}
         .glass-card.gold:hover{border-color:#ff9f0a;box-shadow:0 8px 32px rgba(255,159,10,0.15)}
-        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.06);font-size:12px;color:#636366;font-family:'Inter',sans-serif;}
+        .footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.06);font-size:12px;color:#636366}
         .social-links{margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-        .social-links a{color:#00BCD4;text-decoration:none;font-size:12px}
+        .social-links a{color:#00D4AA;text-decoration:none;font-size:12px}
         hr{margin:30px 0;border:none;border-top:1px solid rgba(255,255,255,0.06)}
         .form-card{
             background:rgba(26,29,35,0.5);
@@ -659,18 +658,18 @@ HTML_HEAD = """<!DOCTYPE html>
             padding:32px;
             max-width:600px;
             margin:0 auto;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Manrope', sans-serif;
         }
         .form-group{margin-bottom:24px}
         label{font-size:15px;font-weight:500;display:block;margin-bottom:8px;color:#f5f5f7}
         input,textarea{
             width:100%;padding:12px;font-size:15px;
             border:1px solid rgba(255,255,255,0.12);border-radius:10px;
-            font-family:'Inter',sans-serif;
+            font-family:'Inter','Manrope',sans-serif;
             background:rgba(0,0,0,0.3);color:#f5f5f7;
             transition:border-color 0.3s;
         }
-        input:focus,textarea:focus{outline:none;border-color:#00BCD4;box-shadow:0 0 15px rgba(0,188,212,0.2)}
+        input:focus,textarea:focus{outline:none;border-color:#00D4AA;box-shadow:0 0 15px rgba(0,212,170,0.2)}
         .radio-group{display:flex;flex-direction:column;gap:12px;margin-top:8px}
         .radio-group label{
             display:flex;align-items:center;gap:8px;
@@ -678,10 +677,10 @@ HTML_HEAD = """<!DOCTYPE html>
             background:rgba(0,0,0,0.2);border-radius:12px;
             transition:background 0.2s;border:1px solid rgba(255,255,255,0.06);
             color:#f5f5f7;
-            font-family:'Inter',sans-serif;
+            font-family:'Inter','Manrope',sans-serif;
         }
-        .radio-group label:hover{background:rgba(0,188,212,0.1);border-color:rgba(0,188,212,0.3)}
-        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer;accent-color:#00BCD4}
+        .radio-group label:hover{background:rgba(0,212,170,0.1);border-color:rgba(0,212,170,0.3)}
+        .radio-group input[type="radio"]{width:20px;height:20px;margin:0;cursor:pointer;accent-color:#00D4AA}
         .mono-number {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700;
@@ -694,23 +693,23 @@ HTML_HEAD = """<!DOCTYPE html>
             border:1px solid rgba(255,255,255,0.06);
             border-radius:20px;
             transition:transform 0.3s,border-color 0.3s;
-            font-family:'Inter',sans-serif;
+            font-family:'Inter','Manrope',sans-serif;
         }
-        .step-card:hover{transform:translateY(-4px);border-color:rgba(0,188,212,0.3);box-shadow:0 8px 25px rgba(0,188,212,0.1)}
+        .step-card:hover{transform:translateY(-4px);border-color:rgba(0,212,170,0.3);box-shadow:0 8px 25px rgba(0,212,170,0.1)}
         .step-icon{font-size:40px;display:block;margin-bottom:12px}
-        .step-title{font-size:18px;font-weight:600;color:#00BCD4;margin-bottom:8px;font-family:'Manrope',sans-serif;}
+        .step-title{font-size:18px;font-weight:600;color:#00D4AA;margin-bottom:8px;font-family:'Manrope','Inter',sans-serif;}
         .step-desc{font-size:14px;color:#8e8e93}
         .timeline{display:flex;justify-content:space-between;position:relative;padding:20px 0;margin-top:20px}
         .timeline::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(255,255,255,0.1);transform:translateY(-50%)}
         .timeline-point{display:flex;flex-direction:column;align-items:center;gap:8px;z-index:1}
-        .timeline-point .dot{width:12px;height:12px;border-radius:50%;background:#00BCD4;border:2px solid #0B1E33;box-shadow:0 0 10px rgba(0,188,212,0.3)}
+        .timeline-point .dot{width:12px;height:12px;border-radius:50%;background:#00D4AA;border:2px solid #0B1E33;box-shadow:0 0 10px rgba(0,212,170,0.3)}
         .timeline-point .dot.done{background:#ff9f0a;box-shadow:0 0 10px rgba(255,159,10,0.3)}
-        .timeline-point .label{font-size:12px;color:#8e8e93;text-align:center;font-family:'Inter',sans-serif;}
+        .timeline-point .label{font-size:12px;color:#8e8e93;text-align:center;font-family:'Inter','Manrope',sans-serif;}
         .faq-item{border-bottom:1px solid rgba(255,255,255,0.06);padding:16px 0}
-        .faq-question{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:500;color:#f5f5f7;transition:color 0.3s;font-family:'Inter',sans-serif;}
-        .faq-question:hover{color:#00BCD4}
+        .faq-question{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:500;color:#f5f5f7;transition:color 0.3s;font-family:'Inter','Manrope',sans-serif;}
+        .faq-question:hover{color:#00D4AA}
         .faq-question .arrow{transition:transform 0.3s;font-size:20px;color:#636366}
-        .faq-answer{max-height:0;overflow:hidden;transition:max-height 0.4s ease, padding 0.3s;color:#aab2c0;padding:0;font-family:'Inter',sans-serif;}
+        .faq-answer{max-height:0;overflow:hidden;transition:max-height 0.4s ease, padding 0.3s;color:#aab2c0;padding:0;font-family:'Inter','Manrope',sans-serif;}
         .faq-answer.open{max-height:300px;padding:12px 0 0 0}
 
         /* ФИКСИРОВАННАЯ ШАПКА С ЯКОРЯМИ */
@@ -731,12 +730,12 @@ HTML_HEAD = """<!DOCTYPE html>
             justify-content: space-between;
         }
         .navbar .logo {
-            font-family: 'Manrope', sans-serif;
+            font-family: 'Manrope', 'Inter', sans-serif;
             font-weight: 700;
             font-size: 20px;
-            color: #00BCD4;
+            color: #00D4AA;
             text-decoration: none;
-            text-shadow: 0 0 15px rgba(0,188,212,0.2);
+            text-shadow: 0 0 15px rgba(0,212,170,0.2);
         }
         .navbar .nav-links {
             display: flex;
@@ -749,13 +748,13 @@ HTML_HEAD = """<!DOCTYPE html>
             font-size: 14px;
             font-weight: 500;
             transition: color 0.2s;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Manrope', sans-serif;
         }
         .navbar .nav-links a:hover {
-            color: #00BCD4;
+            color: #00D4AA;
         }
         .navbar .nav-links .btn-nav {
-            background: #00BCD4;
+            background: #00D4AA;
             color: #0F1115;
             padding: 8px 20px;
             border-radius: 30px;
@@ -764,7 +763,7 @@ HTML_HEAD = """<!DOCTYPE html>
             transition: background 0.2s;
         }
         .navbar .nav-links .btn-nav:hover {
-            background: #00A5C4;
+            background: #00b894;
             color: #0F1115;
         }
         @media (max-width: 700px) {
@@ -779,30 +778,6 @@ HTML_HEAD = """<!DOCTYPE html>
                 font-size: 12px;
             }
         }
-        /* Дополнительные стили для главной – унификация шрифтов */
-        .apple-hero, .apple-text-block, .apple-list li, .apple-footer-link {
-            font-family: 'Inter', sans-serif;
-        }
-        .apple-hero h1, .apple-hero .subtitle, .guarantee-block, .steps-grid .step-title {
-            font-family: 'Manrope', sans-serif;
-        }
-        .timeline-section h3, .timeline-label {
-            font-family: 'Manrope', sans-serif;
-        }
-        .cases-block .case-item .label, .case-detail {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Цвета для бирюзового акцента */
-        .guarantee-block {
-            border-color: #00BCD4;
-            color: #00BCD4;
-            box-shadow: 0 0 30px rgba(0,188,212,0.1);
-        }
-        .apple-list li {
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%2300BCD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>') left center no-repeat;
-            background-size: 20px;
-        }
-        .apple-footer-link a { color: #00BCD4; }
     </style>
 </head>
 <body>
@@ -828,7 +803,7 @@ HTML_FOOT = """
             <a href="https://vk.ru/makarevichveronika">ВКонтакте</a>
         </div>
         <div style="margin-top: 8px;">
-            <a href="/oferta" style="color:#00BCD4;text-decoration:none;">Публичная оферта</a> | <a href="/privacy" style="color:#00BCD4;text-decoration:none;">Политика персональных данных</a>
+            <a href="/oferta" style="color:#00D4AA;text-decoration:none;">Публичная оферта</a> | <a href="/privacy" style="color:#00D4AA;text-decoration:none;">Политика персональных данных</a>
         </div>
         <p>© 2026 Все права защищены</p>
     </div>
@@ -845,7 +820,7 @@ def render_waiting_page(user_id: str, report_type: str, redirect_url: str):
 <html lang="ru">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Генерируем план</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>body{{font-family:'Inter',sans-serif;text-align:center;padding:60px 20px;background:#0B1E33;color:#f5f5f7}}.spinner{{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#00BCD4;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
+<style>body{{font-family:'Inter','Manrope',sans-serif;text-align:center;padding:60px 20px;background:#0B1E33;color:#f5f5f7}}.spinner{{width:50px;height:50px;border:4px solid rgba(255,255,255,0.1);border-top-color:#00D4AA;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}}@keyframes spin{{to{{transform:rotate(360deg)}}}}</style>
 <script>
 let attempts=0; let isRedirected=false;
 function checkStatus(){{
@@ -866,11 +841,11 @@ function checkStatus(){{
 setTimeout(checkStatus,1000);
 </script>
 </head>
-<body><div class="spinner"></div><h1 style="color:#00BCD4;font-family:'Manrope',sans-serif;font-weight:700;">Генерируем ваш план...</h1><p style="color:#8e8e93;">Это займёт 1-2 минуты. Страница обновится сама.</p></body>
+<body><div class="spinner"></div><h1 style="color:#00D4AA;font-family:'Manrope','Inter',sans-serif;font-weight:700;">Генерируем ваш план...</h1><p style="color:#8e8e93;">Это займёт 1-2 минуты. Страница обновится сама.</p></body>
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (с блоками #cases и #pricing, унифицированные шрифты)
+# ГЛАВНАЯ СТРАНИЦА (сокращённый текст, улучшенная шкала, якоря)
 # ========================================
 @app.get("/")
 async def index():
@@ -888,9 +863,9 @@ async def index():
         letter-spacing: -0.03em;
         line-height: 1.1;
         margin-bottom: 8px;
-        color: #00BCD4;
-        text-shadow: 0 0 30px rgba(0,188,212,0.3);
-        font-family: 'Manrope', sans-serif;
+        color: #00D4AA;
+        text-shadow: 0 0 30px rgba(0,212,170,0.3);
+        font-family: 'Manrope', 'Inter', sans-serif;
     }
     .apple-hero .subtitle {
         font-size: 24px;
@@ -899,14 +874,14 @@ async def index():
         max-width: 700px;
         margin: 0 auto 24px;
         line-height: 1.4;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
     .apple-hero .subtitle small {
         font-size: 18px;
         color: #8e8e93;
         display: block;
         margin-top: 4px;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
     .apple-cta {
         margin: 24px 0 32px;
@@ -932,8 +907,8 @@ async def index():
     .cases-block .case-item .number {
         font-size: 32px;
         font-weight: 700;
-        color: #00BCD4;
-        text-shadow: 0 0 15px rgba(0,188,212,0.2);
+        color: #00D4AA;
+        text-shadow: 0 0 15px rgba(0,212,170,0.2);
         font-family: 'JetBrains Mono', monospace;
     }
     .cases-block .case-item .label {
@@ -942,27 +917,27 @@ async def index():
         line-height: 1.4;
         max-width: 180px;
         margin: 4px auto 0;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
     .case-detail {
         font-size: 15px;
         color: #aab2c0;
         margin-top: 4px;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
     .guarantee-block {
-        background: rgba(0,188,212,0.15);
-        border: 1px solid #00BCD4;
+        background: rgba(255,159,10,0.15);
+        border: 1px solid #ff9f0a;
         border-radius: 40px;
         padding: 16px 32px;
         display: inline-block;
         font-size: 22px;
         font-weight: 600;
-        color: #00BCD4;
+        color: #ff9f0a;
         margin: 20px auto 30px;
-        font-family: 'Manrope', sans-serif;
+        font-family: 'Manrope', 'Inter', sans-serif;
         text-align: center;
-        box-shadow: 0 0 30px rgba(0,188,212,0.1);
+        box-shadow: 0 0 30px rgba(255,159,10,0.1);
     }
     .apple-text-block {
         background: rgba(26,29,35,0.5);
@@ -977,10 +952,10 @@ async def index():
         color: #f5f5f7;
         border: 1px solid rgba(255,255,255,0.06);
         box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
     .apple-text-block p { margin-bottom: 16px; }
-    .apple-text-block strong { font-weight: 600; color: #00BCD4; font-family: 'Manrope', sans-serif; }
+    .apple-text-block strong { font-weight: 600; color: #00D4AA; font-family: 'Manrope', 'Inter', sans-serif; }
     .apple-list {
         list-style: none;
         padding: 0;
@@ -988,12 +963,12 @@ async def index():
     }
     .apple-list li {
         padding: 8px 0 8px 36px;
-        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%2300BCD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>') left center no-repeat;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%2300D4AA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>') left center no-repeat;
         background-size: 20px;
         margin-bottom: 4px;
         font-size: 17px;
         color: #f5f5f7;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
     .apple-divider {
         border: none;
@@ -1004,9 +979,9 @@ async def index():
         font-size: 15px;
         color: #636366;
         margin-top: 32px;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
     }
-    .apple-footer-link a { color: #00BCD4; text-decoration: none; font-weight: 500; }
+    .apple-footer-link a { color: #00D4AA; text-decoration: none; font-weight: 500; }
     .apple-footer-link a:hover { text-decoration: underline; }
     .steps-grid {
         display: grid;
@@ -1024,11 +999,11 @@ async def index():
         border: 1px solid rgba(255,255,255,0.06);
     }
     .timeline-section h3 {
-        color: #00BCD4;
+        color: #00D4AA;
         font-size: 24px;
         font-weight: 600;
         margin-bottom: 20px;
-        font-family: 'Manrope', sans-serif;
+        font-family: 'Manrope','Inter',sans-serif;
     }
     .timeline {
         display: flex;
@@ -1066,90 +1041,23 @@ async def index():
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        background: #00BCD4;
+        background: #00D4AA;
         border: 2px solid #0B1E33;
-        box-shadow: 0 0 12px rgba(0,188,212,0.3);
+        box-shadow: 0 0 12px rgba(0,212,170,0.3);
     }
     .timeline-point .dot.done { background: #ff9f0a; box-shadow: 0 0 12px rgba(255,159,10,0.3); }
     .timeline-point .label {
         font-size: 13px;
         color: #8e8e93;
         text-align: center;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Manrope', sans-serif;
         font-weight: 500;
     }
     .timeline-label {
         color: #636366;
         font-size: 14px;
         margin-top: 16px;
-        font-family: 'Inter', sans-serif;
-    }
-    /* Стили для блока тарифов */
-    #pricing .pricing-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        margin: 30px 0;
-    }
-    #pricing .pricing-card {
-        background: rgba(26,29,35,0.5);
-        backdrop-filter: blur(12px);
-        border-radius: 24px;
-        padding: 24px;
-        border: 1px solid rgba(255,255,255,0.06);
-        text-align: center;
-        transition: border-color 0.3s, box-shadow 0.3s;
-    }
-    #pricing .pricing-card:hover {
-        border-color: rgba(0,188,212,0.3);
-        box-shadow: 0 8px 32px rgba(0,188,212,0.1);
-    }
-    #pricing .pricing-card.gold {
-        border-color: rgba(255,159,10,0.3);
-    }
-    #pricing .pricing-card.gold:hover {
-        border-color: #ff9f0a;
-        box-shadow: 0 8px 32px rgba(255,159,10,0.15);
-    }
-    #pricing .pricing-card h3 {
-        color: #00BCD4;
-        font-family: 'Manrope', sans-serif;
-        font-size: 22px;
-        margin-bottom: 8px;
-    }
-    #pricing .pricing-card .price {
-        font-size: 20px;
-        font-weight: 700;
-        color: #00BCD4;
-        margin: 12px 0;
-        font-family: 'JetBrains Mono', monospace;
-    }
-    #pricing .pricing-card .desc {
-        font-size: 16px;
-        color: #f5f5f7;
-        margin-bottom: 16px;
-        font-family: 'Inter', sans-serif;
-    }
-    #pricing .pricing-card .btn {
-        display: inline-block;
-        background: #00BCD4;
-        color: #0F1115;
-        padding: 12px 32px;
-        border-radius: 40px;
-        font-weight: 600;
-        text-decoration: none;
-        font-family: 'Inter', sans-serif;
-        transition: background 0.2s;
-    }
-    #pricing .pricing-card .btn:hover {
-        background: #00A5C4;
-    }
-    #pricing .pricing-card .btn-gold {
-        background: #ff9f0a;
-        box-shadow: 0 0 20px rgba(255,159,10,0.3);
-    }
-    #pricing .pricing-card .btn-gold:hover {
-        background: #e08a00;
+        font-family: 'Inter','Manrope',sans-serif;
     }
     @media (max-width: 700px) {
         .apple-hero h1 { font-size: 36px; }
@@ -1166,7 +1074,6 @@ async def index():
         .timeline { flex-direction: column; align-items: center; gap: 12px; }
         .timeline::before { display: none; }
         .timeline-point { min-width: unset; }
-        #pricing .pricing-grid { gap: 16px; }
     }
 </style>
 
@@ -1177,6 +1084,7 @@ async def index():
         <small>Проверьте свою нишу за 2 минуты – AI-аналитик покажет точки утечки клиентов и даст план привлечения клиентов, который уже сработал.</small>
     </p>
 
+    <!-- КНОПКА ПОДНЯТА НАВЕРХ -->
     <div class="apple-cta">
         <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Получить план</a>
     </div>
@@ -1215,10 +1123,10 @@ async def index():
             <li>Поймёте, какие каналы приведут первых клиентов</li>
         </ul>
         <hr class="apple-divider">
-        <p style="font-size: 19px; font-weight: 500; color: #fff; font-family: 'Manrope', sans-serif;">Заполните 5 полей – и я пришлю вам персональный план.</p>
+        <p style="font-size: 19px; font-weight: 500; color: #fff; font-family: 'Manrope','Inter',sans-serif;">Заполните 5 полей – и я пришлю вам персональный план.</p>
     </div>
 
-    <!-- ВТОРАЯ КНОПКА -->
+    <!-- ВТОРАЯ КНОПКА (дублирующая) – оставим для удобства -->
     <div class="apple-cta" style="margin-top: 20px;">
         <a href="/survey" class="btn-main" onclick="ym(108348240,'reachGoal','click_lead_magnet'); return true;">Получить план</a>
     </div>
@@ -1230,8 +1138,8 @@ async def index():
 
 <!-- БЛОК: КАК ЭТО РАБОТАЕТ (с якорем) -->
 <div id="how-it-works" style="margin: 80px 0; text-align: center;">
-    <h2 style="color: #00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Как вы получите заявки за 14 дней</h2>
-    <p style="color: #8e8e93; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; font-family:'Inter',sans-serif;">Просто следуйте трём шагам – и система начнёт приносить клиентов.</p>
+    <h2 style="color: #00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Как вы получите заявки за 14 дней</h2>
+    <p style="color: #8e8e93; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; font-family:'Inter','Manrope',sans-serif;">Просто следуйте трём шагам – и система начнёт приносить клиентов.</p>
     <div class="steps-grid">
         <div class="step-card">
             <span class="step-icon">📋</span>
@@ -1251,7 +1159,7 @@ async def index():
     </div>
 </div>
 
-<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ -->
+<!-- БЛОК ШКАЛЫ ВНЕДРЕНИЯ (улучшенная) -->
 <div class="timeline-section">
     <h3>Шкала внедрения</h3>
     <div class="timeline">
@@ -1274,47 +1182,18 @@ async def index():
     </div>
     <div class="timeline-label">день 1 → день 14</div>
 </div>
-
-<!-- БЛОК ТАРИФОВ (с якорем) -->
-<div id="pricing" style="margin: 80px 0; text-align: center;">
-    <h2 style="color: #00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Выберите свой тариф</h2>
-    <p style="color: #8e8e93; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto; font-family:'Inter',sans-serif;">От бесплатного разбора до полного внедрения – под любой бюджет.</p>
-    <div class="pricing-grid" style="max-width:700px; margin:0 auto;">
-        <!-- Бесплатно -->
-        <div class="pricing-card">
-            <h3>Бесплатный разбор</h3>
-            <div class="desc">Подпишитесь на мой канал в MAX – я лично проверю ваш план и дам рекомендации.</div>
-            <a href="https://max.ru/id781407988795_biz" target="_blank" class="btn" style="background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','choose_free'); return true;">Подписаться</a>
-        </div>
-        <!-- Расширенный план -->
-        <div class="pricing-card">
-            <h3>Расширенный план</h3>
-            <div class="desc">Скрипты, бюджеты, контент-план, чек-лист + консультация 30 мин.</div>
-            <div class="price">2 500 ₽</div>
-            <a href="/payment?user_id=NEW&amount=2500" class="btn" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">Оплатить</a>
-        </div>
-        <!-- Внедрение под ключ -->
-        <div class="pricing-card gold">
-            <h3>Внедрение под ключ</h3>
-            <div class="desc">Личное внедрение: воронка, реклама, скрипты. Гарантия заявок за 14 дней.</div>
-            <div class="price">50 000 ₽</div>
-            <a href="/payment?user_id=NEW&amount=50000" class="btn btn-gold" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">Оплатить</a>
-        </div>
-    </div>
-    <p style="font-size:15px; color:#636366; margin-top:20px; font-family:'Inter',sans-serif;">* Для тарифа «Внедрение под ключ» требуется предварительный созвон.</p>
-</div>
 '''
     return HTMLResponse(content=render_page(content))
 
 # ========================================
-# СТРАНИЦА АНКЕТЫ
+# СТРАНИЦА АНКЕТЫ (без изменений, только фон обновлён глобально)
 # ========================================
 @app.get("/survey", response_class=HTMLResponse)
 async def survey():
     content = """
 <div class="hero">
     <h1>5 вопросов – и вы получите план привлечения клиентов</h1>
-    <p style="font-size:18px;color:#8e8e93;font-family:'Inter',sans-serif;">AI-аналитик просканирует вашу нишу, конкурентов и аудиторию – выдаст структуру плана. Я доработаю её под вас. 2 минуты – и вы увидите первые шаги.</p>
+    <p style="font-size:18px;color:#8e8e93;font-family:'Inter','Manrope',sans-serif;">AI-аналитик просканирует вашу нишу, конкурентов и аудиторию – выдаст структуру плана. Я доработаю её под вас. 2 минуты – и вы увидите первые шаги.</p>
 </div>
 <div class="form-card">
     <form action="/survey/submit" method="post" id="surveyForm">
@@ -1324,8 +1203,8 @@ async def survey():
         <div class="form-group"><label>4. Клиентов в месяц (примерно)</label><div class="radio-group"><label><input type="radio" name="q2" value="<10" required> меньше 10</label><label><input type="radio" name="q2" value="10-50"> 10-50</label><label><input type="radio" name="q2" value="50-200"> 50-200</label><label><input type="radio" name="q2" value=">200"> более 200</label></div></div>
         <div class="form-group"><label>5. Цель на 2026 (в деньгах)</label><div class="radio-group"><label><input type="radio" name="q3" value="300k/мес" required> 300k/мес</label><label><input type="radio" name="q3" value="500k/мес"> 500k/мес</label><label><input type="radio" name="q3" value="1M/мес"> 1M/мес</label><label><input type="radio" name="q3" value="Масштаб"> Масштаб (выход на новый уровень)</label></div></div>
         <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px;color:#f5f5f7;font-family:'Inter',sans-serif;">
-                <input type="checkbox" name="consent" required style="width:20px;height:20px;accent-color:#00BCD4;">
+            <label style="display:flex;align-items:center;gap:8px;color:#f5f5f7;font-family:'Inter','Manrope',sans-serif;">
+                <input type="checkbox" name="consent" required style="width:20px;height:20px;accent-color:#00D4AA;">
                 <span>Я принимаю условия публичной оферты и даю согласие на обработку персональных данных</span>
             </label>
         </div>
@@ -1410,17 +1289,17 @@ async def thank_you(user_id: str):
 
     content = f'''
 <div style="background:rgba(26,29,35,0.5); backdrop-filter:blur(12px); border-radius:28px; padding:24px; margin-top:20px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
-    <h1 style="color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Спасибо за заявку!</h1>
-    <p style="font-size:18px; color:#f5f5f7; margin-bottom:12px; font-family:'Inter',sans-serif; font-weight:500;">
+    <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Спасибо за заявку!</h1>
+    <p style="font-size:18px; color:#f5f5f7; margin-bottom:12px; font-family:'Inter','Manrope',sans-serif; font-weight:500;">
         Напишите мне в MAX – я отвечу на все вопросы и подготовлю для вас персональный разбор.
     </p>
-    <p style="font-size:17px; color:#aab2c0; margin-bottom:8px; font-family:'Inter',sans-serif; line-height:1.5;">
+    <p style="font-size:17px; color:#aab2c0; margin-bottom:8px; font-family:'Inter','Manrope',sans-serif; line-height:1.5;">
         Чем быстрее вы свяжетесь со мной, тем быстрее мы начнём внедрять план.
     </p>
-    <p style="font-size:16px; color:#8e8e93; font-family:'Inter',sans-serif; margin-bottom:16px;">
+    <p style="font-size:16px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif; margin-bottom:16px;">
         <strong>Листайте вниз, чтобы увидеть полный отчёт.</strong>
     </p>
-    <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5; border:1px solid rgba(255,255,255,0.06); color:#f5f5f7; font-family:'Inter',sans-serif;">
+    <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; text-align:left; font-size:14px; line-height:1.5; border:1px solid rgba(255,255,255,0.06); color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">
         <div style="white-space:pre-wrap;">{report_text_html}</div>
     </div>
 </div>
@@ -1428,15 +1307,15 @@ async def thank_you(user_id: str):
 <hr style="margin: 40px 0;">
 
 <div style="text-align:center; max-width:600px; margin:0 auto;">
-    <p style="font-size:22px; font-weight:600; color:#00BCD4; font-family:'Manrope',sans-serif;">Хотите, чтобы я внедрила этот план и привела вам клиентов?</p>
-    <p style="font-size:17px; color:#8e8e93; margin:16px 0; font-family:'Inter',sans-serif;">
+    <p style="font-size:22px; font-weight:600; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Хотите, чтобы я внедрила этот план и привела вам клиентов?</p>
+    <p style="font-size:17px; color:#8e8e93; margin:16px 0; font-family:'Inter','Manrope',sans-serif;">
         Выберите свой вариант – от бесплатного разбора до полного внедрения.
     </p>
 
     <div style="display:flex; flex-direction:column; gap:16px; margin:24px 0;">
         <!-- Бесплатно -->
         <div class="glass-card" style="padding:20px; text-align:center;">
-            <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">Бесплатный разбор</h3>
+            <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Бесплатный разбор</h3>
             <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px;">
                 Подпишитесь на мой канал в MAX – я лично проверю ваш план и дам рекомендации по первым шагам.
             </p>
@@ -1446,24 +1325,24 @@ async def thank_you(user_id: str):
         </div>
 
         <!-- Расширенный план -->
-        <div class="glass-card" style="border-color:rgba(0,188,212,0.3); padding:20px; text-align:center;">
-            <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">Расширенный план</h3>
+        <div class="glass-card" style="border-color:rgba(0,212,170,0.3); padding:20px; text-align:center;">
+            <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Расширенный план</h3>
             <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px;">
                 Готовые скрипты, бюджеты, контент-план, чек-лист из 50 пунктов. + 30-минутная консультация.
             </p>
-            <p style="font-size:15px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00BCD4;">Цена:</strong> 2 500 ₽</p>
-            <a href="{payment_link_2500}" class="btn-main" style="display:inline-block; background:#00BCD4; box-shadow:0 0 20px rgba(0,188,212,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
+            <p style="font-size:15px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 2 500 ₽</p>
+            <a href="{payment_link_2500}" class="btn-main" style="display:inline-block; background:#00D4AA; box-shadow:0 0 20px rgba(0,212,170,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_paid'); return true;">
                 Оплатить 2 500 ₽
             </a>
         </div>
 
         <!-- Внедрение под ключ (цена 50 000) -->
         <div class="glass-card gold" style="padding:20px; text-align:center;">
-            <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">Внедрение под ключ</h3>
+            <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Внедрение под ключ</h3>
             <p style="font-size:16px; color:#f5f5f7; margin-bottom:12px;">
                 Я лично внедряю систему: аудит, настройка воронки, запуск рекламы, скрипты, отчёты. Гарантия: первые заявки через 14 дней или возврат денег.
             </p>
-            <p style="font-size:15px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00BCD4;">Цена:</strong> 50 000 ₽</p>
+            <p style="font-size:15px; color:#8e8e93; margin-bottom:16px;"><strong style="color:#00D4AA;">Цена:</strong> 50 000 ₽</p>
             <a href="{payment_link_50000}" class="btn-main" style="display:inline-block; background:#ff9f0a; box-shadow:0 0 20px rgba(255,159,10,0.3); padding:12px 24px; font-size:16px;" onclick="ym(108348240,'reachGoal','choose_pro'); return true;">
                 Оплатить 50 000 ₽
             </a>
@@ -1472,7 +1351,7 @@ async def thank_you(user_id: str):
 
     <!-- Единственная кнопка "Есть вопросы? Напишите в MAX" -->
     <div style="margin-top:16px;">
-        <a href="{channel_link}" target="_blank" class="btn-main" style="background:transparent; color:#00BCD4; box-shadow:none; border:1px solid #00BCD4; display:inline-block; padding:12px 24px;">Есть вопросы? Напишите в MAX</a>
+        <a href="{channel_link}" target="_blank" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA; display:inline-block; padding:12px 24px;">Есть вопросы? Напишите в MAX</a>
     </div>
 </div>
 '''
@@ -1508,8 +1387,8 @@ async def payment_page(user_id: str, amount: int = 2500):
     
     content = f'''
 <div class="hero">
-    <h1 style="color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">{title}</h1>
-    <p style="font-size:18px; color:#8e8e93; font-family:'Inter',sans-serif;">{description}</p>
+    <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">{title}</h1>
+    <p style="font-size:18px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">{description}</p>
 </div>
 <div class="form-card">
     <form action="/create_yookassa_payment" method="post">
@@ -1518,20 +1397,20 @@ async def payment_page(user_id: str, amount: int = 2500):
         <div class="form-group">
             <label>Телефон (для чека и связи)</label>
             <input type="tel" name="phone" placeholder="+7 (___) ___-__-__" required style="text-align:center;font-size:18px;" value="{phone_value}">
-            <p style="font-size:12px;color:#636366;margin-top:6px;font-family:'Inter',sans-serif;">Никаких рассылок и звонков без вашего согласия.</p>
+            <p style="font-size:12px;color:#636366;margin-top:6px;font-family:'Inter','Manrope',sans-serif;">Никаких рассылок и звонков без вашего согласия.</p>
         </div>
         <div class="form-group">
-            <label style="display:flex;align-items:center;gap:8px;color:#f5f5f7;font-family:'Inter',sans-serif;">
-                <input type="checkbox" name="consent" required style="width:20px;height:20px;accent-color:#00BCD4;">
-                <span>Я принимаю условия <a href="/oferta" target="_blank" style="color:#00BCD4;">публичной оферты</a> и даю согласие на обработку персональных данных</span>
+            <label style="display:flex;align-items:center;gap:8px;color:#f5f5f7;font-family:'Inter','Manrope',sans-serif;">
+                <input type="checkbox" name="consent" required style="width:20px;height:20px;accent-color:#00D4AA;">
+                <span>Я принимаю условия <a href="/oferta" target="_blank" style="color:#00D4AA;">публичной оферты</a> и даю согласие на обработку персональных данных</span>
             </label>
         </div>
         <div style="text-align:center;margin-top:20px;">
             <button type="submit" class="btn-main" style="width:100%;" onclick="ym(108348240,'reachGoal','pay_click'); return true;">{button_text}</button>
         </div>
-        <p style="font-size:12px;text-align:center;margin-top:12px;color:#636366;font-family:'Inter',sans-serif;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
-        <div style="margin-top:30px; font-size:14px; color:#636366; text-align:center; font-family:'Inter',sans-serif;">
-            💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#00BCD4; text-decoration:none;">Напишите мне в MAX</a>
+        <p style="font-size:12px;text-align:center;margin-top:12px;color:#636366;font-family:'Inter','Manrope',sans-serif;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
+        <div style="margin-top:30px; font-size:14px; color:#636366; text-align:center; font-family:'Inter','Manrope',sans-serif;">
+            💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#00D4AA; text-decoration:none;">Напишите мне в MAX</a>
         </div>
     </form>
 </div>
@@ -1669,7 +1548,7 @@ async def payment_confirm(request: Request):
             logger.warning(f"Payment confirm: no payments found for user {user_id}")
     else:
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
-    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Inter',sans-serif;text-align:center;padding:50px;background:#0B1E33;color:#f5f5f7}.btn{display:inline-block;background:#00BCD4;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
+    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Inter','Manrope',sans-serif;text-align:center;padding:50px;background:#0B1E33;color:#f5f5f7}.btn{display:inline-block;background:#00D4AA;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:12px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
 # === СТРАНИЦА УСПЕХА (с гарантией и бесплатным разбором) ===
 @app.get("/payment/success", response_class=HTMLResponse)
@@ -1702,38 +1581,38 @@ async def payment_success(user_id: str, amount: int = 2500):
         guarantee_block = """
     <hr style="margin:32px 0;">
     <div style="background:rgba(26,29,35,0.5); border-radius:16px; padding:16px; border:1px solid #ff9f0a;">
-        <p style="font-size:15px; color:#f5f5f7; font-family:'Inter',sans-serif;"><strong style="color:#ff9f0a; font-family:'Manrope',sans-serif;">Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong style="color:#ff9f0a;">возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
+        <p style="font-size:15px; color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;"><strong style="color:#ff9f0a; font-family:'Manrope','Inter',sans-serif;">Гарантия для тарифа "Внедрение под ключ":</strong> если через 14 дней у вас не будет ни одной новой заявки – я <strong style="color:#ff9f0a;">возвращаю деньги</strong> или продолжаю работу до первого клиента бесплатно (на ваш выбор).</p>
     </div>
     """
 
     html_content = f'''
 <div class="hero">
-    <h1 style="color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">✅ {title}</h1>
-    <p style="font-size:18px; color:#8e8e93; font-family:'Inter',sans-serif;">{instruction}</p>
+    <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">✅ {title}</h1>
+    <p style="font-size:18px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">{instruction}</p>
 </div>
 <div class="form-card" style="text-align:center;">
     <div style="background:rgba(0,0,0,0.3); border-radius:16px; padding:20px; margin:20px 0; border:1px solid rgba(255,255,255,0.06);">
-        <p style="font-size:16px; color:#f5f5f7; font-family:'Inter',sans-serif;">{download_text}</p>
+        <p style="font-size:16px; color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">{download_text}</p>
         {download_button}
     </div>
     <div style="margin-top:20px;">
-        <a href="/" class="btn-main" style="background:transparent; color:#00BCD4; box-shadow:none; border:1px solid #00BCD4;">На главную</a>
+        <a href="/" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA;">На главную</a>
     </div>
     {guarantee_block}
     <hr style="margin:32px 0;">
     <div style="background:rgba(26,29,35,0.5); border-radius:24px; padding:24px; text-align:center; border:1px solid rgba(255,255,255,0.06);">
-        <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">Бесплатный разбор плана от продюсера</h3>
-        <p style="font-size:16px; color:#f5f5f7; margin-bottom:8px; font-family:'Inter',sans-serif;">
+        <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Бесплатный разбор плана от продюсера</h3>
+        <p style="font-size:16px; color:#f5f5f7; margin-bottom:8px; font-family:'Inter','Manrope',sans-serif;">
             Вы купили план. Теперь я лично проверю его за 0 рублей, но только если у вас есть бюджет на внедрение.
         </p>
-        <p style="font-size:15px; color:#8e8e93; margin-bottom:20px; font-family:'Inter',sans-serif;">Жмите сюда, чтобы записаться на 20-минутный созвон.</p>
+        <p style="font-size:15px; color:#8e8e93; margin-bottom:20px; font-family:'Inter','Manrope',sans-serif;">Жмите сюда, чтобы записаться на 20-минутный созвон.</p>
         <a href="/consultation?user_id={user_id}" class="btn-main" style="background:#ff9f0a; display:inline-block; box-shadow: 0 0 20px rgba(255,159,10,0.3);" onclick="ym(108348240,'reachGoal','free_review_click'); return true;">
             Записаться на бесплатный разбор
         </a>
     </div>
     <hr style="margin:32px 0;">
     <div style="background:rgba(0,0,0,0.3); border-radius:20px; padding:20px; margin-top:20px; border:1px solid rgba(255,255,255,0.06);">
-        <p style="font-size:14px; color:#8e8e93; font-family:'Inter',sans-serif;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" style="color:#00BCD4; text-decoration:none;">открыть чат</a></p>
+        <p style="font-size:14px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" style="color:#00D4AA; text-decoration:none;">открыть чат</a></p>
     </div>
 </div>
 '''
@@ -1747,26 +1626,26 @@ async def consultation_page(user_id: str = None):
         save_user(user_id, None, None)
     content = f'''
 <div class="hero" style="margin-bottom:30px;">
-    <h1 style="font-size:36px; color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Разговор по делу – 20 минут</h1>
-    <p style="font-size:18px; color:#8e8e93; max-width:700px; margin:0 auto; font-family:'Inter',sans-serif;">
+    <h1 style="font-size:36px; color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Разговор по делу – 20 минут</h1>
+    <p style="font-size:18px; color:#8e8e93; max-width:700px; margin:0 auto; font-family:'Inter','Manrope',sans-serif;">
         Если есть вопросы по плану, по сотрудничеству или вы хотите уточнить детали – напишите мне в MAX с пометкой «Консультация».
         Укажите ваш вопрос и три удобных времени для звонка (завтра/послезавтра).
     </p>
-    <p style="font-size:15px; color:#636366; max-width:700px; margin:0 auto; margin-top:10px; font-family:'Inter',sans-serif;">
+    <p style="font-size:15px; color:#636366; max-width:700px; margin:0 auto; margin-top:10px; font-family:'Inter','Manrope',sans-serif;">
         Условие: я провожу такие разговоры только с теми, кто имеет бюджет на внедрение от 50 000 ₽. Если вы пока не готовы – сначала внедрите план и посмотрите на результат.
     </p>
 </div>
 <div class="form-card" style="text-align:center; max-width:600px; margin:0 auto;">
     <div style="background:rgba(0,0,0,0.3); border-radius:16px; padding:20px; margin-bottom:24px; text-align:left; border:1px solid rgba(255,255,255,0.06);">
-        <p style="font-size:16px; line-height:1.5; margin:0; color:#f5f5f7; font-family:'Inter',sans-serif;">
-            <strong style="color:#00BCD4; font-family:'Manrope',sans-serif;">Что вы получите за 20 минут:</strong><br>
+        <p style="font-size:16px; line-height:1.5; margin:0; color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">
+            <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Что вы получите за 20 минут:</strong><br>
             - Честный разбор – где план работает, а где требует доработки<br>
             - Ответ, какой канал даст вам первых клиентов уже на следующей неделе<br>
             - Конкретные шаги по внедрению, которые не требуют команды<br>
             - Чек-лист готовности – чтобы не тратить время на неважное
         </p>
     </div>
-    <p style="font-size:15px; color:#f5f5f7; margin-bottom:16px; font-family:'Inter',sans-serif;">
+    <p style="font-size:15px; color:#f5f5f7; margin-bottom:16px; font-family:'Inter','Manrope',sans-serif;">
         Чтобы записаться, просто напишите мне в личный чат MAX – я согласую время и проведу разбор.
     </p>
     <div style="margin:20px 0;">
@@ -1774,11 +1653,11 @@ async def consultation_page(user_id: str = None):
             Написать в личный чат MAX
         </a>
     </div>
-    <p style="font-size:14px; color:#636366; margin-top:10px; font-family:'Inter',sans-serif;">
-        Напишите цифру <strong style="color:#00BCD4; font-family:'Manrope',sans-serif;">1</strong> в чат – и я вышлю вам разбор.
+    <p style="font-size:14px; color:#636366; margin-top:10px; font-family:'Inter','Manrope',sans-serif;">
+        Напишите цифру <strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">1</strong> в чат – и я вышлю вам разбор.
     </p>
     <div style="margin-top:30px;">
-        <a href="/" class="btn-main" style="background:transparent; color:#00BCD4; box-shadow:none; border:1px solid #00BCD4;">На главную</a>
+        <a href="/" class="btn-main" style="background:transparent; color:#00D4AA; box-shadow:none; border:1px solid #00D4AA;">На главную</a>
     </div>
 </div>
 '''
@@ -1792,12 +1671,12 @@ async def implementation_page(user_id: str = None):
         save_user(user_id, None, None)
     content = f'''
 <div class="hero">
-    <h1 style="color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Внедрение под ключ – ваш бизнес с системой за 14 дней</h1>
-    <p style="font-size:20px; color:#8e8e93; font-family:'Inter',sans-serif;">Я лично настрою воронку, чат-бота и скрипты. Вы получаете не просто отчёт, а работающий механизм.</p>
+    <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Внедрение под ключ – ваш бизнес с системой за 14 дней</h1>
+    <p style="font-size:20px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">Я лично настрою воронку, чат-бота и скрипты. Вы получаете не просто отчёт, а работающий механизм.</p>
 </div>
 <div class="form-card" style="max-width:700px; text-align:left; margin:0 auto;">
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">Что входит:</h3>
-    <ul style="list-style:none; padding:0; color:#f5f5f7; font-family:'Inter',sans-serif;">
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Что входит:</h3>
+    <ul style="list-style:none; padding:0; color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">
         <li style="margin:10px 0;">Аудит текущего маркетинга и воронки</li>
         <li style="margin:10px 0;">Настройка автоворонки в MAX (Telegram, VK, GetCourse)</li>
         <li style="margin:10px 0;">Готовые скрипты продаж и возражений</li>
@@ -1805,11 +1684,11 @@ async def implementation_page(user_id: str = None):
         <li style="margin:10px 0;">1 час личной стратегической сессии</li>
     </ul>
     <div style="background:rgba(0,0,0,0.3); border-radius:16px; padding:16px; margin:24px 0; border:1px solid rgba(255,255,255,0.06);">
-        <p style="font-size:18px; font-weight:600; text-align:center; color:#00BCD4; font-family:'Manrope',sans-serif;">Цена: от 15 000 ₽</p>
-        <p style="font-size:14px; text-align:center; color:#8e8e93; font-family:'Inter',sans-serif;">Индивидуальный расчёт после созвона</p>
+        <p style="font-size:18px; font-weight:600; text-align:center; color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Цена: от 15 000 ₽</p>
+        <p style="font-size:14px; text-align:center; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">Индивидуальный расчёт после созвона</p>
     </div>
     <div style="background:rgba(255,159,10,0.1); border-radius:16px; padding:16px; margin-bottom:24px; border:1px solid #ff9f0a;">
-        <p style="font-size:14px; margin:0; color:#f5f5f7; font-family:'Inter',sans-serif;">Гарантия: если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
+        <p style="font-size:14px; margin:0; color:#f5f5f7; font-family:'Inter','Manrope',sans-serif;">Гарантия: если через месяц система не даст первых продаж – я бесплатно доработаю план.</p>
     </div>
     <div style="text-align:center;">
         <a href="/consultation?user_id={user_id}" class="btn-main">Записаться на внедрение</a>
@@ -1865,39 +1744,39 @@ async def admin_dashboard(auth: bool = Depends(verify_admin)):
     dashboard_html = """<!DOCTYPE html>
 <html lang="ru">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Админ-дашборд | Salesplan</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>
-        *{margin:0;padding:0;box-sizing:border-box} body{font-family:'Inter',sans-serif;background:#0F1115;color:#f5f5f7;padding:20px}
-        .container{max-width:1400px;margin:0 auto} h1{color:#00BCD4;font-size:28px;margin-bottom:20px;text-shadow:0 0 20px rgba(0,188,212,0.2);font-family:'Manrope',sans-serif}
+        *{margin:0;padding:0;box-sizing:border-box} body{font-family:'Inter','Manrope',sans-serif;background:#0F1115;color:#f5f5f7;padding:20px}
+        .container{max-width:1400px;margin:0 auto} h1{color:#00D4AA;font-size:28px;margin-bottom:20px;text-shadow:0 0 20px rgba(0,212,170,0.2);font-family:'Manrope','Inter',sans-serif}
         .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:30px}
         .stat-card{background:rgba(26,29,35,0.6);backdrop-filter:blur(12px);border-radius:16px;padding:20px;border:1px solid rgba(255,255,255,0.06)}
-        .stat-card h3{font-size:14px;color:#8e8e93;margin-bottom:8px;font-family:'Inter',sans-serif}
-        .stat-card .value{font-size:32px;font-weight:700;color:#00BCD4;text-shadow:0 0 15px rgba(0,188,212,0.2);font-family:'JetBrains Mono',monospace}
+        .stat-card h3{font-size:14px;color:#8e8e93;margin-bottom:8px;font-family:'Inter','Manrope',sans-serif}
+        .stat-card .value{font-size:32px;font-weight:700;color:#00D4AA;text-shadow:0 0 15px rgba(0,212,170,0.2);font-family:'JetBrains Mono',monospace}
         .stat-card .trend{font-size:12px;color:#34c759;margin-top:8px}
         .chart-container{background:rgba(26,29,35,0.6);backdrop-filter:blur(12px);border-radius:16px;padding:20px;margin-bottom:30px;border:1px solid rgba(255,255,255,0.06)}
         canvas{max-height:350px}
         .funnel-container{background:rgba(26,29,35,0.6);backdrop-filter:blur(12px);border-radius:16px;padding:20px;margin-bottom:30px;border:1px solid rgba(255,255,255,0.06)}
         .funnel-step{display:flex;align-items:center;margin:15px 0;padding:15px;background:rgba(0,0,0,0.3);border-radius:12px;border:1px solid rgba(255,255,255,0.06)}
-        .funnel-step .step-name{width:200px;font-weight:600;color:#f5f5f7;font-family:'Inter',sans-serif}
-        .funnel-step .step-count{width:100px;font-size:24px;font-weight:700;color:#00BCD4;font-family:'JetBrains Mono',monospace}
+        .funnel-step .step-name{width:200px;font-weight:600;color:#f5f5f7;font-family:'Inter','Manrope',sans-serif}
+        .funnel-step .step-count{width:100px;font-size:24px;font-weight:700;color:#00D4AA;font-family:'JetBrains Mono',monospace}
         .funnel-step .step-bar{flex:1;height:30px;background:rgba(255,255,255,0.06);border-radius:15px;overflow:hidden}
-        .funnel-step .step-fill{height:100%;background:#00BCD4;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#0F1115;font-size:12px;font-family:'JetBrains Mono',monospace}
+        .funnel-step .step-fill{height:100%;background:#00D4AA;border-radius:15px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#0F1115;font-size:12px;font-family:'JetBrains Mono',monospace}
         .tabs{display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.06);flex-wrap:wrap}
-        .tab{padding:12px 24px;cursor:pointer;border:none;background:none;font-size:16px;color:#8e8e93;transition:all 0.2s;font-family:'Inter',sans-serif}
-        .tab.active{border-bottom:2px solid #00BCD4;color:#00BCD4;font-weight:500}
+        .tab{padding:12px 24px;cursor:pointer;border:none;background:none;font-size:16px;color:#8e8e93;transition:all 0.2s;font-family:'Inter','Manrope',sans-serif}
+        .tab.active{border-bottom:2px solid #00D4AA;color:#00D4AA;font-weight:500}
         .table-container{background:rgba(26,29,35,0.6);backdrop-filter:blur(12px);border-radius:16px;padding:20px;overflow-x:auto;border:1px solid rgba(255,255,255,0.06)}
         table{width:100%;border-collapse:collapse}
         th,td{padding:12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06)}
-        th{background:rgba(0,0,0,0.3);font-weight:600;color:#f5f5f7;font-family:'Manrope',sans-serif}
-        td{color:#f5f5f7;font-family:'Inter',sans-serif}
+        th{background:rgba(0,0,0,0.3);font-weight:600;color:#f5f5f7;font-family:'Manrope','Inter',sans-serif}
+        td{color:#f5f5f7;font-family:'Inter','Manrope',sans-serif}
         .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:12px}
         .badge-success{background:#34c75920;color:#34c759} .badge-pending{background:#ff9f0a20;color:#ff9f0a}
-        .report-link{color:#00BCD4;text-decoration:none}
-        .expand-btn{cursor:pointer;color:#00BCD4;font-size:12px}
+        .report-link{color:#00D4AA;text-decoration:none}
+        .expand-btn{cursor:pointer;color:#00D4AA;font-size:12px}
         .row-detail{display:none;background:rgba(0,0,0,0.3)}
         .row-detail td{padding:20px}
         .detail-section{margin-bottom:15px}
-        .detail-section strong{display:block;margin-bottom:5px;color:#f5f5f7;font-family:'Manrope',sans-serif}
+        .detail-section strong{display:block;margin-bottom:5px;color:#f5f5f7;font-family:'Manrope','Inter',sans-serif}
         .detail-answers{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
-        .answer-tag{background:rgba(255,255,255,0.06);padding:4px 12px;border-radius:20px;font-size:12px;color:#f5f5f7;font-family:'Inter',sans-serif}
+        .answer-tag{background:rgba(255,255,255,0.06);padding:4px 12px;border-radius:20px;font-size:12px;color:#f5f5f7;font-family:'Inter','Manrope',sans-serif}
         @media (max-width:700px){.funnel-step{flex-wrap:wrap}.funnel-step .step-name{width:100%;margin-bottom:10px}.stats-grid{grid-template-columns:repeat(2,1fr)}}
     </style></head>
 <body><div class="container">
@@ -1926,11 +1805,11 @@ document.getElementById('totalRevenue').innerText=data.summary.total_revenue.toL
 document.getElementById('convVisitToDiag').innerHTML=`Конверсия: ${data.summary.conv_visit_to_diag}%`;
 document.getElementById('convDiagToPayment').innerHTML=`Конверсия: ${data.summary.conv_diag_to_payment}%`;
 const funnelDiv=document.getElementById('funnelSteps');
-const steps=[[{name:'Посетители сайта',key:'visitors',color:'#00BCD4'},{name:'Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'Скачивание отчета',key:'downloads',color:'#34c759'}]];
+const steps=[[{name:'Посетители сайта',key:'visitors',color:'#00D4AA'},{name:'Бесплатная диагностика',key:'diagnostics',color:'#5856d6'},{name:'Оплата плана (2500₽)',key:'payments',color:'#ff9f0a'},{name:'Скачивание отчета',key:'downloads',color:'#34c759'}]];
 const maxCount=Math.max(data.summary.visitors,1);
 funnelDiv.innerHTML=steps[0].map(step=>{const count=data.summary[step.key];const percent=(count/maxCount*100).toFixed(1);return `<div class="funnel-step"><div class="step-name">${step.name}</div><div class="step-count">${count}</div><div class="step-bar"><div class="step-fill" style="width:${percent}%;background:${step.color}">${percent}%</div></div></div>`;}).join('');
 const ctx=document.getElementById('funnelChart').getContext('2d');
-new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#00BCD4',backgroundColor:'#00BCD420',tension:0.3,fill:true},{label:'Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
+new Chart(ctx,{type:'line',data:{labels:data.funnel.map(d=>d.date),datasets:[{label:'Посетители',data:data.funnel.map(d=>d.visitors),borderColor:'#00D4AA',backgroundColor:'#00D4AA20',tension:0.3,fill:true},{label:'Диагностики',data:data.funnel.map(d=>d.diagnostics),borderColor:'#5856d6',backgroundColor:'#5856d620',tension:0.3,fill:true},{label:'Оплаты',data:data.funnel.map(d=>d.payments),borderColor:'#ff9f0a',backgroundColor:'#ff9f0a20',tension:0.3,fill:true},{label:'Скачивания',data:data.funnel.map(d=>d.downloads),borderColor:'#34c759',backgroundColor:'#34c75920',tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:true}});}
 async function loadClients(){const res=await fetch('/admin/api/clients');const data=await res.json();clientsData=data.clients;const tbody=document.querySelector('#clientsTable tbody');tbody.innerHTML='';
 data.clients.forEach(client=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(client.payment_date).toLocaleDateString()}</td><td>${client.phone||'-'}</td><td><strong>${client.business_name||'-'}</strong><br><small style="color:#8e8e93;">${(client.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswers(${JSON.stringify(client).replace(/"/g,'&quot;')})">Показать анкету</span></td><td>${client.report_path?'<a href="/download/'+client.user_id+'/premium" class="report-link">Скачать отчет</a>':'<span class="badge badge-pending">генерация...</span>'}</td><td><span class="expand-btn" onclick="toggleDetail(this)">Подробнее</span></td>`;const detailRow=tbody.insertRow();detailRow.className='row-detail';detailRow.style.display='none';detailRow.innerHTML=`<td colspan="6"><div class="detail-section"><strong>Полная анкета:</strong><div class="detail-answers"><span class="answer-tag">Продаёт: ${client.q1||'-'}</span><span class="answer-tag">Чек: ${client.q2||'-'}</span><span class="answer-tag">Клиентов: ${client.q3||'-'}</span><span class="answer-tag">Цель: ${client.q4||'-'}</span><span class="answer-tag">Воронка: ${client.q5||'-'}</span></div></div><div class="detail-section"><strong>Описание бизнеса:</strong><br>${client.business_description||'-'}</div>`;});}
 async function loadDiagnostics(){const res=await fetch('/admin/api/diagnostics');const data=await res.json();const tbody=document.querySelector('#diagnosticsTable tbody');tbody.innerHTML='';data.diagnostics.forEach(d=>{const row=tbody.insertRow();row.innerHTML=`<tr><td>${new Date(d.date).toLocaleString()}</td><td>${d.phone||'-'}</td><td><strong>${d.business_name||'-'}</strong><br><small style="color:#8e8e93;">${(d.business_description||'').substring(0,50)}...</small></td><td><span class="expand-btn" onclick="showAnswersDialog('${d.q1}','${d.q2}','${d.q3}','${d.q4}','${d.q5}')">Показать</span></td><td><span class="badge ${d.report_status==='ready'?'badge-success':'badge-pending'}">${d.report_status==='ready'?'Готов':'Генерация'}</span></td><td>${d.report_status==='ready'?'<a href="/download/'+d.user_id+'/free" class="report-link">Скачать</a>':'-'}<tr>`;});}
@@ -1983,38 +1862,38 @@ async def funnel_7_days_redirect():
 async def oferta_page():
     content = """
 <div class="hero" style="margin-bottom:20px;">
-    <h1 style="color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Публичная оферта</h1>
-    <p style="font-size:14px; color:#8e8e93; font-family:'Inter',sans-serif;">о заключении договора купли-продажи цифрового товара</p>
+    <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Публичная оферта</h1>
+    <p style="font-size:14px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">о заключении договора купли-продажи цифрового товара</p>
 </div>
 <div class="glass-card" style="text-align:left;max-width:800px;margin:0 auto;">
-    <p style="font-family:'Inter',sans-serif;"><strong style="color:#00BCD4; font-family:'Manrope',sans-serif;">Индивидуальный предприниматель Макаревич Вероника Александровна,</strong><br>
+    <p style="font-family:'Inter','Manrope',sans-serif;"><strong style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">Индивидуальный предприниматель Макаревич Вероника Александровна,</strong><br>
     ИНН 781407988795, зарегистрированная в качестве налогоплательщика,<br>
     размещая настоящий документ на сайте<br>
     realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»),<br>
     предлагает неограниченному кругу лиц (далее — «Покупатель»)<br>
     заключить договор купли-продажи цифрового товара на условиях, изложенных ниже.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">1. ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ</h3>
     <p>1.1. Цифровой товар — профессиональный маркетинговый план продаж, сгенерированный с использованием искусственного интеллекта на основе данных, предоставленных Покупателем, предоставляемый в электронном виде в формате текстового файла (.txt) через Сайт.</p>
     <p>1.2. Сайт — интернет-страница, расположенная по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net</p>
     <p>1.3. Продавец — Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795.</p>
     <p>1.4. Покупатель — любое физическое или юридическое лицо, акцептовавшее настоящую оферту.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">2. ПРЕДМЕТ ДОГОВОРА</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">2. ПРЕДМЕТ ДОГОВОРА</h3>
     <p>2.1. Продавец обязуется передать в собственность Покупателю Цифровой товар, а Покупатель обязуется оплатить его в порядке и на условиях, предусмотренных настоящей офертой.</p>
     <p>2.2. Цифровой товар передается Покупателю в момент получения доступа к файлу для скачивания после полной оплаты.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">3. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ</h3>
     <p>3.1. Стоимость Цифрового товара составляет 490 (Четыреста девяносто) рублей.</p>
     <p>3.2. Оплата производится через платежную систему ЮKassa (ООО «ЮMoney») с использованием банковской карты или иных доступных способов.</p>
     <p>3.3. Оплата считается произведенной в момент поступления денежных средств на счет Продавца.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">4. ПОРЯДОК ПЕРЕДАЧИ ЦИФРОВОГО ТОВАРА</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">4. ПОРЯДОК ПЕРЕДАЧИ ЦИФРОВОГО ТОВАРА</h3>
     <p>4.1. После успешной оплаты Покупателю автоматически открывается доступ к странице с Цифровым товаром для скачивания.</p>
     <p>4.2. Цифровой товар считается переданным надлежащим образом в момент предоставления доступа к файлу для скачивания.</p>
     <p>4.3. Продавец не несет ответственности за невозможность скачать Цифровой товар по техническим причинам на стороне Покупателя (отсутствие интернета, блокировка провайдером и т.п.).</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">5. ПОРЯДОК ВОЗВРАТА ДЕНЕЖНЫХ СРЕДСТВ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">5. ПОРЯДОК ВОЗВРАТА ДЕНЕЖНЫХ СРЕДСТВ</h3>
     <p>5.1. В соответствии со ст. 26.1 Закона РФ «О защите прав потребителей» цифровой товар надлежащего качества возврату не подлежит.</p>
     <p>5.2. Возврат денежных средств возможен в следующих исключительных случаях:<br>
     — Цифровой товар не может быть открыт / прочитан по техническим причинам;<br>
@@ -2024,11 +1903,11 @@ async def oferta_page():
     <p>5.4. При подтверждении оснований для возврата Продавец обязуется вернуть денежные средства в течение 3 (трех) рабочих дней с момента получения заявления от Покупателя.</p>
     <p>5.5. Возврат осуществляется на ту же банковскую карту или счет, с которого производилась оплата.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">6. ОТВЕТСТВЕННОСТЬ СТОРОН</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">6. ОТВЕТСТВЕННОСТЬ СТОРОН</h3>
     <p>6.1. Цифровой товар предоставляется «как есть» (as is). Продавец не гарантирует достижение Покупателем каких-либо финансовых или бизнес-результатов при использовании Цифрового товара.</p>
     <p>6.2. Продавец не несет ответственности за убытки Покупателя, возникшие в результате использования Цифрового товара.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">7. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">7. ИНТЕЛЛЕКТУАЛЬНАЯ СОБСТВЕННОСТЬ</h3>
     <p>7.1. Цифровой товар является результатом интеллектуальной деятельности Продавца (с использованием нейросетей). Все исключительные права на Цифровой товар принадлежат Продавцу.</p>
     <p>7.2. Покупатель получает право личного некоммерческого использования Цифрового товара. Запрещается:<br>
     — перепродажа Цифрового товара;<br>
@@ -2036,20 +1915,20 @@ async def oferta_page():
     — копирование и тиражирование в коммерческих целях;<br>
     — выдача Цифрового товара за свой собственный.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">8. ПЕРСОНАЛЬНЫЕ ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">8. ПЕРСОНАЛЬНЫЕ ДАННЫЕ И КОНФИДЕНЦИАЛЬНОСТЬ</h3>
     <p>8.1. Вопросы обработки персональных данных регулируются Политикой обработки персональных данных, размещенной на Сайте по адресу: realplanninig-oss-salesplan-web-7eb2.twc1.net/privacy</p>
     <p>8.2. Направляя данные через формы на Сайте, Покупатель дает согласие на их обработку в соответствии с указанной Политикой.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">9. ФОРС-МАЖОР</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">9. ФОРС-МАЖОР</h3>
     <p>9.1. Стороны освобождаются от ответственности за полное или частичное неисполнение обязательств, если это явилось следствием обстоятельств непреодолимой силы (стихийные бедствия, военные действия, решения органов власти, блокировки интернет-ресурсов и т.п.).</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">10. КОНТАКТЫ ПРОДАВЦА</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">10. КОНТАКТЫ ПРОДАВЦА</h3>
     <p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
     — ИНН: 781407988795<br>
     — Email: veranikamakarevich@yandex.ru<br>
     — MAX-канал: https://max.ru/id781407988795_biz</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">11. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">11. ЗАКЛЮЧИТЕЛЬНЫЕ ПОЛОЖЕНИЯ</h3>
     <p>11.1. Акцептом настоящей оферты является совершение Покупателем действий по оплате Цифрового товара и/или проставление галочки в чекбоксе «Я принимаю условия публичной оферты».</p>
     <p>11.2. Продавец вправе изменять условия оферты в одностороннем порядке. Изменения вступают в силу с момента их опубликования на Сайте.</p>
     <p>Дата публикации: «05» мая 2026 г.</p>
@@ -2061,17 +1940,17 @@ async def oferta_page():
 async def privacy_page():
     content = """
 <div class="hero" style="margin-bottom:20px;">
-    <h1 style="color:#00BCD4; text-shadow: 0 0 20px rgba(0,188,212,0.2); font-family:'Manrope',sans-serif;">Политика обработки персональных данных</h1>
-    <p style="font-size:14px; color:#8e8e93; font-family:'Inter',sans-serif;">Индивидуального предпринимателя Макаревич Вероники Александровны</p>
+    <h1 style="color:#00D4AA; text-shadow: 0 0 20px rgba(0,212,170,0.2); font-family:'Manrope','Inter',sans-serif;">Политика обработки персональных данных</h1>
+    <p style="font-size:14px; color:#8e8e93; font-family:'Inter','Manrope',sans-serif;">Индивидуального предпринимателя Макаревич Вероники Александровны</p>
 </div>
 <div class="glass-card" style="text-align:left;max-width:800px;margin:0 auto;">
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">1. ОБЩИЕ ПОЛОЖЕНИЯ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">1. ОБЩИЕ ПОЛОЖЕНИЯ</h3>
     <p>1.1. Настоящая Политика определяет порядок обработки и защиты персональных данных лиц, использующих сайт realplanninig-oss-salesplan-web-7eb2.twc1.net (далее — «Сайт»).</p>
     <p>1.2. Оператор персональных данных: Индивидуальный предприниматель Макаревич Вероника Александровна, ИНН 781407988795.</p>
     <p>1.3. Настоящая Политика составлена во исполнение требований Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных» (с изменениями на 2026 год).</p>
     <p>1.4. Используя Сайт и заполняя формы, Пользователь выражает согласие с условиями настоящей Политики.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">2. КАКИЕ ДАННЫЕ СОБИРАЮТСЯ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">2. КАКИЕ ДАННЫЕ СОБИРАЮТСЯ</h3>
     <p>2.1. Оператор собирает следующие персональные данные:<br>
     — Номер телефона (обязательно)<br>
     — Имя (опционально)<br>
@@ -2083,7 +1962,7 @@ async def privacy_page():
     — Дата и время посещения<br>
     — Страница, с которой совершен переход (Referrer)</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">3. ЦЕЛИ ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">3. ЦЕЛИ ОБРАБОТКИ ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
     <p>3.1. Основные цели:<br>
     — Предоставление доступа к сервису маркетинговой диагностики<br>
     — Генерация индивидуального маркетингового плана на основе анкеты<br>
@@ -2095,13 +1974,13 @@ async def privacy_page():
     <p>3.2. Второстепенные цели (с отдельным согласием Пользователя):<br>
     — Направление информационных и рекламных рассылок (если Пользователь подписался)</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">4. ПРАВОВЫЕ ОСНОВАНИЯ ОБРАБОТКИ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">4. ПРАВОВЫЕ ОСНОВАНИЯ ОБРАБОТКИ</h3>
     <p>4.1. Оператор обрабатывает персональные данные на основании:<br>
     — Согласия субъекта персональных данных (отдельный чекбокс на Сайте)<br>
     — Договора (публичной оферты), стороной которого является субъект<br>
     — Исполнения обязательств, предусмотренных законодательством РФ</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">5. ПОРЯДОК И УСЛОВИЯ ОБРАБОТКИ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">5. ПОРЯДОК И УСЛОВИЯ ОБРАБОТКИ</h3>
     <p>5.1. Обработка данных включает: сбор, запись, систематизацию, накопление, хранение, уточнение, извлечение, использование, передачу, блокирование, удаление, уничтожение.</p>
     <p>5.2. Срок хранения персональных данных: 3 (три) года с момента последнего взаимодействия с Пользователем либо до момента отзыва согласия, если отзыв не противоречит законодательству.</p>
     <p>5.3. Хранение данных осуществляется на серверах, расположенных на территории Российской Федерации.<br>
@@ -2113,7 +1992,7 @@ async def privacy_page():
     — По запросу уполномоченных государственных органов (в рамках закона)</p>
     <p>5.5. Доступ к персональным данным имеет только Оператор (Макаревич Вероника Александровна). Иные лица к данным доступа не имеют.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">6. ПРАВА ПОЛЬЗОВАТЕЛЯ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">6. ПРАВА ПОЛЬЗОВАТЕЛЯ</h3>
     <p>6.1. Пользователь имеет право:<br>
     — Получить информацию о своих персональных данных, обрабатываемых Оператором<br>
     — Требовать уточнения, блокирования или уничтожения своих данных<br>
@@ -2122,7 +2001,7 @@ async def privacy_page():
     <p>6.2. Для реализации прав необходимо направить запрос на электронную почту: veranikamakarevich@yandex.ru</p>
     <p>6.3. Оператор обязуется рассмотреть запрос и дать ответ в течение 10 (десяти) рабочих дней.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">7. ЗАЩИТА ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">7. ЗАЩИТА ПЕРСОНАЛЬНЫХ ДАННЫХ</h3>
     <p>7.1. Оператор принимает следующие меры защиты:<br>
     — Парольная защита доступа к базам данных (SQLite с паролем)<br>
     — Использование HTTPS-шифрования (через Timeweb)<br>
@@ -2131,21 +2010,21 @@ async def privacy_page():
     — Антивирусное ПО на рабочем компьютере</p>
     <p>7.2. В случае утечки персональных данных Оператор обязуется в течение 24 часов уведомить Роскомнадзор и пострадавших лиц в порядке, установленном законодательством.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">8. ИСПОЛЬЗОВАНИЕ ФАЙЛОВ COOKIE И МЕТРИК</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">8. ИСПОЛЬЗОВАНИЕ ФАЙЛОВ COOKIE И МЕТРИК</h3>
     <p>8.1. На Сайте используется Яндекс.Метрика для сбора статистики посещений. Данные собираются в обезличенном виде.</p>
     <p>8.2. Пользователь может отключить cookie в настройках браузера.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">9. ПОРЯДОК ОТЗЫВА СОГЛАСИЯ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">9. ПОРЯДОК ОТЗЫВА СОГЛАСИЯ</h3>
     <p>9.1. Пользователь может отозвать согласие на обработку персональных данных, направив письменное заявление на электронную почту Оператора.</p>
     <p>9.2. В случае отзыва согласия Оператор обязуется прекратить обработку и уничтожить персональные данные в течение 30 дней, если иное не предусмотрено законом.</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">10. КОНТАКТЫ ОПЕРАТОРА</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">10. КОНТАКТЫ ОПЕРАТОРА</h3>
     <p>— Индивидуальный предприниматель: Макаревич Вероника Александровна<br>
     — ИНН: 781407988795<br>
     — Email: veranikamakarevich@yandex.ru<br>
     — MAX-канал: https://max.ru/id781407988795_biz</p>
 
-    <h3 style="color:#00BCD4; font-family:'Manrope',sans-serif;">11. ИЗМЕНЕНИЕ ПОЛИТИКИ</h3>
+    <h3 style="color:#00D4AA; font-family:'Manrope','Inter',sans-serif;">11. ИЗМЕНЕНИЕ ПОЛИТИКИ</h3>
     <p>11.1. Оператор вправе изменять настоящую Политику. Новая редакция вступает в силу с момента ее публикации на Сайте.</p>
     <p>Дата публикации: «05» мая 2026 г.</p>
 </div>
