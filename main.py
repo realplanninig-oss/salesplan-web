@@ -1741,6 +1741,9 @@ async def choose_plan(user_id: str):
 # ========================================
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
+    # Определяем personal_chat для этой страницы
+    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
+
     if amount not in (2500, 50000):
         return RedirectResponse(url=f"/payment?user_id={user_id}&amount=2500", status_code=303)
     conn = sqlite3.connect(DB_PATH)
@@ -1787,10 +1790,6 @@ async def payment_page(user_id: str, amount: int = 2500):
     </form>
 </div>
 '''
-    # Определяем personal_chat для этой функции
-    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
-    content = content.replace("{personal_chat}", personal_chat)  # подставляем переменную
-
     return HTMLResponse(content=render_page(content,
         title=f"{title} – оплата и внедрение для экспертов",
         description=f"{description} Оплата через ЮKassa, гарантия возврата."
