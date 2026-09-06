@@ -1748,7 +1748,6 @@ async def payment_page(user_id: str, amount: int = 2500):
     conn.close()
     phone_value = row[0] if row and row[0] else ""
 
-    # ОБЪЯВЛЯЕМ personal_chat
     personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
 
     if amount == 2500:
@@ -1943,18 +1942,72 @@ async def payment_success(user_id: str, amount: int = 2500):
 
     personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
 
+    # Проверяем, есть ли уже премиум-отчёт
     report = get_report(user_id, "premium")
 
-    if amount == 2500:
-        title = "Оплата прошла."
-        instruction = "Ваш план готов. Скачайте и внедряйте. Если нужна помощь – напишите мне в MAX."
-        download_text = "Ваш расширенный план будет доступен после доработки."
-        download_button = ""
+    if not report or report["status"] != "ready":
+        # Запускаем генерацию в фоне
+        business_data = get_business_data(user_id)
+        form_data = get_form_data(user_id)
+        if business_data and form_data:
+            # Создаём запись в отчёте со статусом generating
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.execute(
+                "INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')",
+                (user_id,)
+            )
+            report_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            # Запускаем фоновую задачу
+            asyncio.create_task(generate_premium_report_background(
+                user_id,
+                business_data["name"],
+                business_data["description"],
+                form_data,
+                report_id
+            ))
+            logger.info(f"Premium report generation started for user {user_id}")
+        else:
+            logger.warning(f"No business/form data for user {user_id}, cannot generate premium report")
+
+    # Повторно получаем отчёт после возможного запуска
+    report = get_report(user_id, "premium")
+    
+    if report and report["status"] == "ready":
+        if amount == 2500:
+            title = "Оплата прошла."
+            instruction = "Ваш расширенный план готов к скачиванию."
+            download_text = "Скачайте ваш план и приступайте к внедрению."
+            download_button = f'<a href="/download/{user_id}/premium" class="btn-main" style="display:inline-block;">Скачать план</a>'
+        else:
+            title = "Оплата принята."
+            instruction = "В течение часа я напишу вам в MAX, чтобы согласовать старт."
+            download_text = "Ваш расширенный план будет доступен после доработки."
+            download_button = ""
     else:
-        title = "Оплата принята."
-        instruction = "В течение часа я напишу вам в MAX, чтобы согласовать старт. Начинаем привлечение клиентов."
-        download_text = "Ваш расширенный план будет доступен после доработки."
+        # Отчёт ещё генерируется
+        title = "Оплата прошла."
+        instruction = "Ваш расширенный план генерируется. Это займёт 1-2 минуты."
+        download_text = "План будет доступен для скачивания автоматически через несколько минут."
         download_button = ""
+        # Добавляем скрипт для обновления страницы, когда отчёт будет готов
+        script = f"""
+        <script>
+        setTimeout(function() {{
+            fetch('/check-premium-status?user_id={user_id}')
+                .then(res => res.json())
+                .then(data => {{
+                    if(data.ready) {{
+                        window.location.reload();
+                    }}
+                }});
+        }}, 5000);
+        </script>
+        """
+    # Если отчёт готов, скрипт не нужен
+    if report and report["status"] == "ready":
+        script = ""
 
     guarantee_block = ""
     if amount == 50000:
@@ -1995,16 +2048,15 @@ async def payment_success(user_id: str, amount: int = 2500):
         <p style="font-size:0.9rem; color:#AAB2C0; font-family:'Manrope',sans-serif;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="{personal_chat}" target="_blank" style="color:#B5FF47; text-decoration:none;">открыть чат</a></p>
     </div>
 </div>
+{script}
 '''
-
-    # ВАЖНО: используем html_content, а не content
     return HTMLResponse(content=render_page(html_content,
         title="Оплата прошла успешно – начните привлечение клиентов",
         description="Ваш план готов. Начните привлекать клиентов уже сегодня. Гарантия результатов.",
         noindex=True
     ))
 
-# === СТРАНИЦА КОНСУЛЬТАЦИИ ===
+# === СТРАНИЦА КОНСУЛЬТАЦИИ (исправлена – текст про цифру 1 теперь виден) ===
 @app.get("/consultation", response_class=HTMLResponse)
 async def consultation_page(user_id: str = None):
     if not user_id:
@@ -2039,7 +2091,7 @@ async def consultation_page(user_id: str = None):
             Написать в личный чат MAX
         </a>
     </div>
-    <p style="font-size:0.9rem; color:#636366; margin-top:10px; font-family:'Manrope',sans-serif;">
+    <p style="font-size:1rem; color:#FFFFFF; margin-top:10px; font-family:'Manrope',sans-serif;">
         Напишите цифру <strong style="color:#B5FF47; font-family:'Inter Tight',sans-serif;">1</strong> в чат – и я вышлю вам разбор.
     </p>
     <div style="margin-top:30px;">
