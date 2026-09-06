@@ -1927,7 +1927,9 @@ async def payment_confirm(request: Request):
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Manrope',sans-serif;text-align:center;padding:50px;background:#0F1115;color:#FFFFFF}.btn{display:inline-block;background:#B5FF47;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:60px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА (исправлена) ===
+# ========================================
+# СТРАНИЦА УСПЕХА (исправлена - теперь видна генерация)
+# ========================================
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1940,74 +1942,55 @@ async def payment_success(user_id: str, amount: int = 2500):
         amount = payment_row[1]
         logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
 
-    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
-
     # Проверяем, есть ли уже премиум-отчёт
     report = get_report(user_id, "premium")
-
-    if not report or report["status"] != "ready":
-        # Запускаем генерацию в фоне
-        business_data = get_business_data(user_id)
-        form_data = get_form_data(user_id)
-        if business_data and form_data:
-            # Создаём запись в отчёте со статусом generating
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.execute(
-                "INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')",
-                (user_id,)
-            )
-            report_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-            # Запускаем фоновую задачу
-            asyncio.create_task(generate_premium_report_background(
-                user_id,
-                business_data["name"],
-                business_data["description"],
-                form_data,
-                report_id
-            ))
-            logger.info(f"Premium report generation started for user {user_id}")
-        else:
-            logger.warning(f"No business/form data for user {user_id}, cannot generate premium report")
-
-    # Повторно получаем отчёт после возможного запуска
-    report = get_report(user_id, "premium")
     
-    if report and report["status"] == "ready":
-        if amount == 2500:
-            title = "Оплата прошла."
-            instruction = "Ваш расширенный план готов к скачиванию."
-            download_text = "Скачайте ваш план и приступайте к внедрению."
-            download_button = f'<a href="/download/{user_id}/premium" class="btn-main" style="display:inline-block;">Скачать план</a>'
-        else:
-            title = "Оплата принята."
-            instruction = "В течение часа я напишу вам в MAX, чтобы согласовать старт."
-            download_text = "Ваш расширенный план будет доступен после доработки."
-            download_button = ""
-    else:
-        # Отчёт ещё генерируется
+    # Если отчёта нет или он генерируется, запускаем генерацию или показываем ожидание
+    if not report or report["status"] == "generating":
+        if not report:
+            business_data = get_business_data(user_id)
+            form_data = get_form_data(user_id)
+            if business_data and form_data:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.execute(
+                    "INSERT INTO reports (user_id, report_type, status) VALUES (?, 'premium', 'generating')",
+                    (user_id,)
+                )
+                report_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                asyncio.create_task(generate_premium_report_background(
+                    user_id,
+                    business_data["name"],
+                    business_data["description"],
+                    form_data,
+                    report_id
+                ))
+                logger.info(f"Premium report generation started for user {user_id}")
+            else:
+                logger.warning(f"No business/form data for user {user_id}, cannot generate premium report")
+                return RedirectResponse(url="/", status_code=303)
+        
+        # Показываем страницу ожидания
+        return HTMLResponse(content=render_waiting_page(
+            user_id, 
+            "premium", 
+            f"/payment/success?user_id={user_id}&amount={amount}"
+        ))
+
+    # Если отчёт готов, показываем страницу успеха с кнопкой скачивания
+    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
+
+    if amount == 2500:
         title = "Оплата прошла."
-        instruction = "Ваш расширенный план генерируется. Это займёт 1-2 минуты."
-        download_text = "План будет доступен для скачивания автоматически через несколько минут."
+        instruction = "Ваш расширенный план готов к скачиванию."
+        download_text = "Скачайте ваш план и приступайте к внедрению."
+        download_button = f'<a href="/download/{user_id}/premium" class="btn-main" style="display:inline-block;">Скачать план</a>'
+    else:
+        title = "Оплата принята."
+        instruction = "В течение часа я напишу вам в MAX, чтобы согласовать старт."
+        download_text = "Ваш расширенный план будет доступен после доработки."
         download_button = ""
-        # Добавляем скрипт для обновления страницы, когда отчёт будет готов
-        script = f"""
-        <script>
-        setTimeout(function() {{
-            fetch('/check-premium-status?user_id={user_id}')
-                .then(res => res.json())
-                .then(data => {{
-                    if(data.ready) {{
-                        window.location.reload();
-                    }}
-                }});
-        }}, 5000);
-        </script>
-        """
-    # Если отчёт готов, скрипт не нужен
-    if report and report["status"] == "ready":
-        script = ""
 
     guarantee_block = ""
     if amount == 50000:
@@ -2048,7 +2031,6 @@ async def payment_success(user_id: str, amount: int = 2500):
         <p style="font-size:0.9rem; color:#AAB2C0; font-family:'Manrope',sans-serif;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="{personal_chat}" target="_blank" style="color:#B5FF47; text-decoration:none;">открыть чат</a></p>
     </div>
 </div>
-{script}
 '''
     return HTMLResponse(content=render_page(html_content,
         title="Оплата прошла успешно – начните привлечение клиентов",
