@@ -1400,7 +1400,7 @@ async def index():
     </div>
 
     <div class="apple-footer-link">
-        Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank">Напишите мне в MAX</a>
+        Есть вопросы? <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank">Напишите мне в MAX</a>
     </div>
 </div>
 
@@ -1719,7 +1719,7 @@ async def thank_you(user_id: str):
     </div>
 
     <div style="margin-top:16px;">
-        <a href="{channel_link}" target="_blank" class="btn-main" style="background:transparent; color:#B5FF47; box-shadow:none; border:1px solid #B5FF47; display:inline-block; padding:12px 24px;">Есть вопросы? Напишите в MAX</a>
+        <a href="{personal_chat}" target="_blank" class="btn-main" style="background:transparent; color:#B5FF47; box-shadow:none; border:1px solid #B5FF47; display:inline-block; padding:12px 24px;">Есть вопросы? Напишите в MAX</a>
     </div>
 </div>
 '''
@@ -1782,11 +1782,15 @@ async def payment_page(user_id: str, amount: int = 2500):
         </div>
         <p style="font-size:0.8rem;text-align:center;margin-top:12px;color:#636366;font-family:'Manrope',sans-serif;">Безопасная оплата через ЮKassa. Гарантия возврата 3 дня.</p>
         <div style="margin-top:30px; font-size:0.9rem; color:#636366; text-align:center; font-family:'Manrope',sans-serif;">
-            💬 Есть вопросы? <a href="https://max.ru/id781407988795_biz" target="_blank" style="color:#B5FF47; text-decoration:none;">Напишите мне в MAX</a>
+            💬 Есть вопросы? <a href="{personal_chat}" target="_blank" style="color:#B5FF47; text-decoration:none;">Напишите мне в MAX</a>
         </div>
     </form>
 </div>
 '''
+    # Определяем personal_chat для этой функции
+    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
+    content = content.replace("{personal_chat}", personal_chat)  # подставляем переменную
+
     return HTMLResponse(content=render_page(content,
         title=f"{title} – оплата и внедрение для экспертов",
         description=f"{description} Оплата через ЮKassa, гарантия возврата."
