@@ -1737,20 +1737,20 @@ async def choose_plan(user_id: str):
     return RedirectResponse(url=f"/thank-you?user_id={user_id}", status_code=302)
 
 # ========================================
-# СТРАНИЦА ОПЛАТЫ
+# СТРАНИЦА ОПЛАТЫ (исправлена)
 # ========================================
 @app.get("/payment", response_class=HTMLResponse)
 async def payment_page(user_id: str, amount: int = 2500):
-    # Определяем personal_chat для этой страницы
-    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
-
     if amount not in (2500, 50000):
         return RedirectResponse(url=f"/payment?user_id={user_id}&amount=2500", status_code=303)
     conn = sqlite3.connect(DB_PATH)
     row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (user_id,)).fetchone()
     conn.close()
     phone_value = row[0] if row and row[0] else ""
-    
+
+    # ОБЪЯВЛЯЕМ personal_chat
+    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
+
     if amount == 2500:
         title = "Расширенный план – 2 500 ₽"
         description = "Вы получаете готовую структуру от AI-аналитика. После оплаты мы созваниваемся, я дорабатываю план под ваш конкретный случай, и вы получаете готовый документ со скриптами, бюджетами, контент-планом и чек-листом."
@@ -1759,7 +1759,7 @@ async def payment_page(user_id: str, amount: int = 2500):
         title = "Внедрение под ключ – первые заявки за 14 дней"
         description = "Я лично настраиваю воронку, запускаю рекламу, пишу скрипты. Вы получаете работающую систему привлечения клиентов. Гарантия: если за 14 дней нет заявок – я возвращаю деньги или работаю до первого клиента бесплатно (на ваш выбор)."
         button_text = "Оплатить 50 000 ₽"
-    
+
     content = f'''
 <div class="hero">
     <h1 style="color:#B5FF47; text-shadow: 0 0 20px rgba(181,255,71,0.2); font-family:'Inter Tight',sans-serif;">{title}</h1>
@@ -1928,7 +1928,7 @@ async def payment_confirm(request: Request):
         logger.warning("Payment confirm: neither payment_id nor user_id provided")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Подтверждение оплаты</title><style>body{font-family:'Manrope',sans-serif;text-align:center;padding:50px;background:#0F1115;color:#FFFFFF}.btn{display:inline-block;background:#B5FF47;color:#0F1115;text-decoration:none;padding:14px 28px;border-radius:60px}</style></head><body><h1>Оплата прошла успешно!</h1><p>Вернитесь на сайт, чтобы завершить оформление</p><a href="/" class="btn">На главную</a></body></html>""", status_code=200)
 
-# === СТРАНИЦА УСПЕХА (закрыта от индексации) ===
+# === СТРАНИЦА УСПЕХА (исправлена) ===
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(user_id: str, amount: int = 2500):
     logger.info(f"Payment success page for user {user_id}, amount={amount}")
@@ -1940,6 +1940,9 @@ async def payment_success(user_id: str, amount: int = 2500):
     if payment_row[1] and payment_row[1] != amount:
         amount = payment_row[1]
         logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
+
+    # ОБЪЯВЛЯЕМ personal_chat
+    personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
 
     report = get_report(user_id, "premium")
 
@@ -1990,7 +1993,7 @@ async def payment_success(user_id: str, amount: int = 2500):
     </div>
     <hr style="margin:32px 0;">
     <div style="background:rgba(0,0,0,0.3); border-radius:20px; padding:20px; margin-top:20px; border:1px solid rgba(255,255,255,0.08);">
-        <p style="font-size:0.9rem; color:#AAB2C0; font-family:'Manrope',sans-serif;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8" target="_blank" style="color:#B5FF47; text-decoration:none;">открыть чат</a></p>
+        <p style="font-size:0.9rem; color:#AAB2C0; font-family:'Manrope',sans-serif;">Если у вас возникли вопросы, напишите мне в личный чат MAX: <a href="{personal_chat}" target="_blank" style="color:#B5FF47; text-decoration:none;">открыть чат</a></p>
     </div>
 </div>
 '''
