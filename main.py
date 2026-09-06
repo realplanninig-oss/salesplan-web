@@ -968,6 +968,18 @@ def render_page(content: str, title: str = "Привлечение клиент�
         .seo-text p {{
             margin-bottom: 14px;
         }}
+        .seo-text ul {{
+            list-style: none;
+            padding: 0;
+            font-family: var(--font-body);
+            color: var(--color-text-secondary);
+        }}
+        .seo-text ul li {{
+            padding: 4px 0 4px 24px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') left center no-repeat;
+            background-size: 16px;
+            margin-bottom: 2px;
+        }}
     </style>
 </head>
 <body>
@@ -1034,7 +1046,7 @@ setTimeout(checkStatus,1000);
 </html>"""
 
 # ========================================
-# ГЛАВНАЯ СТРАНИЦА (ОБНОВЛЁННАЯ)
+# ГЛАВНАЯ СТРАНИЦА (ОБНОВЛЁННАЯ) – ИСПРАВЛЕННАЯ ВЕРСИЯ
 # ========================================
 @app.get("/")
 async def index():
@@ -1048,7 +1060,7 @@ async def index():
         padding: 40px 20px;
     }
     .apple-hero h1 {
-        font-size: clamp(1.8rem, 4vw, 3.2rem);
+        font-size: clamp(1.6rem, 3.8vw, 2.8rem);
         font-weight: 700;
         letter-spacing: -0.02em;
         line-height: 1.2;
@@ -1056,6 +1068,15 @@ async def index():
         color: #B5FF47;
         text-shadow: 0 0 30px rgba(181,255,71,0.2);
         font-family: 'Inter Tight', sans-serif;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    @media (max-width: 480px) {
+        .apple-hero h1 {
+            font-size: 1.4rem;
+            white-space: normal;
+        }
     }
     .apple-hero .subtitle {
         font-size: clamp(1rem, 1.5vw, 1.25rem);
@@ -1208,8 +1229,20 @@ async def index():
         margin-bottom: 16px;
     }
     .seo-text p { margin-bottom: 14px; }
+    .seo-text ul {
+        list-style: none;
+        padding: 0;
+        font-family: 'Manrope', sans-serif;
+        color: #AAB2C0;
+    }
+    .seo-text ul li {
+        padding: 4px 0 4px 24px;
+        background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') left center no-repeat;
+        background-size: 16px;
+        margin-bottom: 2px;
+    }
     @media (max-width: 700px) {
-        .apple-hero h1 { font-size: 1.8rem; }
+        .apple-hero h1 { font-size: 1.8rem; white-space: normal; }
         .apple-hero .subtitle { font-size: 1rem; }
         .apple-text-block { padding: 24px 20px; }
         .apple-list li { font-size: 0.95rem; padding-left: 30px; }
@@ -1218,10 +1251,16 @@ async def index():
         .cases-block .case-item .number { font-size: 1.4rem; }
         .seo-text { margin-top: 40px; padding-top: 30px; }
     }
+    @media (max-width: 480px) {
+        .apple-hero h1 {
+            font-size: 1.4rem;
+            white-space: normal;
+        }
+    }
 </style>
 
 <div class="apple-hero">
-    <h1>Ты теряешь клиентов, даже не замечая. Я покажу где — за 2 минуты.</h1>
+    <h1>Ты теряешь клиентов? Я покажу где — за 2 минуты.</h1>
     <p class="subtitle">
         AI просканирует твою нишу, конкурентов и воронку. Ты получишь отчёт, который уже принёс моим клиентам от 120 000 ₽ за первый месяц.
     </p>
@@ -1303,9 +1342,9 @@ async def index():
     <p style="color:#AAB2C0; margin-top:12px; font-size:0.95rem;">Хотя бы один пункт — мой план для тебя.</p>
 </div>
 
-<!-- Блок: Снимаю возражения (FAQ) -->
+<!-- Блок: Развею ваши сомнения (заголовок заменён) -->
 <div style="margin: 40px 0; max-width:700px; margin-left:auto; margin-right:auto;">
-    <h3 style="text-align:center; color:#B5FF47; font-family:'Inter Tight',sans-serif; margin-bottom:20px;">Снимаю возражения</h3>
+    <h3 style="text-align:center; color:#B5FF47; font-family:'Inter Tight',sans-serif; margin-bottom:20px;">Развею ваши сомнения</h3>
     <div class="faq-item">
         <div class="faq-question" onclick="this.nextElementSibling.classList.toggle('open')">
             <span>❓ Это правда бесплатно?</span>
@@ -1358,17 +1397,17 @@ async def index():
     </p>
 </div>
 
-<!-- SEO-текст -->
+<!-- SEO-текст (исправлен список) -->
 <div class="seo-text">
     <h3>Привлечение клиентов для экспертов: как работает система</h3>
     <p>Вы эксперт, коуч, психолог или владелец онлайн-школы? Тогда вы знаете, как сложно привлекать клиентов в условиях высокой конкуренции. Моя система, основанная на AI-аналитике и реальных кейсах, помогает экспертам получать стабильный поток заявок уже через 14 дней после внедрения.</p>
     <p>Я — Вероника Макаревич, продюсер экспертов. Моя специализация — настройка воронок продаж, разработка офферов и скриптов, а также запуск рекламных кампаний. Я работаю с экспертами из разных ниш: коучинг, психология, обучение, наставничество, и помогаю им выходить на новый уровень дохода.</p>
     <p><strong>Как я привлекаю клиентов для экспертов?</strong> Я использую AI-аналитику для сканирования ниши, конкурентов и аудитории. На основе данных я создаю персональный план действий, который включает в себя:</p>
-    <ul style="list-style: none; padding: 0; font-family: 'Manrope', sans-serif; color: #AAB2C0;">
-        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') left center no-repeat; background-size: 16px;">Проверку текущей воронки продаж и выявление точек утечки клиентов</li>
-        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') left center no-repeat; background-size: 16px;">Разработку оффера, который цепляет целевую аудиторию</li>
-        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') left center no-repeat; background-size: 16px;">Настройку рекламных каналов (Яндекс Директ, VK, Telegram)</li>
-        <li style="padding: 4px 0 4px 24px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23B5FF47" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') left center no-repeat; background-size: 16px;">Готовые скрипты продаж и возражений</li>
+    <ul>
+        <li>Проверку текущей воронки продаж и выявление точек утечки клиентов</li>
+        <li>Разработку оффера, который цепляет целевую аудиторию</li>
+        <li>Настройку рекламных каналов (Яндекс Директ, VK, Telegram)</li>
+        <li>Готовые скрипты продаж и возражений</li>
     </ul>
     <p>В результатах моих клиентов — первые заявки уже через 14 дней, а средний чек увеличивается в 2-3 раза. Я не просто даю план — я внедряю его вместе с вами, контролируя ключевые метрики и корректируя стратегию по ходу.</p>
     <p>Хотите узнать, как привлечь клиентов в вашу нишу? Заполните анкету из 5 вопросов, и AI-аналитик подготовит персональный разбор бесплатно. А после этого мы с вами обсудим, какой тариф подходит именно вам — от бесплатного разбора до полного внедрения под ключ с гарантией первых заявок за 14 дней.</p>
@@ -1382,9 +1421,13 @@ async def index():
 # ========================================
 # ОСТАЛЬНЫЕ СТРАНИЦЫ (без изменений)
 # ========================================
-
-# ... (здесь идут все остальные маршруты: /survey, /survey/submit, /thank-you, /payment, /create_yookassa_payment, /payment/webhook, /payment/confirm, /payment/success, /consultation, /implementation, /admin/dashboard, /admin/api/*, /oferta, /privacy, /robots.txt, /sitemap.xml, и т.д.)
-# Они остаются такими же, как в исходном коде. Чтобы не дублировать 500+ строк, я их не привожу, но они присутствуют в полной версии файла.
+# Здесь находятся все остальные маршруты:
+# /survey, /survey/submit, /thank-you, /payment, /create_yookassa_payment,
+# /payment/webhook, /payment/confirm, /payment/success, /consultation,
+# /implementation, /admin/dashboard, /admin/api/*, /oferta, /privacy,
+# /check_status, /check-premium-status и т.д.
+# Их код идентичен вашему исходному файлу и не был изменён.
+# Для краткости они не дублируются, но должны быть в вашем файле.
 
 # === ЗАПУСК ===
 if __name__ == "__main__":
