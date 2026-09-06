@@ -1941,7 +1941,6 @@ async def payment_success(user_id: str, amount: int = 2500):
         amount = payment_row[1]
         logger.info(f"Fixed amount from payment: {amount} for user {user_id}")
 
-    # ОБЪЯВЛЯЕМ personal_chat
     personal_chat = "https://max.ru/u/f9LHodD0cOJKjwAZrG-GC6z1VP02b4BrBEFVlrA1G9pu874eZzgdwHZnKV8"
 
     report = get_report(user_id, "premium")
@@ -1997,7 +1996,9 @@ async def payment_success(user_id: str, amount: int = 2500):
     </div>
 </div>
 '''
-    return HTMLResponse(content=render_page(content,
+
+    # ВАЖНО: используем html_content, а не content
+    return HTMLResponse(content=render_page(html_content,
         title="Оплата прошла успешно – начните привлечение клиентов",
         description="Ваш план готов. Начните привлекать клиентов уже сегодня. Гарантия результатов.",
         noindex=True
